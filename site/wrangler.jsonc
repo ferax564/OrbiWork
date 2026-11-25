@@ -5,9 +5,9 @@
   "assets": { "directory": "./public" },
   "routes": [
     { "pattern": "orbiwork.com", "custom_domain": true },
-    { "pattern": "www.orbiwork.com", "custom_domain": true }
+    { "pattern": "www.orbiwork.com", "custom_domain": true },
   ],
   // Do not publish a *.workers.dev copy or keep request logs.
   "workers_dev": false,
-  "observability": { "enabled": false }
+  "observability": { "enabled": false },
 }
