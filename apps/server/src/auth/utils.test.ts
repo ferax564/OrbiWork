@@ -1,28 +1,51 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  arrivesOverTrustedTransport,
   deriveAuthClientMetadata,
+  arrivesOverPrivateTransport,
   resolveSessionCookieName,
 } from "./utils.ts";
 
-describe("arrivesOverTrustedTransport", () => {
-  const from = (remoteAddress: string | undefined, headers: Record<string, string> = {}) =>
-    arrivesOverTrustedTransport({ headers, source: { socket: { remoteAddress } } } as never);
+describe("arrivesOverPrivateTransport", () => {
+  const address = (value: string) => ({ address: value }) as never;
+  const interfaces = {
+    en0: [address("192.168.1.2")],
+    // A carrier network uses the same IPv4 range as a tailnet.
+    wwan0: [address("100.64.0.7")],
+    utun4: [address("100.69.10.1"), address("fd7a:115c:a1e0::1")],
+  };
+  const from = (
+    remoteAddress: string | undefined,
+    localAddress = "192.168.1.2",
+    headers: Record<string, string> = {},
+  ) =>
+    arrivesOverPrivateTransport(
+      { headers, source: { socket: { remoteAddress, localAddress } } } as never,
+      interfaces,
+    );
 
-  it.each(["127.0.0.1", "::1", "::ffff:127.0.0.1", "100.101.102.103", "fd7a:115c:a1e0::1"])(
-    "trusts loopback and tailnet peer %s",
-    (address) => expect(from(address)).toBe(true),
+  it.each(["127.0.0.1", "::1", "::ffff:127.0.0.1", "fd7a:115c:a1e0::9"])(
+    "trusts loopback and Tailscale IPv6 peer %s",
+    (peer) => expect(from(peer)).toBe(true),
   );
+
+  it("trusts a carrier-range peer only on the Tailscale interface", () => {
+    expect(from("100.101.102.103", "::ffff:100.69.10.1")).toBe(true);
+    expect(from("100.101.102.103", "100.64.0.7")).toBe(false);
+    expect(from("100.101.102.103", "192.168.1.2")).toBe(false);
+  });
 
   it.each(["192.168.1.20", "10.0.0.5", "::ffff:192.168.1.20", "203.0.113.9", "fe80::1", undefined])(
     "does not trust peer %s",
-    (address) => expect(from(address)).toBe(false),
+    (peer) => expect(from(peer)).toBe(false),
   );
 
   it("ignores forwarding headers from a network peer", () => {
     expect(
-      from("192.168.1.20", { "x-forwarded-for": "127.0.0.1", "x-forwarded-proto": "https" }),
+      from("192.168.1.20", "192.168.1.2", {
+        "x-forwarded-for": "127.0.0.1",
+        "x-forwarded-proto": "https",
+      }),
     ).toBe(false);
   });
 });

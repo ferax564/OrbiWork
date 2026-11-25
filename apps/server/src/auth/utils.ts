@@ -7,6 +7,7 @@ import type * as HttpServerRequest from "effect/http/HttpServerRequest";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- Effect's Digest is effectful; the cookie name stays a plain function.
 import * as NodeCrypto from "node:crypto";
 import * as NodeNet from "node:net";
+import * as NodeOS from "node:os";
 import {
   isSharedAddressSpaceHost,
   isTailnetHost,
@@ -174,15 +175,27 @@ const isLoopbackIpAddress = (address: string): boolean =>
   (NodeNet.isIPv4(address) && address.startsWith("127.")) || address === "::1";
 
 /**
- * Whether the connection that carries `request` is already encrypted or never leaves this machine:
- * a loopback peer (the desktop app, an SSH forward, a local TLS proxy such as Tailscale Serve) or a
- * tailnet peer. The socket address decides; forwarding headers can be forged.
+ * Whether `request` came from this machine (desktop app, SSH forward, local TLS proxy) or a tailnet
+ * peer. Carriers also use 100.64.0.0/10, so such a peer counts only on the interface that holds a
+ * Tailscale IPv6 address. Socket addresses decide; forwarding headers can be forged.
  */
-export function arrivesOverTrustedTransport(request: HttpServerRequest.HttpServerRequest): boolean {
+export function arrivesOverPrivateTransport(
+  request: HttpServerRequest.HttpServerRequest,
+  interfaces: ReturnType<typeof NodeOS.networkInterfaces> = NodeOS.networkInterfaces(),
+): boolean {
   const peer = readRemoteAddressFromSource(request.source);
-  return (
-    peer !== undefined &&
-    (isLoopbackIpAddress(peer) || isSharedAddressSpaceHost(peer) || isTailnetHost(peer))
+  if (peer === undefined) return false;
+  if (isLoopbackIpAddress(peer) || isTailnetHost(peer)) return true;
+  if (!isSharedAddressSpaceHost(peer)) return false;
+  const arrivedOn = normalizeIpAddress(
+    (request.source as { readonly socket?: { readonly localAddress?: string } }).socket
+      ?.localAddress,
+  );
+  return Object.values(interfaces).some(
+    (addresses) =>
+      addresses !== undefined &&
+      addresses.some((entry) => entry.address === arrivedOn) &&
+      addresses.some((entry) => isTailnetHost(entry.address)),
   );
 }
 

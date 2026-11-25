@@ -39,7 +39,7 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 
 import * as EnvironmentAuth from "./EnvironmentAuth.ts";
 import * as SessionStore from "./SessionStore.ts";
-import { arrivesOverTrustedTransport, deriveAuthClientMetadata } from "./utils.ts";
+import { arrivesOverPrivateTransport, deriveAuthClientMetadata } from "./utils.ts";
 import { checkRequestDpopProof } from "./dpop.ts";
 import { requestUrl } from "../requestUrl.ts";
 import * as ServerConfig from "../config.ts";
@@ -289,7 +289,7 @@ export const layer = HttpApiBuilder.group(
     const { insecureHttpPairing } = yield* ServerConfig.ServerConfig;
     // A pairing code read off the wire is a full session, so it is only redeemed where the wire is private.
     const refusePlainHttpPairing = (request: HttpServerRequest.HttpServerRequest) =>
-      insecureHttpPairing || arrivesOverTrustedTransport(request)
+      insecureHttpPairing || arrivesOverPrivateTransport(request)
         ? Effect.void
         : failEnvironmentOperationForbidden("plain_http_pairing_refused");
 
