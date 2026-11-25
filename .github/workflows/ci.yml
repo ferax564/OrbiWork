@@ -50,7 +50,7 @@ jobs:
           # Two files at a time: with more, the browser on a hosted runner sometimes dies
           # mid-run and every file after it is skipped.
           - name: web browser
-            run: cd apps/web && DEBUG=pw:browser vp test run --project browser --maxWorkers=2
+            run: cd apps/web && DEBUG=vite:deps,vite:hmr,vite:config,vite:proxy,vite:ws vp test run --project browser --maxWorkers=2
           - name: desktop
             run: vp run --filter @orbiwork/desktop test
           - name: packages
