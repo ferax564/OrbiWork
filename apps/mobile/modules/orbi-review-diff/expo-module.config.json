@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["OrbiReviewDiffModule"],
+    "podspecPath": "OrbiReviewDiffNative.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.orbireviewdiff.OrbiReviewDiffModule"]
+  }
+}

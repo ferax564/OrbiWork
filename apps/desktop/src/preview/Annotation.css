@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--orbi-font-sans);
+  --font-mono: var(--orbi-font-mono);
+  --color-background: var(--orbi-background);
+  --color-foreground: var(--orbi-foreground);
+  --color-popover: var(--orbi-popover);
+  --color-popover-foreground: var(--orbi-popover-foreground);
+  --color-primary: var(--orbi-primary);
+  --color-primary-foreground: var(--orbi-primary-foreground);
+  --color-muted: var(--orbi-muted);
+  --color-muted-foreground: var(--orbi-muted-foreground);
+  --color-accent: var(--orbi-accent);
+  --color-accent-foreground: var(--orbi-accent-foreground);
+  --color-border: var(--orbi-border);
+  --color-input: var(--orbi-input);
+  --color-ring: var(--orbi-ring);
+  --radius-sm: calc(var(--orbi-radius) - 4px);
+  --radius-md: calc(var(--orbi-radius) - 2px);
+  --radius-lg: var(--orbi-radius);
+  --radius-xl: calc(var(--orbi-radius) + 4px);
+  --radius-2xl: calc(var(--orbi-radius) + 8px);
+}
+
+:host {
+  --orbi-font-sans:
+    "DM Sans Variable", "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  --orbi-font-mono:
+    "SF Mono", "SFMono-Regular", "JetBrains Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --orbi-radius: 0.625rem;
+  --orbi-background: white;
+  --orbi-foreground: oklch(0.269 0 0);
+  --orbi-popover: white;
+  --orbi-popover-foreground: oklch(0.269 0 0);
+  --orbi-primary: oklch(0.488 0.217 264);
+  --orbi-primary-foreground: white;
+  --orbi-destructive: oklch(0.577 0.245 27.325);
+  --orbi-muted: rgb(0 0 0 / 4%);
+  --orbi-muted-foreground: oklch(0.556 0 0);
+  --orbi-accent: rgb(0 0 0 / 4%);
+  --orbi-accent-foreground: oklch(0.269 0 0);
+  --orbi-border: rgb(0 0 0 / 8%);
+  --orbi-input: rgb(0 0 0 / 10%);
+  --orbi-ring: oklch(0.488 0.217 264);
+  color: var(--orbi-foreground);
+  font-family: var(--orbi-font-sans);
+}
+
+* {
+  box-sizing: border-box;
+  border-color: var(--orbi-border);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--orbi-ring) 72%, transparent);
+  outline-offset: -2px;
+}
+
+/* Utility display classes must not override the native hidden state. */
+[hidden] {
+  display: none !important;
+}

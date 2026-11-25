@@ -1,0 +1,9 @@
+{
+  "name": "@orbiwork/mobile-highlights-native",
+  "version": "0.0.0",
+  "private": true,
+  "types": "./src/OrbiHighlights.nitro.ts",
+  "peerDependencies": {
+    "react-native-nitro-modules": "*"
+  }
+}

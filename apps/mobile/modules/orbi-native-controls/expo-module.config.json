@@ -1,0 +1,20 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["OrbiNativeControlsModule", "OrbiKeyboardCommandsModule"],
+    "appDelegateSubscribers": [
+      "OrbiWorkspaceOrientationSubscriber",
+      "OrbiMenuDismissTouchGateSubscriber",
+      "OrbiBackgroundGraceSubscriber"
+    ]
+  },
+  "android": {
+    "modules": [
+      "expo.modules.orbinativecontrols.OrbiNativeControlsModule",
+      "expo.modules.orbinativecontrols.OrbiWorkspaceNavigationModule",
+      "expo.modules.orbinativecontrols.OrbiKeyboardCommandsModule",
+      "expo.modules.orbinativecontrols.OrbiFoldPostureModule",
+      "expo.modules.orbinativecontrols.OrbiSecretInputModule"
+    ]
+  }
+}

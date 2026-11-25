@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["OrbiPreviewTunnelModule"] },
+  "android": { "modules": ["expo.modules.orbipreviewtunnel.OrbiPreviewTunnelModule"] }
+}

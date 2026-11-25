@@ -1,0 +1,20 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": ["orbihighlights"],
+  "ios": {
+    "iosModuleName": "OrbiHighlightsNative"
+  },
+  "android": {
+    "androidNamespace": ["orbihighlights"],
+    "androidCxxLibName": "orbihighlights"
+  },
+  "autolinking": {
+    "OrbiHighlights": {
+      "all": {
+        "language": "c++",
+        "implementationClassName": "HybridOrbiHighlights"
+      }
+    }
+  },
+  "ignorePaths": ["node_modules", "Vendor"]
+}

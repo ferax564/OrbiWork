@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OrbiWork: your coding agents, on your machine</title>
+    <meta
+      name="description"
+      content="OrbiWork is a minimal, local-first console for Claude Code and Codex. Analytics, remote configuration and update checks are off by default."
+    />
+    <meta name="color-scheme" content="dark light" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%237c9cff' stroke-width='3'/%3E%3Ccircle cx='24' cy='9' r='4' fill='%237c9cff'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        --bg: #0b0d12;
+        --fg: #e8eaf0;
+        --muted: #9aa3b5;
+        --line: #232836;
+        --accent: #7c9cff;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #fbfbfd;
+          --fg: #14161c;
+          --muted: #566074;
+          --line: #e2e5ec;
+          --accent: #2f55d4;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          17px/1.6 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 5rem;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .brand svg {
+        width: 1.75rem;
+        height: 1.75rem;
+        color: var(--accent);
+      }
+      h1 {
+        margin: 3rem 0 1rem;
+        font-size: clamp(2rem, 6vw, 3.1rem);
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+      }
+      .lede {
+        margin: 0 0 2rem;
+        font-size: 1.2rem;
+        color: var(--muted);
+      }
+      a {
+        color: var(--accent);
+      }
+      .cta {
+        display: inline-block;
+        padding: 0.7rem 1.1rem;
+        border-radius: 0.6rem;
+        background: var(--accent);
+        color: var(--bg);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .cta:focus-visible,
+      a:focus-visible {
+        outline: 2px solid var(--fg);
+        outline-offset: 3px;
+      }
+      h2 {
+        margin: 3.5rem 0 0.5rem;
+        font-size: 1.15rem;
+      }
+      ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      li {
+        padding: 1rem 0;
+        border-top: 1px solid var(--line);
+      }
+      li strong {
+        display: block;
+      }
+      li span,
+      p {
+        color: var(--muted);
+      }
+      pre {
+        overflow-x: auto;
+        padding: 1rem;
+        border: 1px solid var(--line);
+        border-radius: 0.6rem;
+        font:
+          0.9rem/1.5 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      footer {
+        margin-top: 4rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--line);
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="3" />
+          <circle cx="24" cy="9" r="4" fill="currentColor" />
+        </svg>
+        OrbiWork
+      </div>
+
+      <h1>Your coding agents, on your machine. Nothing phones home.</h1>
+      <p class="lede">
+        OrbiWork is a minimal console for the coding agents you already use, such as Claude Code and
+        Codex. Threads, approvals, a terminal, diffs and git worktrees in one fast interface.
+      </p>
+      <a class="cta" href="https://github.com/ferax564/OrbiWork">Get the source on GitHub</a>
+
+      <h2>What privacy-first means here</h2>
+      <ul>
+        <li>
+          <strong>Off by default</strong>
+          <span>
+            Analytics, remote configuration and update checks do not run unless you turn them on. A
+            few remaining lookups are listed in the roadmap and are being removed.
+          </span>
+        </li>
+        <li>
+          <strong>No account, no hosted relay</strong>
+          <span>
+            Reach your machine over your own network, Tailscale or SSH. No third party sits in the
+            path.
+          </span>
+        </li>
+        <li>
+          <strong>Your subscriptions</strong>
+          <span>OrbiWork resells nothing. It drives the agents you are already signed in to.</span>
+        </li>
+        <li>
+          <strong>Open source</strong>
+          <span>MIT licensed. Read it, build it, change it.</span>
+        </li>
+      </ul>
+
+      <h2>Status</h2>
+      <p>
+        Early. There are no installers, store apps or hosted services yet. You build it from source
+        with Node 26 and pnpm:
+      </p>
+      <pre>
+git clone https://github.com/ferax564/OrbiWork
+cd OrbiWork
+pnpm install
+pnpm dev</pre>
+
+      <footer>
+        This page loads no scripts, fonts, trackers or cookies.
+        <a href="https://github.com/ferax564/OrbiWork/blob/main/ROADMAP.md">Roadmap</a>
+      </footer>
+    </main>
+  </body>
+</html>

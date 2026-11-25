@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["OrbiVoiceTranscriptionModule"],
+    "podspecPath": "ios/OrbiVoiceTranscription.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.orbivoicetranscription.OrbiVoiceTranscriptionModule"]
+  }
+}

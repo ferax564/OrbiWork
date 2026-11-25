@@ -1,0 +1,17 @@
+{
+  "name": "@orbiwork/mobile-terminal-native",
+  "version": "0.0.0",
+  "private": true,
+  "expo-module": {
+    "ios": {
+      "modules": [
+        "OrbiTerminalModule"
+      ]
+    },
+    "android": {
+      "modules": [
+        "expo.modules.orbiterminal.OrbiTerminalModule"
+      ]
+    }
+  }
+}

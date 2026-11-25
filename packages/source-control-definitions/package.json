@@ -1,0 +1,25 @@
+{
+  "name": "@orbiwork/source-control-definitions",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./registry": {
+      "types": "./src/registry.ts",
+      "import": "./src/registry.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "effect-tsgo tsrs --noEmit"
+  },
+  "dependencies": {
+    "@orbiwork/source-control-azure-devops": "workspace:*",
+    "@orbiwork/source-control-bitbucket": "workspace:*",
+    "@orbiwork/source-control-core": "workspace:*",
+    "@orbiwork/source-control-cursor-origin": "workspace:*",
+    "@orbiwork/source-control-forgejo": "workspace:*",
+    "@orbiwork/source-control-gitcafe": "workspace:*",
+    "@orbiwork/source-control-github": "workspace:*",
+    "@orbiwork/source-control-gitlab": "workspace:*",
+    "@orbiwork/source-control-tanstack-source": "workspace:*"
+  }
+}

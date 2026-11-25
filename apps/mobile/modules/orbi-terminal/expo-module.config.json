@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["OrbiTerminalModule"],
+    "podspecPath": "OrbiTerminalNative.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.orbiterminal.OrbiTerminalModule"]
+  }
+}
