@@ -695,7 +695,7 @@ it.live("an app approval code approves only an app sign-in, at its own level", (
       const issued = yield* auth.issuePairingCredential({ access: "approval-required" });
       expect(issued.access).toBe("approval-required");
       const code = issued.credential;
-      expect(code).toMatch(/^SUPERVISED-[2-9A-HJ-NP-Z]{12}$/);
+      expect(code).toMatch(/^SUPERVISED-[2-9A-HJ-NP-Z]{16}$/);
 
       // Signing in a browser, a token exchange and linking all refuse it and leave it unspent.
       const browser = yield* handler(

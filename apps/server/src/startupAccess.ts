@@ -7,6 +7,7 @@ import {
   formatHostForUrl,
   isPrivateNetworkHost,
   isSharedAddressSpaceHost,
+  isTailnetHost,
   isWildcardHost,
 } from "@orbiwork/shared/hostClassification";
 import * as HostProcess from "@orbiwork/shared/HostProcess";
@@ -249,6 +250,18 @@ export const renderTerminalQrCode = (value: string, margin = 2): string => {
   return rows.join("\n");
 };
 
+/** A blank line and a warning when `url` is plain HTTP that the network does not already encrypt. */
+export const plainHttpWarningLines = (url: string): ReadonlyArray<string> => {
+  const { protocol, hostname } = new URL(url);
+  return protocol !== "http:" || isLoopbackHost(hostname) || isTailnetHost(hostname)
+    ? []
+    : [
+        "",
+        "Warning: this address uses plain HTTP. Anyone on the same network can read the",
+        "token and control this machine. Use it over a VPN or tailnet you trust.",
+      ];
+};
+
 export const formatHeadlessServeOutput = (accessInfo: HeadlessServeAccessInfo): string =>
   [
     "OrbiWork server is ready.",
@@ -256,13 +269,7 @@ export const formatHeadlessServeOutput = (accessInfo: HeadlessServeAccessInfo): 
     `Token: ${accessInfo.token}`,
     `Pairing URL: ${accessInfo.pairingUrl}`,
     `App link: ${buildPairingAppLink(accessInfo.pairingUrl)}`,
-    ...(isLoopbackHost(new URL(accessInfo.connectionString).hostname)
-      ? []
-      : [
-          "",
-          "Warning: this address uses plain HTTP. Anyone on the same network can read the",
-          "token and control this machine. Use it over a VPN or tailnet you trust.",
-        ]),
+    ...plainHttpWarningLines(accessInfo.connectionString),
     "",
     renderTerminalQrCode(accessInfo.pairingUrl),
     "",

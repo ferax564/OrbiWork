@@ -53,7 +53,10 @@ session, traffic is readable at the tunnel edge, and tunnel routes are set remot
   them with the hosted code.
 - Keep SSH and Tailscale. Harden SSH: pass the password over a file descriptor, scope the askpass
   helper to password prompts, verify release signatures rather than same-origin checksums.
-- Pairing: longer approval codes, no unbound ticket fallback, no plain-HTTP LAN pairing.
+- Done: pairing codes are 80 bits, links last at most 24 hours, and a key-bound session cannot
+  get an unbound socket ticket. `orbi pair` warns on plain-HTTP LAN addresses.
+- Open: refuse plain-HTTP pairing outside loopback and Tailscale unless a flag is set; limit
+  wrong-code attempts; bind media tickets.
 
 ## Phase 3: cut breadth
 

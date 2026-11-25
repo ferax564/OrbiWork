@@ -11,6 +11,7 @@ import * as NetService from "@orbiwork/shared/Net";
 import * as HostProcess from "@orbiwork/shared/HostProcess";
 import { assert, describe, expect, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
+import * as DateTime from "effect/DateTime";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -40,6 +41,7 @@ import {
 import { resolveHostCliCommand } from "./invocation.ts";
 import {
   DevServerNotProxiableError,
+  formatPairOutput,
   resolveTailscaleLocalTarget,
   ServePortOccupiedError,
   TailscaleServeTargetRefusedError,
@@ -57,6 +59,32 @@ const baseState = {
   origin: "http://127.0.0.1:3773",
   startedAt: "2026-06-20T00:00:00.000Z",
 } as const satisfies PersistedServerRuntimeState;
+
+describe("pair output", () => {
+  const output = (pairingUrl: string) =>
+    formatPairOutput({
+      serverLabel: "host",
+      origin: new URL(pairingUrl).origin,
+      pairingUrl,
+      token: "TOKEN",
+      expiresAt: DateTime.makeUnsafe("2026-06-20T00:05:00.000Z"),
+      notes: [],
+    });
+
+  it("warns when the pairing URL is plain HTTP on a network address", () => {
+    expect(output("http://192.168.1.50:3773/pair#token=TOKEN")).toContain(
+      "Warning: this address uses plain HTTP.",
+    );
+  });
+
+  it.each([
+    "http://127.0.0.1:3773/pair#token=TOKEN",
+    "http://machine.tail1234.ts.net:3773/pair#token=TOKEN",
+    "https://192.168.1.50/pair#token=TOKEN",
+  ])("does not warn for %s", (pairingUrl) => {
+    expect(output(pairingUrl)).not.toContain("plain HTTP");
+  });
+});
 
 describe("pair tailscale local target", () => {
   it("proxies the dev web port for dev servers", () => {
@@ -307,6 +335,17 @@ describe("orbi pair", () => {
         assert.include(output, `Pairing URL: ${origin}/pair#token=`);
         assert.isTrue(output.includes("█") || output.includes("▀") || output.includes("▄"));
         assert.include(output, "only reachable from this machine");
+        assert.notInclude(output, "plain HTTP");
+
+        const tooLong = yield* Effect.exit(
+          captureStdout(runCli(["pair", "--base-dir", baseDir, "--ttl", "25h"])),
+        );
+        assert.isTrue(Exit.isFailure(tooLong));
+        if (Exit.isFailure(tooLong)) {
+          const error = Cause.squash(tooLong.cause);
+          assert.instanceOf(error, CliError.UserError);
+          assert.include(String((error as CliError.UserError).userMessage), "at most 24 hours");
+        }
 
         const token = /#token=([A-Z2-9]+)/.exec(output)?.[1];
         assert.isString(token);

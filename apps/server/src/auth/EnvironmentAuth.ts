@@ -89,6 +89,7 @@ const PEER_LINK_RENEWAL_STEP = Duration.days(1);
 // A device pairing with its DPoP key renews the session itself, so the token can be short and
 // the device stays signed in while used. One idle for the whole window pairs again.
 const RENEWABLE_ACCESS_TOKEN_TTL = Duration.hours(1);
+const MAX_PAIRING_LINK_TTL = Duration.hours(24);
 const RENEWABLE_SESSION_WINDOW = Duration.days(30);
 const PAIRING_LINK_SUBJECT = "one-time-token";
 
@@ -377,6 +378,15 @@ export class ServerAuthForbiddenOperationError extends Schema.TaggedError<Server
   }
 }
 
+export class ServerAuthPairingLinkTtlTooLongError extends Schema.TaggedError<ServerAuthPairingLinkTtlTooLongError>()(
+  "ServerAuthPairingLinkTtlTooLongError",
+  {},
+) {
+  override get message(): string {
+    return "A pairing link can last at most 24 hours. Choose a shorter TTL.";
+  }
+}
+
 export class EnvironmentAuth extends Context.Service<
   EnvironmentAuth,
   {
@@ -426,7 +436,9 @@ export class EnvironmentAuth extends Context.Service<
       readonly mcpApproval?: AuthMcpClientAccess;
     }) => Effect.Effect<
       IssuedPairingLink,
-      ServerAuthInternalError | ManagedLimits.ManagedPolicyRefusedError
+      | ServerAuthInternalError
+      | ManagedLimits.ManagedPolicyRefusedError
+      | ServerAuthPairingLinkTtlTooLongError
     >;
     readonly issuePairingCredential: (
       input?: AuthCreatePairingCredentialInput,
@@ -1063,17 +1075,26 @@ export const make = Effect.gen(function* () {
     Effect.mapError((cause) => new ServerAuthPairingLinkCreationError({ cause })),
   );
 
+  const createPairingLinkWithinPolicy = Effect.fn("EnvironmentAuth.createPairingLinkWithinPolicy")(
+    function* (input: Parameters<EnvironmentAuth["Service"]["createPairingLink"]>[0]) {
+      // The startup link is for a browser on this machine; every other link lets a device pair.
+      if (input?.purpose !== "startup" && !ManagedLimits.allowsRemoteClients(managedPolicy)) {
+        return yield* ManagedLimits.refuseRemoteClients(
+          managedPolicy,
+          "so this server cannot create pairing links",
+        );
+      }
+      return yield* issuePairingLink(input);
+    },
+  );
+
   const createPairingLink: EnvironmentAuth["Service"]["createPairingLink"] = Effect.fn(
     "EnvironmentAuth.createPairingLink",
   )(function* (input) {
-    // The startup link is for a browser on this machine; every other link lets a device pair.
-    if (input?.purpose !== "startup" && !ManagedLimits.allowsRemoteClients(managedPolicy)) {
-      return yield* ManagedLimits.refuseRemoteClients(
-        managedPolicy,
-        "so this server cannot create pairing links",
-      );
+    if (input?.ttl !== undefined && Duration.isGreaterThan(input.ttl, MAX_PAIRING_LINK_TTL)) {
+      return yield* new ServerAuthPairingLinkTtlTooLongError({});
     }
-    return yield* issuePairingLink(input);
+    return yield* createPairingLinkWithinPolicy(input);
   });
 
   const listPairingLinks: EnvironmentAuth["Service"]["listPairingLinks"] = (input) =>
@@ -1152,7 +1173,7 @@ export const make = Effect.gen(function* () {
     );
 
   const issuePairingCredential: EnvironmentAuth["Service"]["issuePairingCredential"] = (input) =>
-    createPairingLink({
+    createPairingLinkWithinPolicy({
       scopes: input?.access
         ? mcpClientScopes(input.access)
         : (input?.scopes ?? AuthStandardClientScopes),
@@ -1282,9 +1303,10 @@ export const make = Effect.gen(function* () {
       Effect.withSpan("EnvironmentAuth.issueStartupPairingUrl"),
     );
 
-  // Only the RPC socket's ticket is bound to the client's proof key. The media
-  // routes reuse one ticket across <img>, EventSource and several sockets, and
-  // each of those would need its own single-use proof.
+  // Every ticket but a media one carries the session's proof key, including the
+  // audience-less kind, which also opens the RPC socket. The media routes reuse
+  // one ticket across <img>, EventSource and several sockets, and each of those
+  // would need its own single-use proof.
   const issueWebSocketTicket: EnvironmentAuth["Service"]["issueWebSocketTicket"] = (
     session,
     input,
@@ -1292,7 +1314,7 @@ export const make = Effect.gen(function* () {
     sessions
       .issueWebSocketToken(session.sessionId, {
         ...(input?.use ? { audience: input.use } : {}),
-        ...(input?.use === "rpc" && session.proofKeyThumbprint
+        ...(input?.use !== "media" && session.proofKeyThumbprint
           ? { proofKeyThumbprint: session.proofKeyThumbprint }
           : {}),
       })

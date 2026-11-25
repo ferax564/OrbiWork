@@ -5,6 +5,7 @@ import {
   type AuthPairingLink,
   mcpApprovalCode,
   PAIRING_CODE_ALPHABET,
+  PAIRING_CODE_BODY_PATTERN,
   PAIRING_CODE_LENGTH,
   parseMcpApprovalCode,
   type ServerAuthBootstrapMethod,
@@ -288,10 +289,7 @@ const DEV_STARTUP_TTL_HOURS = Duration.hours(24);
 const PAIRING_TOKEN_REJECTION_LIMIT =
   Math.floor(256 / PAIRING_CODE_ALPHABET.length) * PAIRING_CODE_ALPHABET.length;
 
-const PAIRING_TOKEN_PATTERN = new RegExp(
-  `^[${PAIRING_CODE_ALPHABET}]{${PAIRING_CODE_LENGTH}}$`,
-  "i",
-);
+const PAIRING_TOKEN_PATTERN = new RegExp(`^${PAIRING_CODE_BODY_PATTERN}$`, "i");
 
 const make = Effect.gen(function* () {
   const random = yield* SecureRandom.SecureRandom;
@@ -568,7 +566,7 @@ const make = Effect.gen(function* () {
       }
 
       // Only credentials in the issued pairing-code formats are case-insensitive.
-      // People type codes in groups such as XXXX-XXXX-XXXX.
+      // People type codes in groups such as XXXX-XXXX-XXXX-XXXX.
       const compactCredential = credential.replace(/[\s-]/g, "");
       const pairingCredential = PAIRING_TOKEN_PATTERN.test(compactCredential)
         ? compactCredential.toUpperCase()

@@ -147,7 +147,13 @@ const makeIssuer = Effect.gen(function* () {
         ttl: CLIENT_PAIRING_TTL,
         label: `${clientLabel} · via ${via}`,
       })
-      .pipe(Effect.catchTags({ ManagedPolicyRefusedError: refusedByPolicy }));
+      .pipe(
+        Effect.catchTags({
+          ManagedPolicyRefusedError: refusedByPolicy,
+          // CLIENT_PAIRING_TTL is a constant under the pairing link cap.
+          ServerAuthPairingLinkTtlTooLongError: Effect.die,
+        }),
+      );
     return { credential: issued.credential, expiresAt: issued.expiresAt };
   });
 

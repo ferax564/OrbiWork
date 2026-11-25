@@ -3,6 +3,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { AuthStandardClientScopes, authScopeResponse } from "@orbiwork/contracts";
 import { expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
@@ -674,6 +675,25 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
       ),
     );
 
+    it.effect("refuses pairing links that would last more than 24 hours", () =>
+      Effect.gen(function* () {
+        const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
+        const atCap = yield* serverAuth.createPairingLink({ ttl: Duration.hours(24) });
+        expect(atCap.expiresAt.epochMilliseconds - atCap.createdAt.epochMilliseconds).toBe(
+          Duration.toMillis(Duration.hours(24)),
+        );
+
+        const tooLong = yield* Effect.flip(
+          serverAuth.createPairingLink({
+            ttl: Duration.sum(Duration.hours(24), Duration.seconds(1)),
+          }),
+        );
+        expect(tooLong._tag).toBe("ServerAuthPairingLinkTtlTooLongError");
+        expect(tooLong.message).toContain("at most 24 hours");
+        expect(yield* serverAuth.listPairingLinks()).toHaveLength(1);
+      }).pipe(Effect.provide(layerEnvironmentAuth())),
+    );
+
     it.effect("issues startup pairing URLs that bootstrap administrative sessions", () =>
       Effect.gen(function* () {
         const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
@@ -987,11 +1007,30 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         const mediaOnRpc = yield* Effect.flip(upgrade(Redacted.value(media.ticket), "rpc"));
         expect(mediaOnRpc._tag).toBe("ServerAuthInvalidCredentialError");
 
-        // Clients that predate ticket binding still connect with the unbound ticket they mint.
+        // A ticket from the audience-less route is bound too, so it cannot open the RPC socket
+        // without the session's proof.
         const legacy = yield* serverAuth.issueWebSocketTicket(session);
-        expect((yield* upgrade(Redacted.value(legacy.ticket), "rpc")).sessionId).toBe(
-          session.sessionId,
+        const legacyBare = yield* Effect.flip(upgrade(Redacted.value(legacy.ticket), "rpc"));
+        expect(legacyBare._tag).toBe("ServerAuthInvalidCredentialError");
+        const legacyWrongKey = yield* Effect.flip(
+          upgrade(
+            Redacted.value(legacy.ticket),
+            "rpc",
+            other.sign({
+              method: "GET",
+              url: socketUrl,
+              token: Redacted.value(legacy.ticket),
+              iat,
+            }),
+          ),
         );
+        expect(legacyWrongKey._tag).toBe("ServerAuthInvalidCredentialError");
+        const legacySigned = yield* upgrade(
+          Redacted.value(legacy.ticket),
+          "rpc",
+          key.sign({ method: "GET", url: socketUrl, token: Redacted.value(legacy.ticket), iat }),
+        );
+        expect(legacySigned.sessionId).toBe(session.sessionId);
       }).pipe(
         Effect.provide(layerEnvironmentAuth({ desktopBootstrapToken: "desktop-bootstrap-token" })),
       ),

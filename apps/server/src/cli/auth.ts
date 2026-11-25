@@ -11,6 +11,7 @@ import * as Option from "effect/Option";
 import * as References from "effect/References";
 import * as Schema from "effect/Schema";
 import { Argument, Command, Flag, GlobalFlag } from "effect/cli";
+import * as CliError from "effect/cli/CliError";
 
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
 
@@ -113,12 +114,19 @@ const pairingCreateCommand = Command.make("create", {
       flags,
       (environmentAuth) =>
         Effect.gen(function* () {
-          const issued = yield* environmentAuth.createPairingLink({
-            scopes: flags.scopes,
-            subject: "one-time-token",
-            ...(Option.isSome(flags.ttl) ? { ttl: flags.ttl.value } : {}),
-            ...(Option.isSome(flags.label) ? { label: flags.label.value } : {}),
-          });
+          const issued = yield* environmentAuth
+            .createPairingLink({
+              scopes: flags.scopes,
+              subject: "one-time-token",
+              ...(Option.isSome(flags.ttl) ? { ttl: flags.ttl.value } : {}),
+              ...(Option.isSome(flags.label) ? { label: flags.label.value } : {}),
+            })
+            .pipe(
+              Effect.catchTags({
+                ServerAuthPairingLinkTtlTooLongError: (error) =>
+                  Effect.fail(new CliError.UserError({ cause: error, userMessage: error.message })),
+              }),
+            );
           const output = formatIssuedPairingCredential(issued, {
             json: flags.json,
             ...(Option.isSome(flags.baseUrl) ? { baseUrl: flags.baseUrl.value.href } : {}),

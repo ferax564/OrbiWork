@@ -28,6 +28,7 @@ import * as Option from "effect/Option";
 import * as References from "effect/References";
 import * as Schema from "effect/Schema";
 import { Command, Flag, GlobalFlag } from "effect/cli";
+import * as CliError from "effect/cli/CliError";
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
@@ -43,6 +44,7 @@ import {
 import {
   buildPairingUrl,
   isLoopbackHost,
+  plainHttpWarningLines,
   renderTerminalQrCode,
   resolveHeadlessConnectionString,
 } from "../startupAccess.ts";
@@ -210,7 +212,7 @@ export const resolveTailscaleLocalTarget = (
   return { localPort: state.port };
 };
 
-const formatPairOutput = (input: {
+export const formatPairOutput = (input: {
   readonly serverLabel: string;
   readonly origin: string;
   readonly pairingUrl: string;
@@ -227,6 +229,7 @@ const formatPairOutput = (input: {
     `App link: ${buildPairingAppLink(input.pairingUrl)}`,
     `Token: ${input.token}`,
     `Expires: ${DateTime.formatIso(input.expiresAt)}`,
+    ...plainHttpWarningLines(input.pairingUrl),
     ...input.notes.flatMap((note) => ["", `Note: ${note}`]),
     "",
   ].join("\n");
@@ -484,12 +487,19 @@ const mintPairingLink = Effect.fn("pair.mintPairingLink")(function* (input: {
 }) {
   return yield* Effect.gen(function* () {
     const environmentAuth = yield* EnvironmentAuth.EnvironmentAuth;
-    return yield* environmentAuth.createPairingLink({
-      scopes: input.scopes,
-      subject: "one-time-token",
-      label: Option.getOrElse(input.label, () => "orbi pair"),
-      ...(Option.isSome(input.ttl) ? { ttl: input.ttl.value } : {}),
-    });
+    return yield* environmentAuth
+      .createPairingLink({
+        scopes: input.scopes,
+        subject: "one-time-token",
+        label: Option.getOrElse(input.label, () => "orbi pair"),
+        ...(Option.isSome(input.ttl) ? { ttl: input.ttl.value } : {}),
+      })
+      .pipe(
+        Effect.catchTags({
+          ServerAuthPairingLinkTtlTooLongError: (error) =>
+            Effect.fail(new CliError.UserError({ cause: error, userMessage: error.message })),
+        }),
+      );
   }).pipe(
     Effect.provide(
       EnvironmentAuth.layerRuntime.pipe(

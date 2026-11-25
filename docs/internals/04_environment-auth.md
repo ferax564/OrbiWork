@@ -23,8 +23,9 @@ The environment issues its own sessions and enforces their capabilities. See
   stay stable; CLI and desktop sessions never self-renew so revoking/unlinking cuts
   them off.
 - **WebSocket tickets and per-RPC authorization.** Bearer and DPoP clients mint short-lived tickets
-  over authenticated HTTP so long-lived tokens never appear in socket URLs. DPoP RPC tickets stay
-  proof-key bound at upgrade. A successful handshake grants no extra authority: every RPC declares
+  over authenticated HTTP so long-lived tokens never appear in socket URLs. A DPoP session's
+  tickets stay proof-key bound at upgrade, including audience-less ones, which can open the RPC
+  socket; only `media` tickets are unbound, since one is reused across several requests. A successful handshake grants no extra authority: every RPC declares
   and checks its required scope in [`RpcAuthorization.ts`](../../apps/server/src/auth/RpcAuthorization.ts).
 - **Secret references need `providers:manage`.** A request that names a secret for the server to
   read needs `providers:manage` on top of its method's scope, whether the reference is saved in

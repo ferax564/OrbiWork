@@ -3,6 +3,7 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
 import * as SecureRandom from "effect/crypto/SecureRandom";
+import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -15,6 +16,7 @@ import {
 } from "@orbiwork/shared/desktopBootstrapToken";
 
 import * as ServerConfig from "../config.ts";
+import * as AuthPairingLinks from "../persistence/AuthPairingLinks.ts";
 import { MCP_APPROVAL_SUBJECT_PREFIX } from "../persistence/AuthPairingLinks.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as PairingGrantStore from "./PairingGrantStore.ts";
@@ -84,6 +86,40 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("PairingGrantStor
 
       expect(consumed.method).toBe("one-time-token");
       expect(spaced.method).toBe("one-time-token");
+    }).pipe(Effect.provide(layerPairingGrantStore())),
+  );
+
+  it.effect("issues pairing codes with at least 64 bits of entropy", () =>
+    Effect.gen(function* () {
+      const bootstrapCredentials = yield* PairingGrantStore.PairingGrantStore;
+      const issued = yield* bootstrapCredentials.issueOneTimeToken();
+      const approval = yield* bootstrapCredentials.issueOneTimeToken({ mcpApproval: "auto" });
+
+      expect(issued.credential).toMatch(/^[2-9A-HJ-NP-Z]{16}$/);
+      expect(approval.credential).toMatch(/^AUTO-[2-9A-HJ-NP-Z]{16}$/);
+      expect(issued.credential.length * Math.log2(32)).toBeGreaterThanOrEqual(64);
+    }).pipe(Effect.provide(layerPairingGrantStore())),
+  );
+
+  it.effect("still accepts an unspent 12-character code typed in lowercase groups", () =>
+    Effect.gen(function* () {
+      const bootstrapCredentials = yield* PairingGrantStore.PairingGrantStore;
+      const links = yield* AuthPairingLinks.AuthPairingLinkRepository;
+      const now = yield* DateTime.now;
+      yield* links.create({
+        id: "legacy-link",
+        credential: "ABCDEFGHJKMN",
+        method: "one-time-token",
+        scopes: AuthStandardClientScopes,
+        subject: "one-time-token",
+        label: null,
+        proofKeyThumbprint: null,
+        createdAt: now,
+        expiresAt: DateTime.add(now, { minutes: 5 }),
+      });
+
+      const consumed = yield* bootstrapCredentials.consume("abcd-efgh-jkmn");
+      expect(consumed.method).toBe("one-time-token");
     }).pipe(Effect.provide(layerPairingGrantStore())),
   );
 

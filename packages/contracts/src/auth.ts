@@ -264,7 +264,11 @@ export const mcpClientScopes = (access: AuthMcpClientAccess): ReadonlyArray<Auth
 
 /** The random part of a one-time pairing code: this many characters from this alphabet. */
 export const PAIRING_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-export const PAIRING_CODE_LENGTH = 12;
+export const PAIRING_CODE_LENGTH = 16;
+// Servers issued 12-character codes before; those stay valid until they expire or are spent.
+const LEGACY_PAIRING_CODE_LENGTH = 12;
+/** The random part of a pairing code, at the issued or legacy length, as a RegExp source. */
+export const PAIRING_CODE_BODY_PATTERN = `[${PAIRING_CODE_ALPHABET}]{${LEGACY_PAIRING_CODE_LENGTH},${PAIRING_CODE_LENGTH}}`;
 
 const MCP_APPROVAL_CODE_PREFIXES = {
   "read-only": "READ",
@@ -275,11 +279,11 @@ const MCP_APPROVAL_CODE_PREFIXES = {
 } as const satisfies Record<AuthMcpClientAccess, string>;
 
 const MCP_APPROVAL_CODE_PATTERN = new RegExp(
-  `^(${Object.values(MCP_APPROVAL_CODE_PREFIXES).join("|")})-([${PAIRING_CODE_ALPHABET}]{${PAIRING_CODE_LENGTH}})$`,
+  `^(${Object.values(MCP_APPROVAL_CODE_PREFIXES).join("|")})-(${PAIRING_CODE_BODY_PATTERN})$`,
   "i",
 );
 
-/** A pairing code that approves one agent sign-in at `access`, such as `AUTO-Q8RZ3NWD5KTC`. */
+/** A pairing code that approves one agent sign-in at `access`, such as `AUTO-Q8RZ3NWD5KTCH7MX`. */
 export const mcpApprovalCode = (access: AuthMcpClientAccess, token: string): string =>
   `${MCP_APPROVAL_CODE_PREFIXES[access]}-${token}`;
 
