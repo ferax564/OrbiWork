@@ -44,13 +44,19 @@ jobs:
       matrix:
         include:
           - name: server
-            filter: "--filter orbi"
-          - name: web
-            filter: "--filter @orbiwork/web"
+            run: vp run --filter orbi test
+          - name: web unit
+            run: cd apps/web && vp test run --project unit
+          # Two files at a time: with more, the browser on a hosted runner sometimes dies
+          # mid-run and every file after it is skipped.
+          - name: web browser
+            run: cd apps/web && vp test run --project browser --maxWorkers=2
           - name: desktop
-            filter: "--filter @orbiwork/desktop"
+            run: vp run --filter @orbiwork/desktop test
           - name: packages
-            filter: "--filter '!@orbiwork/monorepo' --filter '!orbi' --filter '!@orbiwork/web' --filter '!@orbiwork/desktop'"
+            run: >-
+              vp run --parallel --concurrency-limit 4 --filter '!@orbiwork/monorepo' --filter '!orbi'
+              --filter '!@orbiwork/web' --filter '!@orbiwork/desktop' test
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -65,4 +71,4 @@ jobs:
       - run: vp install
       - run: vp run --filter @orbiwork/desktop ensure:electron
       - run: node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
-      - run: vp run --parallel --concurrency-limit 4 ${{ matrix.filter }} test
+      - run: ${{ matrix.run }}
