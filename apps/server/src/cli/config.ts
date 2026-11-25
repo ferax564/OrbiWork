@@ -176,6 +176,9 @@ const EnvServerConfig = Config.all({
     Config.map(Option.getOrUndefined),
   ),
   lan: Config.Boolean("ORBIWORK_LAN").pipe(Config.option, Config.map(Option.getOrUndefined)),
+  insecureHttpPairing: Config.Boolean("ORBIWORK_INSECURE_HTTP_PAIRING").pipe(
+    Config.withDefault(false),
+  ),
 });
 
 const DevAuthTokenConfig = Config.Redacted("ORBIWORK_DEV_AUTH_TOKEN").pipe(
@@ -519,6 +522,7 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
     serverTracePath,
     host,
     ...(privateNetworkOnly ? { privateNetworkOnly } : {}),
+    ...(env.insecureHttpPairing ? { insecureHttpPairing: true } : {}),
     staticDir,
     devUrl,
     ...(devAuthToken === undefined ? {} : { devAuthToken }),

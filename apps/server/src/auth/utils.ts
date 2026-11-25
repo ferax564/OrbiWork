@@ -7,7 +7,11 @@ import type * as HttpServerRequest from "effect/http/HttpServerRequest";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- Effect's Digest is effectful; the cookie name stays a plain function.
 import * as NodeCrypto from "node:crypto";
 import * as NodeNet from "node:net";
-import { normalizeHostname } from "@orbiwork/shared/hostClassification";
+import {
+  isSharedAddressSpaceHost,
+  isTailnetHost,
+  normalizeHostname,
+} from "@orbiwork/shared/hostClassification";
 import * as Mac from "effect/crypto/Mac";
 import * as Base64Url from "effect/encoding/Base64Url";
 import * as Result from "effect/Result";
@@ -168,6 +172,19 @@ function readRemoteAddressFromSource(source: unknown): string | undefined {
 
 const isLoopbackIpAddress = (address: string): boolean =>
   (NodeNet.isIPv4(address) && address.startsWith("127.")) || address === "::1";
+
+/**
+ * Whether the connection that carries `request` is already encrypted or never leaves this machine:
+ * a loopback peer (the desktop app, an SSH forward, a local TLS proxy such as Tailscale Serve) or a
+ * tailnet peer. The socket address decides; forwarding headers can be forged.
+ */
+export function arrivesOverTrustedTransport(request: HttpServerRequest.HttpServerRequest): boolean {
+  const peer = readRemoteAddressFromSource(request.source);
+  return (
+    peer !== undefined &&
+    (isLoopbackIpAddress(peer) || isSharedAddressSpaceHost(peer) || isTailnetHost(peer))
+  );
+}
 
 // A loopback peer is a local reverse proxy (Tailscale Serve); trust only the entry it appended.
 function resolveClientIpAddress(request: HttpServerRequest.HttpServerRequest): string | undefined {

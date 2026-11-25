@@ -1,6 +1,31 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { deriveAuthClientMetadata, resolveSessionCookieName } from "./utils.ts";
+import {
+  arrivesOverTrustedTransport,
+  deriveAuthClientMetadata,
+  resolveSessionCookieName,
+} from "./utils.ts";
+
+describe("arrivesOverTrustedTransport", () => {
+  const from = (remoteAddress: string | undefined, headers: Record<string, string> = {}) =>
+    arrivesOverTrustedTransport({ headers, source: { socket: { remoteAddress } } } as never);
+
+  it.each(["127.0.0.1", "::1", "::ffff:127.0.0.1", "100.101.102.103", "fd7a:115c:a1e0::1"])(
+    "trusts loopback and tailnet peer %s",
+    (address) => expect(from(address)).toBe(true),
+  );
+
+  it.each(["192.168.1.20", "10.0.0.5", "::ffff:192.168.1.20", "203.0.113.9", "fe80::1", undefined])(
+    "does not trust peer %s",
+    (address) => expect(from(address)).toBe(false),
+  );
+
+  it("ignores forwarding headers from a network peer", () => {
+    expect(
+      from("192.168.1.20", { "x-forwarded-for": "127.0.0.1", "x-forwarded-proto": "https" }),
+    ).toBe(false);
+  });
+});
 
 describe("deriveAuthClientMetadata", () => {
   it("labels Electron user agents as Electron instead of Chrome", () => {

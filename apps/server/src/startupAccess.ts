@@ -253,12 +253,17 @@ export const renderTerminalQrCode = (value: string, margin = 2): string => {
 /** A blank line and a warning when `url` is plain HTTP that the network does not already encrypt. */
 export const plainHttpWarningLines = (url: string): ReadonlyArray<string> => {
   const { protocol, hostname } = new URL(url);
-  return protocol !== "http:" || isLoopbackHost(hostname) || isTailnetHost(hostname)
+  return protocol !== "http:" ||
+    isLoopbackHost(hostname) ||
+    isTailnetHost(hostname) ||
+    isSharedAddressSpaceHost(hostname)
     ? []
     : [
         "",
-        "Warning: this address uses plain HTTP. Anyone on the same network can read the",
-        "token and control this machine. Use it over a VPN or tailnet you trust.",
+        "Warning: this address uses plain HTTP, so the server refuses to pair through it.",
+        "Pair over Tailscale or SSH instead. To allow it anyway, start the server with",
+        "ORBIWORK_INSECURE_HTTP_PAIRING=true; anyone on the same network can then read the",
+        "token and control this machine.",
       ];
 };
 

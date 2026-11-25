@@ -91,7 +91,12 @@ export function mapRemoteEnvironmentError(
       return new ConnectionBlockedError({
         reason: "permission",
         ...translatableDetail(
-          msg("The environment credential does not grant the required access."),
+          error._tag === "EnvironmentOperationForbiddenError" &&
+            error.reason === "plain_http_pairing_refused"
+            ? msg(
+                "This server does not pair over an unencrypted connection. Use its Tailscale or SSH address instead.",
+              )
+            : msg("The environment credential does not grant the required access."),
         ),
         traceId: error.traceId,
         hop: "server",

@@ -27,6 +27,14 @@ flag. For a server in a terminal, run `orbi serve --lan`. Either way, anyone on
 those networks can reach the port, so a pairing code is all that keeps other
 devices out.
 
+A pairing code sent over plain HTTP can be read by anyone on the same network,
+so the host only accepts one from itself, from a tailnet address, or through an
+HTTPS proxy on the same machine such as [Tailscale HTTPS](#tailscale-https). A
+device on a plain LAN address is told to use Tailscale or SSH instead. If you
+trust the network, or your HTTPS proxy runs on another machine, start the host
+with `ORBIWORK_INSECURE_HTTP_PAIRING=true` to accept codes from any address it
+listens on. For the background service, add that line to `service.env`.
+
 If a server is already running, generate a fresh link without restarting it:
 
 ```bash

@@ -15,6 +15,10 @@ The environment issues its own sessions and enforces their capabilities. See
   `orchestration:operate` already grant OS-user execution (which can invoke `orbi auth session issue`),
   so withholding access management from the default grant would not be a real boundary.
   Narrower clients receive explicit scopes.
+- **Pairing needs a private wire.** A pairing code is redeemed only when the socket peer is loopback
+  or a tailnet address, unless `ORBIWORK_INSECURE_HTTP_PAIRING` is set. The socket address decides
+  because forwarding headers can be forged; a loopback peer covers the desktop app, SSH forwards and
+  a local TLS proxy. Sessions that already exist keep working over any route.
 - **No recoverable secrets in read models.** Only the creation response returns a raw pairing
   credential; access listings expose metadata only.
 - **DPoP binding.** Browser cookies, bearer tokens, and DPoP tokens share the scoped session model.

@@ -86,6 +86,19 @@ export class PrimaryEnvironmentPairingCredentialRejectedError extends Schema.Tag
   }
 }
 
+class PrimaryEnvironmentPlainHttpPairingRefusedError extends Schema.TaggedError<PrimaryEnvironmentPlainHttpPairingRefusedError>()(
+  "PrimaryEnvironmentPlainHttpPairingRefusedError",
+  { cause: Schema.Defect() },
+) {
+  override get message(): string {
+    return m(
+      msg(
+        "This server does not pair over an unencrypted connection. Open it through Tailscale or SSH instead.",
+      ),
+    );
+  }
+}
+
 export class PrimaryEnvironmentAuthSessionTimeoutError extends Schema.TaggedError<PrimaryEnvironmentAuthSessionTimeoutError>()(
   "PrimaryEnvironmentAuthSessionTimeoutError",
   {
@@ -237,6 +250,13 @@ async function exchangeBootstrapCredential(credential: string): Promise<AuthBrow
           providedLength: credential.length,
           cause: error,
         });
+      }
+      if (
+        isEnvironmentHttpCommonError(error) &&
+        error._tag === "EnvironmentOperationForbiddenError" &&
+        error.reason === "plain_http_pairing_refused"
+      ) {
+        throw new PrimaryEnvironmentPlainHttpPairingRefusedError({ cause: error });
       }
       throw PrimaryEnvironmentRequestError.fromCause({
         operation: "exchange-bootstrap-credential",

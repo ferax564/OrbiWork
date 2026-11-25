@@ -120,6 +120,7 @@ export type EnvironmentAuthInvalidReason = typeof EnvironmentAuthInvalidReason.T
 
 export const EnvironmentOperationForbiddenReason = Schema.Literals([
   "current_session_revoke_not_allowed",
+  "plain_http_pairing_refused",
 ]);
 export type EnvironmentOperationForbiddenReason = typeof EnvironmentOperationForbiddenReason.Type;
 
@@ -312,11 +313,14 @@ export class EnvironmentHttpInternalServerError extends Schema.TaggedError<Envir
 
 const EnvironmentSessionCreationErrors = [
   EnvironmentAuthInvalidError,
+  // Pairing over plain HTTP from another machine.
+  EnvironmentOperationForbiddenError,
   EnvironmentInternalError,
 ] as const;
 const EnvironmentTokenExchangeErrors = [
   EnvironmentRequestInvalidError,
   EnvironmentAuthInvalidError,
+  EnvironmentOperationForbiddenError,
   EnvironmentInternalError,
 ] as const;
 const EnvironmentScopedOperationErrors = [

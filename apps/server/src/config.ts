@@ -89,6 +89,8 @@ export class ServerConfig extends Context.Service<
     readonly host: string | undefined;
     /** Set when the host was defaulted to a private-network listener for the service. */
     readonly privateNetworkOnly?: boolean | undefined;
+    /** Lets a pairing code be redeemed over plain HTTP from outside this machine and the tailnet. */
+    readonly insecureHttpPairing?: boolean | undefined;
     readonly cwd: string;
     readonly baseDir: string;
     readonly staticDir: string | undefined;
@@ -259,6 +261,8 @@ const makeTest = Effect.fn("ServerConfig.makeTest")(function* (
     tailscaleServePort: 443,
     port: 0,
     host: undefined,
+    // Tests drive routes through in-memory handlers, which have no socket address to trust.
+    insecureHttpPairing: true,
     desktopBootstrapToken: undefined,
     desktopTelemetryFd: undefined,
     desktopTelemetryControlFd: undefined,

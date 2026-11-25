@@ -73,13 +73,14 @@ describe("pair output", () => {
 
   it("warns when the pairing URL is plain HTTP on a network address", () => {
     expect(output("http://192.168.1.50:3773/pair#token=TOKEN")).toContain(
-      "Warning: this address uses plain HTTP.",
+      "Warning: this address uses plain HTTP, so the server refuses to pair through it.",
     );
   });
 
   it.each([
     "http://127.0.0.1:3773/pair#token=TOKEN",
     "http://machine.tail1234.ts.net:3773/pair#token=TOKEN",
+    "http://100.101.102.103:3773/pair#token=TOKEN",
     "https://192.168.1.50/pair#token=TOKEN",
   ])("does not warn for %s", (pairingUrl) => {
     expect(output(pairingUrl)).not.toContain("plain HTTP");

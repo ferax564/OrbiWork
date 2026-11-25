@@ -54,9 +54,10 @@ session, traffic is readable at the tunnel edge, and tunnel routes are set remot
 - Keep SSH and Tailscale. Harden SSH: pass the password over a file descriptor, scope the askpass
   helper to password prompts, verify release signatures rather than same-origin checksums.
 - Done: pairing codes are 80 bits, links last at most 24 hours, and a key-bound session cannot
-  get an unbound socket ticket. `orbi pair` warns on plain-HTTP LAN addresses.
-- Open: refuse plain-HTTP pairing outside loopback and Tailscale unless a flag is set; limit
-  wrong-code attempts; bind media tickets.
+  get an unbound socket ticket. A pairing code is refused over plain HTTP from outside the machine
+  and the tailnet unless `ORBIWORK_INSECURE_HTTP_PAIRING` is set.
+- Open: limit wrong-code attempts; bind media tickets; show in the desktop's Sharing & access list
+  which addresses can pair.
 
 ## Phase 3: cut breadth
 

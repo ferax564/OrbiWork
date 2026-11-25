@@ -104,7 +104,9 @@ const formatSetup = (setup: Setup, hints: Hints) => {
   ];
   const notes = [
     ...(setup.host === undefined && setup.lan
-      ? ["Anyone on your LAN or tailnet can reach the port. A pairing code is the only lock."]
+      ? [
+          "Anyone on your LAN or tailnet can reach the port. A pairing code is the only lock, and it is accepted only from this machine or the tailnet.",
+        ]
       : []),
     ...(setup.lanFromOldDefault
       ? [`Older installs keep LAN access on. Turn it off: \`${hints.upNoLan}\`.`]

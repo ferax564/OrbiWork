@@ -20,7 +20,11 @@ import {
   EnvironmentAuthenticatedPrincipal,
   mcpClientScopes,
 } from "@orbiwork/contracts";
-import type { AuthEnvironmentScope, DpopFailureReason } from "@orbiwork/contracts";
+import type {
+  AuthEnvironmentScope,
+  DpopFailureReason,
+  EnvironmentOperationForbiddenReason,
+} from "@orbiwork/contracts";
 import { parseOAuthScope } from "@orbiwork/shared/oauthScope";
 import { causeErrorTag } from "@orbiwork/shared/observability";
 import * as DateTime from "effect/DateTime";
@@ -35,9 +39,10 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 
 import * as EnvironmentAuth from "./EnvironmentAuth.ts";
 import * as SessionStore from "./SessionStore.ts";
-import { deriveAuthClientMetadata } from "./utils.ts";
+import { arrivesOverTrustedTransport, deriveAuthClientMetadata } from "./utils.ts";
 import { checkRequestDpopProof } from "./dpop.ts";
 import { requestUrl } from "../requestUrl.ts";
+import * as ServerConfig from "../config.ts";
 
 const CREDENTIAL_RESPONSE_HEADERS = {
   "cache-control": "no-store",
@@ -135,7 +140,7 @@ export function failEnvironmentScopeRequired(requiredScope: AuthEnvironmentScope
   );
 }
 
-function failEnvironmentOperationForbidden(reason: "current_session_revoke_not_allowed") {
+function failEnvironmentOperationForbidden(reason: EnvironmentOperationForbiddenReason) {
   return currentEnvironmentTraceId.pipe(
     Effect.flatMap((traceId) =>
       Effect.fail(
@@ -281,6 +286,12 @@ export const layer = HttpApiBuilder.group(
   Effect.fnUntraced(function* (handlers) {
     const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
     const sessions = yield* SessionStore.SessionStore;
+    const { insecureHttpPairing } = yield* ServerConfig.ServerConfig;
+    // A pairing code read off the wire is a full session, so it is only redeemed where the wire is private.
+    const refusePlainHttpPairing = (request: HttpServerRequest.HttpServerRequest) =>
+      insecureHttpPairing || arrivesOverTrustedTransport(request)
+        ? Effect.void
+        : failEnvironmentOperationForbidden("plain_http_pairing_refused");
 
     return handlers
       .handle(
@@ -322,6 +333,7 @@ export const layer = HttpApiBuilder.group(
           function* (args) {
             yield* annotateEnvironmentRequest(args.endpoint.name);
             const request = yield* HttpServerRequest.HttpServerRequest;
+            yield* refusePlainHttpPairing(request);
             const previousCredential = EnvironmentAuth.selectRequestCredential(
               request,
               sessions.cookieName,
@@ -415,6 +427,7 @@ export const layer = HttpApiBuilder.group(
                 proof.consume,
               );
             }
+            yield* refusePlainHttpPairing(request);
             return yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
               args.payload.subject_token,
               requestedScopes,
