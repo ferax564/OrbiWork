@@ -194,7 +194,7 @@ function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
         )}
       >
         {/* oxlint-disable-next-line orbiwork/no-untranslated-copy -- product wordmark */}
-        {"Code"}
+        {"Work"}
       </span>
     </span>
   );

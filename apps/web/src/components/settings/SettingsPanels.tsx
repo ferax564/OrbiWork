@@ -2,7 +2,6 @@ import { thrownErrorMessage } from "@orbiwork/client-runtime/errors";
 import { m as resolveMessage } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
 import { NotificationSettings } from "./NotificationSettings";
-import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
 import { msg, T, useGT, useMessages } from "gt-react";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -2550,19 +2549,6 @@ export function AboutSettingsPanel() {
       </SettingsSection>
 
       <SettingsSection id="legal" title={gt("Legal")}>
-        <SettingsRow
-          {...setting("privacy-policy")}
-          description={gt("How we handle your data.")}
-          control={
-            <Button
-              render={<a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer noopener" />}
-              size="sm"
-              variant="outline"
-            >
-              <T>View policy</T>
-            </Button>
-          }
-        />
         <SettingsRow
           {...setting("open-source-licenses")}
           description={gt("Notices for dependencies, assets, and optional tools used by OrbiWork.")}

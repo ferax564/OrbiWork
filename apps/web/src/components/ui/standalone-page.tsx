@@ -26,7 +26,7 @@ export function StandalonePageHeader({
         <span className="flex items-baseline gap-1.5" role="img" aria-label="OrbiWork">
           <OrbiWordmark className="h-3 w-auto shrink-0 text-foreground" aria-hidden />
           {/* oxlint-disable-next-line orbiwork/no-untranslated-copy -- product wordmark */}
-          <span className="text-lg font-medium tracking-tight">Code</span>
+          <span className="text-lg font-medium tracking-tight">Work</span>
         </span>
         {context ? <span className="text-sm">{context}</span> : null}
       </div>
