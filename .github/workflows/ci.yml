@@ -50,7 +50,7 @@ jobs:
           # Two files at a time: with more, the browser on a hosted runner sometimes dies
           # mid-run and every file after it is skipped.
           - name: web browser
-            run: cd apps/web && vp test run --project browser --maxWorkers=2
+            run: cd apps/web && DEBUG=pw:browser vp test run --project browser --maxWorkers=2
           - name: desktop
             run: vp run --filter @orbiwork/desktop test
           - name: packages
@@ -72,3 +72,6 @@ jobs:
       - run: vp run --filter @orbiwork/desktop ensure:electron
       - run: node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
       - run: ${{ matrix.run }}
+      # The browser job has died mid-run on hosted runners; this shows whether the kernel killed it.
+      - if: failure()
+        run: free -m; sudo dmesg | grep -iE "killed process|out of memory|oom|segfault" | tail -20 || true
