@@ -3103,7 +3103,6 @@
   "c646366e142ba05f": "데스크톱 WSL 상태를 사용할 수 없습니다.",
   "228dcd284ea651b3": "WSL 상태를 불러오지 못했습니다.",
   "b08d105dd2553f8d": "데스크톱 앱에 프로젝트가 나타나지 않았습니다.",
-  "7a4b3f3b83e121d7": "{organization}에서 익명 사용 데이터를 껐습니다.",
   "d85822b18e9475df": "{organization}에서 관리합니다.",
   "a6dd531d58080010": "릴리스를 확인하려면 이 서버에 연결하세요.",
   "314cdccee9c14774": "이 서버는 레지스트리 조회를 지원하지 않습니다. 트랙을 전환하기 전에 업데이트하세요.",
@@ -6205,24 +6204,6 @@
   ],
   "216ab7514aea1d61": "에이전트 없이 시작",
   "501ce2d99da8bfd1": "시작하려면 에이전트를 하나 설정하세요.",
-  "be251ac2f3bc4756": [
-    "OrbiWork는 앱 개선을 위해 익명 사용 데이터를 수집합니다. 거부하려면",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "개인정보처리방침"
-    },
-    "을 확인하세요."
-  ],
-  "b33f35083757b42c": [
-    {
-      "t": "a",
-      "i": 1,
-      "c": "개인정보처리방침"
-    },
-    "을 확인하세요."
-  ],
   "f77d000c0710f066": "켜기",
   "4ed27bf946e504db": "설정",
   "7a26eaacff0607f7": [
@@ -7668,7 +7649,7 @@
   "26684694c93ae9bd": "공유 전원 정책과 이를 따르는 백그라운드 간격을 조정합니다.",
   "e05df18a60c4310e": "공유 정책",
   "1a242d5421628927": "구독한 간격이 도래한 후 백그라운드 작업 실행 여부를 제어합니다.",
-  "77fdf9a4e5c0285d": "백그라운드에서 원격 브랜치 상태를 새로 고칩니다.",
+  "772c96160d2ae7ce": "Refresh remote branch status in the background. 0 turns it off.",
   "a28418c4fb8f07c2": "초",
   "ec045fc4902f8611": "제공자 상태 확인 간격",
   "bae66b38e31db722": "제공자 사용 가능 여부, 버전, 인증 상태를 새로 고칩니다. 모델 카탈로그 업데이트는 제공자 업데이트 확인을 따릅니다.",
@@ -10203,8 +10184,7 @@
   "c424bee294b9f778": "이 환경은 {organization}에서 관리합니다. 일부 설정과 기능은 해당 정책을 따릅니다.",
   "82d9538af590f58c": "에이전트를 확인하고, 프로젝트를 가져오고, 휴대폰을 설정하세요.",
   "6a48fd0a37e725a1": "법적 고지",
-  "b40c211fe6b5bb82": "OrbiWork가 수집하는 익명 사용 데이터를 포함해 데이터를 처리하는 방법입니다.",
-  "e741b1ab9396053a": "데이터를 처리하는 방법입니다. {telemetryOff}",
+  "a4c62f9830ae17c9": "How we handle your data.",
   "bbcd82c0bb991a0c": "OrbiWork에서 사용하는 종속성, 에셋, 선택적 도구에 대한 고지입니다.",
   "e39a57514be028e9": "검토",
   "7c0512387c3a42ea": "Stable",
@@ -11460,6 +11440,11 @@
   "404f92786aa9a22f": "코드 블록, 변경 사항, 파일 미리 보기, 터미널입니다.",
   "5897f301f96f8abe": "타이포그래피",
   "eb72dbf46620a039": "{title} 글꼴 패밀리",
+  "962a30f0031993d1": "Could not save the update setting",
+  "aa257a451442d768": "Looks for a new release shortly after launch and every four hours. Check for Updates works either way.",
+  "4d8d04a26992a82a": "Check for updates automatically",
+  "f290909c92983784": "Lets paired devices switch this app's update track, download and install updates, and restart it.",
+  "af1994cc6eaeb618": "Allow remote updates",
   "9f3126cbc5f8231f": "이 환경의 npm 레지스트리에서 최신 {label} 릴리스를 찾을 수 없습니다.",
   "ddc1bd4973399c8d": "릴리스 확인 중…",
   "9ddd2f9f1c9367bc": "{label}(으)로 전환할 수 없습니다",
@@ -11871,6 +11856,8 @@
   "0c5fc3b5e41e1956": "생성된 스레드 제목 프롬프트 사용자 지정 스타일 이름 지정 이름 바꾸기 다시 생성",
   "a83570bcb45d8fa1": "정보 업데이트 확인 다운로드 설치 업그레이드 릴리스",
   "d65bdf6748801734": "릴리스 채널 안정 latest nightly 사전 릴리스",
+  "f010c7d7ac5673d1": "auto update background poll github release network",
+  "728751e8a0cef3df": "paired device remote client install restart update permission",
   "11de586eff30258c": "orbi 명령",
   "46dd4dc08c1e552f": "CLI 터미널 셸 경로 설치 명령줄",
   "86479042bae0e2db": "모바일 앱",
@@ -11878,7 +11865,7 @@
   "6310b97b04ef239f": "시작 페이지",
   "df9fa3a9cb004b9b": "온보딩 설정 첫 실행 시작하기 에이전트 프로젝트 가져오기",
   "3188bc3b3c4508bc": "개인정보 처리방침",
-  "901a823214edc8c4": "원격 분석 분석 사용 데이터 추적 법적 옵트아웃",
+  "8c8a1e9d9cc2348c": "data legal",
   "82136480255a5106": "OTel OTLP 원격 분석 내보내기 엔드포인트 로그 추적 메트릭 Grafana",
   "659d081051faf7ff": "로그 추적 프로세스 리소스 기록 실패 스팬 cpu 메모리",
   "77754b0eb0d4e537": "보고 버그 문제 orbi 팀 보내기 피드백 에이전트 도구 자동 내가 요청할 때",

@@ -270,8 +270,26 @@ describe("DesktopUpdates", () => {
     ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   });
 
-  it.effect("checks shortly after startup and then every four hours", () => {
+  it.effect("checks in the background only once automatic checks are turned on", () => {
     const harness = makeHarness();
+
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+
+        yield* TestClock.adjust("15 seconds");
+        yield* TestClock.adjust("4 hours");
+        assert.equal(harness.checkCount(), 0);
+        // A check the person asks for still runs.
+        yield* updates.check("web-ui");
+        assert.equal(harness.checkCount(), 1);
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+  });
+
+  it.effect("checks shortly after startup and then every four hours", () => {
+    const harness = makeHarness({ updatePreferences: { automaticUpdateChecks: true } });
 
     return Effect.scoped(
       Effect.gen(function* () {

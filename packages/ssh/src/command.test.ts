@@ -1,3 +1,6 @@
+// @effect-diagnostics nodeBuiltinImport:off - Reads the password file while ssh would run.
+import * as NodeFS from "node:fs";
+
 import { assert, describe, it } from "@effect/vitest";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -71,6 +74,52 @@ describe("ssh command", () => {
       Effect.provide(
         Layer.merge(
           Layer.mergeAll(NodeServices.layer, NodeCrypto.layer),
+          Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, spawner),
+        ),
+      ),
+    );
+  });
+
+  it.effect("keeps the password out of the spawned ssh environment and arguments", () => {
+    const seen: Array<{ env: Record<string, unknown>; args: ReadonlyArray<string>; file: string }> =
+      [];
+    const spawner = ChildProcessSpawner.make((command) =>
+      Effect.sync(() => {
+        if (ChildProcess.isStandardCommand(command)) {
+          const env = { ...command.options.env };
+          const file = String(env.ORBI_SSH_AUTH_SECRET_FILE ?? "");
+          seen.push({
+            env,
+            args: command.args.map(String),
+            file: NodeFS.readFileSync(file, "utf8"),
+          });
+        }
+        return makeFailedProcess({ stdout: "", stderr: "Permission denied (password).\n" });
+      }),
+    );
+    return runSshCommand(
+      { alias: "devbox", hostname: "devbox.example.com", username: "julius", port: null },
+      { authSecret: "hunter2-secret", interactiveAuth: true, remoteCommandArgs: ["true"] },
+    ).pipe(
+      Effect.flip,
+      Effect.map((error) => {
+        assert.equal(seen.length, 1);
+        const [{ env, args, file }] = seen as [(typeof seen)[number]];
+        assert.isFalse("ORBI_SSH_AUTH_SECRET" in env);
+        assert.notInclude(JSON.stringify(env), "hunter2-secret");
+        assert.notInclude(args.join(" "), "hunter2-secret");
+        assert.notInclude(JSON.stringify(error), "hunter2-secret");
+        assert.equal(file.split("\n")[0], "hunter2-secret");
+        assert.isFalse(
+          NodeFS.existsSync(String(env.ORBI_SSH_AUTH_SECRET_FILE)),
+          "the command's end removes the password file",
+        );
+      }),
+      Effect.provide(
+        Layer.mergeAll(
+          NodeServices.layer,
+          NodeCrypto.layer,
+          Layer.succeed(HostProcess.Platform, "linux"),
           Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, spawner),
         ),
       ),

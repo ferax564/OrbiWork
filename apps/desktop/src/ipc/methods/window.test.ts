@@ -16,10 +16,16 @@ import * as TestClock from "effect/testing/TestClock";
 import { vi } from "vite-plus/test";
 import type * as Electron from "electron";
 
-const { focusedWebContents, ownerWindow } = vi.hoisted(() => ({
+const { focusedWebContents, ownerWindow, dnsLookup } = vi.hoisted(() => ({
   focusedWebContents: vi.fn(),
   ownerWindow: vi.fn(),
+  dnsLookup: vi.fn(async (hostname: string) =>
+    hostname === "intranet.example"
+      ? [{ address: "10.0.0.5", family: 4 }]
+      : [{ address: "93.184.215.14", family: 4 }],
+  ),
 }));
+vi.mock("node:dns/promises", () => ({ lookup: dnsLookup }));
 vi.mock("electron", () => ({
   webContents: { getFocusedWebContents: focusedWebContents },
   BrowserWindow: { fromWebContents: ownerWindow },
@@ -357,10 +363,27 @@ describe("installRelayTelemetryEnabled", () => {
 });
 
 describe("readMedia", () => {
+  const readWith = (fetch: (url: string, init?: RequestInit) => Promise<Response>) => {
+    const main = {
+      webContents: { id: 1, session: { fetch } },
+    } as unknown as Electron.BrowserWindow;
+    return (url: string, senderId = 1) =>
+      readMedia
+        .handler(url, { sender: { id: senderId } })
+        .pipe(
+          Effect.provide(
+            Layer.merge(
+              Layer.mock(ElectronWindow.ElectronWindow)({ main: Effect.succeedSome(main) }),
+              DesktopBackendPool.layerTest([defaultWslInstance]),
+            ),
+          ),
+        );
+  };
+
   it.effect("reads http(s) media only for the main window", () =>
     Effect.gen(function* () {
       const mib = new Uint8Array(1024 * 1024);
-      const fetch = vi.fn(async (url: string) => {
+      const fetch = vi.fn(async (url: string, _init?: RequestInit) => {
         if (url.endsWith("/missing.png")) return new Response("Not Found", { status: 404 });
         if (url.endsWith("/small.png")) return new Response(new Uint8Array([1, 2]));
         let sent = 0;
@@ -370,35 +393,68 @@ describe("readMedia", () => {
         });
         return new Response(huge);
       });
-      const main = {
-        webContents: { id: 1, session: { fetch } },
-      } as unknown as Electron.BrowserWindow;
-      const read = (url: string, senderId: number) =>
-        readMedia
-          .handler(url, { sender: { id: senderId } })
-          .pipe(
-            Effect.provide(
-              Layer.mock(ElectronWindow.ElectronWindow)({ main: Effect.succeedSome(main) }),
-            ),
-          );
+      const read = readWith(fetch);
 
       assert.strictEqual(yield* read("https://example.com/a.png", 2), null);
-      assert.strictEqual(yield* read("file:///etc/passwd", 1), null);
+      assert.strictEqual(yield* read("file:///etc/passwd"), null);
       assert.strictEqual(fetch.mock.calls.length, 0);
-      assert.deepEqual(yield* read("https://example.com/small.png", 1), {
+      assert.deepEqual(yield* read("https://example.com/small.png"), {
         status: 200,
         mimeType: "",
         data: Buffer.from([1, 2]),
       });
-      assert.deepEqual(yield* read("https://example.com/missing.png", 1), {
+      // No cookies or HTTP auth from the main session.
+      assert.deepEqual(fetch.mock.calls[0]?.[1], { credentials: "omit", redirect: "manual" });
+      assert.deepEqual(yield* read("https://example.com/missing.png"), {
         status: 404,
         mimeType: "text/plain;charset=UTF-8",
         data: new Uint8Array(),
       });
-      assert.deepEqual(yield* read("https://example.com/huge.mp4", 1), {
+      assert.deepEqual(yield* read("https://example.com/huge.mp4"), {
         status: 413,
         mimeType: "",
         data: new Uint8Array(),
+      });
+    }),
+  );
+
+  it.effect("refuses loopback, private and link-local targets except a local backend", () =>
+    Effect.gen(function* () {
+      const fetch = vi.fn(async (url: string, _init?: RequestInit) =>
+        url.startsWith("https://example.com/hop")
+          ? new Response(null, { status: 302, headers: { location: "http://127.0.0.1:9/x" } })
+          : new Response(new Uint8Array([7])),
+      );
+      const read = readWith(fetch);
+
+      for (const url of [
+        "http://127.0.0.1:8080/a.png",
+        "http://localhost/a.png",
+        "http://app.localhost/a.png",
+        "http://[::1]/a.png",
+        "http://[::ffff:127.0.0.1]/a.png",
+        "http://10.1.2.3/a.png",
+        "http://192.168.1.88/a.png",
+        "http://169.254.169.254/latest/meta-data",
+        "http://[fe80::1]/a.png",
+        "http://intranet.example/a.png",
+      ]) {
+        assert.strictEqual(yield* read(url), null, url);
+      }
+      assert.strictEqual(fetch.mock.calls.length, 0);
+
+      // A public URL may not redirect into the local network.
+      assert.strictEqual(yield* read("https://example.com/hop"), null);
+      assert.deepEqual(
+        fetch.mock.calls.map(([url]) => url),
+        ["https://example.com/hop"],
+      );
+
+      // The local backend's own origin serves the app's media.
+      assert.deepEqual(yield* read("http://127.0.0.1:3774/attachments/a.png?token=t"), {
+        status: 200,
+        mimeType: "",
+        data: Buffer.from([7]),
       });
     }),
   );

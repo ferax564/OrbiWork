@@ -965,6 +965,13 @@ describe("VcsStatusBroadcaster", () => {
       const layerTest = VcsStatusBroadcaster.layer.pipe(
         Layer.provideMerge(NodeServices.layer),
         Layer.provide(layerBackgroundPolicy(() => true)),
+        // Auto-pull needs a fetched behind count, so this test turns automatic fetch on.
+        Layer.provide(
+          Layer.succeed(
+            VcsAutomaticFetchInterval.VcsAutomaticFetchInterval,
+            Effect.succeed(Duration.seconds(30)),
+          ),
+        ),
         Layer.provide(
           Layer.succeed(VcsStatusBroadcaster.VcsAutoPullPolicy, {
             isEnabled: (cwd) => Effect.succeed(cwd === configuredWorkspaceRoot),

@@ -33,6 +33,12 @@ import {
   makeAntigravityProvider,
 } from "./AntigravityProvider.ts";
 import { mergeProviderSnapshot } from "./ProviderRegistry.ts";
+import { setUsageLimitReadsAllowedForTests } from "@orbiwork/provider-core/server/usageLimits";
+import { afterAll, beforeAll } from "vite-plus/test";
+
+// These tests cover the quota read itself; the request gate is tested in provider-core.
+beforeAll(() => setUsageLimitReadsAllowedForTests(true));
+afterAll(() => setUsageLimitReadsAllowedForTests(false));
 
 const decodeSettings = Schema.decodeSync(AntigravitySettings);
 const instanceId = ProviderInstanceId.make("antigravity-test");

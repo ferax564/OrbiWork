@@ -17,6 +17,7 @@ import * as TestClock from "effect/testing/TestClock";
 
 import * as ElectronUpdater from "../electron/ElectronUpdater.ts";
 import * as DesktopState from "../app/DesktopState.ts";
+import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublisher.ts";
 import * as DesktopRemoteUpdates from "./DesktopRemoteUpdates.ts";
 import * as DesktopUpdates from "./DesktopUpdates.ts";
@@ -44,6 +45,7 @@ function runRemoteUpdatesTest(
     readonly commits: Queue.Queue<DesktopTelemetryCommitDesktopUpdate>;
     readonly cancellations: Queue.Queue<DesktopTelemetryCancelDesktopUpdate>;
   }) => Effect.Effect<void, never, DesktopUpdates.DesktopUpdates | DesktopState.DesktopState>,
+  remoteUpdatesAllowed: () => boolean = () => true,
 ) {
   return Effect.scoped(
     Effect.gen(function* () {
@@ -68,8 +70,15 @@ function runRemoteUpdatesTest(
 
       const updates = yield* DesktopUpdates.DesktopUpdates;
       yield* updates.configure;
+      const settings = yield* DesktopAppSettings.DesktopAppSettings;
       yield* DesktopRemoteUpdates.listen.pipe(
         Effect.provideService(DesktopTelemetryPublisher.DesktopTelemetryPublisher, publisher),
+        Effect.provideService(DesktopAppSettings.DesktopAppSettings, {
+          ...settings,
+          get: settings.get.pipe(
+            Effect.map((current) => ({ ...current, remoteUpdatesAllowed: remoteUpdatesAllowed() })),
+          ),
+        }),
       );
       yield* settle;
       yield* body({ reports, requests, commits, cancellations });
@@ -82,6 +91,53 @@ function terminalReports(reports: DesktopUpdateStatusReport[]): DesktopUpdateSta
 }
 
 describe("DesktopRemoteUpdates", () => {
+  it.effect("refuses remote updates until this machine allows them", () => {
+    const harness = makeHarness({ beforeSetUpdateChannel: Effect.void });
+    let allowed = false;
+
+    return runRemoteUpdatesTest(
+      harness,
+      ({ reports, requests, commits }) =>
+        Effect.gen(function* () {
+          yield* Queue.offer(requests, {
+            ...request("req-blocked"),
+            channel: "nightly",
+            targetVersion: "1.2.4-nightly.20261027.1",
+          });
+          yield* settle;
+          assert.deepEqual(
+            terminalReports(reports).map(({ outcome, reason }) => ({ outcome, reason })),
+            [{ outcome: "failed", reason: DesktopRemoteUpdates.REMOTE_UPDATES_NOT_ALLOWED_REASON }],
+          );
+          assert.equal(harness.checkCount(), 0);
+          assert.equal((yield* (yield* DesktopUpdates.DesktopUpdates).getState).channel, "latest");
+
+          // A prepare made while allowed cannot be committed once the person turns it off.
+          allowed = true;
+          yield* Queue.offer(requests, request("req-1"));
+          yield* settle;
+          harness.emit("update-available", { version: "1.2.4" });
+          yield* settle;
+          harness.emit("update-downloaded", { version: "1.2.4" });
+          yield* settle;
+          assert.equal(terminalReports(reports)[1]?.outcome, "ready-to-install");
+          allowed = false;
+          yield* Queue.offer(commits, {
+            version: 1,
+            type: "commitDesktopUpdate",
+            requestId: "req-1",
+          });
+          yield* settle;
+          assert.equal(harness.quitAndInstalls(), 0);
+          assert.equal(
+            terminalReports(reports)[2]?.reason,
+            DesktopRemoteUpdates.REMOTE_UPDATES_NOT_ALLOWED_REASON,
+          );
+        }),
+      () => allowed,
+    );
+  });
+
   it.effect("drives check, download, and install with no local confirmation", () => {
     const harness = makeHarness();
 

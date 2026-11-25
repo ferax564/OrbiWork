@@ -1,5 +1,4 @@
 import {
-  DEFAULT_PROVIDER_HEALTH_REFRESH_INTERVAL,
   UsageLimitSourceError,
   type UsageLimitSourceConsumeResetCreditInput,
   type ProviderConsumeResetCreditResult,
@@ -10,11 +9,9 @@ import {
   type UsageLimitSourceId,
   type UsageLimitSourceSnapshot,
 } from "@orbiwork/contracts";
-import { resolveServerBackgroundActivitySettings } from "@orbiwork/shared/backgroundActivitySettings";
 import { antigravityWindowLimitsModel, hubRoutes } from "@orbiwork/shared/usageLimits";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
-import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Layer from "effect/Layer";
@@ -23,7 +20,6 @@ import * as Ref from "effect/Ref";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 
-import * as BackgroundPolicy from "../background/BackgroundPolicy.ts";
 import * as SecretResolver from "@orbiwork/secret-provider-core/server/SecretResolver";
 import * as SecretResolverLayer from "../secrets/SecretResolver.ts";
 import { resolveSettingsSecrets } from "../secrets/settingsSecretValue.ts";
@@ -101,7 +97,6 @@ export const make = Effect.gen(function* () {
   const api = yield* makeCliproxyApi;
   const settingsService = yield* Settings.ServerSettingsService;
   const secrets = yield* SecretResolver.SecretResolver;
-  const backgroundPolicy = yield* BackgroundPolicy.BackgroundPolicy;
   const readManagementKey = Effect.fn("UsageLimitSources.readManagementKey")(function* (
     config: UsageLimitSourceConfig,
   ) {
@@ -208,27 +203,8 @@ export const make = Effect.gen(function* () {
     Effect.forkScoped,
   );
 
-  const interval = settingsService.getSettings.pipe(
-    Effect.map(
-      (settings) => resolveServerBackgroundActivitySettings(settings).providerHealthRefreshInterval,
-    ),
-    Effect.orElseSucceed(() => DEFAULT_PROVIDER_HEALTH_REFRESH_INTERVAL),
-  );
-  yield* Effect.forever(
-    interval.pipe(
-      Effect.flatMap((wait) => Effect.sleep(Duration.isPositive(wait) ? wait : "60 seconds")),
-      Effect.andThen(interval),
-      Effect.flatMap((current) =>
-        Duration.isPositive(current)
-          ? backgroundPolicy.shouldRunScopeWork({ type: "provider-status" })
-          : Effect.succeed(false),
-      ),
-      Effect.flatMap((shouldRun) => (shouldRun ? refresh : Effect.void)),
-      Effect.ignoreCause({ log: true }),
-    ),
-  ).pipe(Effect.forkScoped);
-
-  yield* refresh.pipe(Effect.forkScoped);
+  // No boot read and no polling: hubs are read when the user opens Usage or refreshes
+  // (serverRefreshProviders), when hub settings change, and on a rate-limit reset lookup.
 
   return {
     current: Ref.get(stateRef),
@@ -294,13 +270,23 @@ export const layerResetFallback = Layer.effect(
   UsageLimitResetFallback,
   Effect.gen(function* () {
     const sources = yield* UsageLimitSources;
+    const settingsService = yield* Settings.ServerSettingsService;
     return {
       resetAt: Effect.fn("UsageLimitResetFallback.resetAt")(function* (driver, endpoint, model) {
         // Only the hub at the instance's endpoint serves its turns.
         const atEndpoint = Effect.map(sources.current, (current) =>
           current.filter((source) => source.origin === endpoint),
         );
-        if ((yield* atEndpoint).length === 0) return null;
+        // Hubs are not polled, so a hub configured at this endpoint may not have been read yet.
+        const configured = yield* settingsService.getSettings.pipe(
+          Effect.map((settings) =>
+            Object.values(settings.usageLimitSources).some(
+              (config) => config.enabled && URL.parse(config.url)?.origin === endpoint,
+            ),
+          ),
+          Effect.orElseSucceed(() => false),
+        );
+        if (!configured && (yield* atEndpoint).length === 0) return null;
         // The pool usually ran out after the last poll, so the cached accounts still show room.
         yield* sources.refresh.pipe(Effect.timeout("5 seconds"), Effect.ignore);
         return hubPoolResetAt(

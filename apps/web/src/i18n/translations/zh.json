@@ -3108,7 +3108,6 @@
   "c646366e142ba05f": "桌面 WSL 状态不可用。",
   "228dcd284ea651b3": "无法加载 WSL 状态。",
   "b08d105dd2553f8d": "该项目未出现在桌面应用中。",
-  "7a4b3f3b83e121d7": "{organization} 已关闭匿名使用数据。",
   "d85822b18e9475df": "由 {organization} 管理。",
   "a6dd531d58080010": "连接此服务器以检查版本。",
   "314cdccee9c14774": "此服务器不支持查询仓库。请先更新，再切换通道。",
@@ -6234,26 +6233,6 @@
   ],
   "216ab7514aea1d61": "不使用智能体直接开始",
   "501ce2d99da8bfd1": "设置一个智能体即可开始。",
-  "be251ac2f3bc4756": [
-    "OrbiWork 会收集匿名使用数据以改进应用。如需退出，请参阅",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "隐私政策"
-    },
-    "。"
-  ],
-  "b33f35083757b42c": [
-    "请参阅",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "隐私政策"
-    },
-    "。"
-  ],
   "f77d000c0710f066": "启用",
   "4ed27bf946e504db": "设置",
   "7a26eaacff0607f7": [
@@ -7716,7 +7695,7 @@
   "26684694c93ae9bd": "调整共享电源策略和相关后台任务的运行间隔。",
   "e05df18a60c4310e": "共享策略",
   "1a242d5421628927": "控制后台任务达到设定间隔后是否允许运行。",
-  "77fdf9a4e5c0285d": "在后台刷新远程分支状态。",
+  "772c96160d2ae7ce": "Refresh remote branch status in the background. 0 turns it off.",
   "a28418c4fb8f07c2": "秒",
   "ec045fc4902f8611": "提供方状态检查间隔",
   "bae66b38e31db722": "刷新提供方的可用状态、版本和认证状态。模型目录是否更新取决于“提供方更新检查”设置。",
@@ -10264,8 +10243,7 @@
   "c424bee294b9f778": "此环境由 {organization} 管理，部分设置和功能遵循其策略。",
   "82d9538af590f58c": "查看你的智能体、导入项目并设置手机。",
   "6a48fd0a37e725a1": "法律信息",
-  "b40c211fe6b5bb82": "我们如何处理你的数据，包括 OrbiWork 收集的匿名使用数据。",
-  "e741b1ab9396053a": "我们如何处理你的数据。{telemetryOff}",
+  "a4c62f9830ae17c9": "How we handle your data.",
   "bbcd82c0bb991a0c": "OrbiWork 使用的依赖项、素材和可选工具的声明。",
   "e39a57514be028e9": "查看",
   "7c0512387c3a42ea": "稳定版",
@@ -11536,6 +11514,11 @@
   "404f92786aa9a22f": "代码块、差异、文件预览和终端。",
   "5897f301f96f8abe": "字体排版",
   "eb72dbf46620a039": "{title} 字体",
+  "962a30f0031993d1": "Could not save the update setting",
+  "aa257a451442d768": "Looks for a new release shortly after launch and every four hours. Check for Updates works either way.",
+  "4d8d04a26992a82a": "Check for updates automatically",
+  "f290909c92983784": "Lets paired devices switch this app's update track, download and install updates, and restart it.",
+  "af1994cc6eaeb618": "Allow remote updates",
   "9f3126cbc5f8231f": "无法在此环境的 npm 仓库中找到最新的 {label} 版本。",
   "ddc1bd4973399c8d": "正在检查版本…",
   "9ddd2f9f1c9367bc": "无法切换到 {label}",
@@ -11949,6 +11932,8 @@
   "0c5fc3b5e41e1956": "生成 会话标题 提示词 自定义 风格 命名 重命名 重新生成",
   "a83570bcb45d8fa1": "关于 检查更新 下载 安装 升级 发布",
   "d65bdf6748801734": "发布渠道 稳定版 latest nightly 预发布",
+  "f010c7d7ac5673d1": "auto update background poll github release network",
+  "728751e8a0cef3df": "paired device remote client install restart update permission",
   "11de586eff30258c": "orbi 命令",
   "46dd4dc08c1e552f": "cli 终端 shell 路径 安装 命令行",
   "86479042bae0e2db": "移动应用",
@@ -11956,7 +11941,7 @@
   "6310b97b04ef239f": "欢迎页",
   "df9fa3a9cb004b9b": "引导 设置 首次运行 入门 智能体 导入 项目",
   "3188bc3b3c4508bc": "隐私政策",
-  "901a823214edc8c4": "遥测 分析 用量数据 跟踪 法律 退出",
+  "8c8a1e9d9cc2348c": "data legal",
   "82136480255a5106": "OTel OTLP 遥测 导出 端点 日志 追踪 指标 Grafana",
   "659d081051faf7ff": "日志 追踪 进程 资源历史 失败 span cpu 内存",
   "77754b0eb0d4e537": "报告 错误 问题 orbi 团队 发送 反馈 智能体 工具 自动 当我要求时",

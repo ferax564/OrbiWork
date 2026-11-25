@@ -3104,7 +3104,6 @@
   "c646366e142ba05f": "O estado do WSL do desktop não está disponível.",
   "228dcd284ea651b3": "Falha ao carregar o estado do WSL.",
   "b08d105dd2553f8d": "O projeto não apareceu no app para desktop.",
-  "7a4b3f3b83e121d7": "{organization} desativou os dados de uso anônimos.",
   "d85822b18e9475df": "Gerenciado por {organization}.",
   "a6dd531d58080010": "Conecte-se a este servidor para verificar as versões.",
   "314cdccee9c14774": "Este servidor não permite consultas ao registro. Atualize-o antes de trocar de canal.",
@@ -6227,26 +6226,6 @@
   ],
   "216ab7514aea1d61": "Começar sem agente",
   "501ce2d99da8bfd1": "Configure um agente para começar.",
-  "be251ac2f3bc4756": [
-    "O OrbiWork coleta dados de uso anônimos para melhorar o app. Para recusar, consulte a",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "política de privacidade"
-    },
-    "."
-  ],
-  "b33f35083757b42c": [
-    "Consulte a",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "política de privacidade"
-    },
-    "."
-  ],
   "f77d000c0710f066": "Ativar",
   "4ed27bf946e504db": "Configurar",
   "7a26eaacff0607f7": [
@@ -7701,7 +7680,7 @@
   "26684694c93ae9bd": "Ajuste a política de energia compartilhada e os intervalos em segundo plano que a alimentam.",
   "e05df18a60c4310e": "Política compartilhada",
   "1a242d5421628927": "Controla se o trabalho em segundo plano pode rodar depois que um intervalo inscrito dispara.",
-  "77fdf9a4e5c0285d": "Atualiza o status dos branches remotos em segundo plano.",
+  "772c96160d2ae7ce": "Refresh remote branch status in the background. 0 turns it off.",
   "a28418c4fb8f07c2": "segundos",
   "ec045fc4902f8611": "Intervalo de saúde dos provedores",
   "bae66b38e31db722": "Atualiza a disponibilidade, as versões e o estado de autenticação dos provedores. As atualizações do catálogo de modelos seguem as verificações de atualização dos provedores.",
@@ -10248,8 +10227,7 @@
   "c424bee294b9f778": "Este ambiente é gerenciado por {organization}. Algumas configurações e recursos seguem a política dela.",
   "82d9538af590f58c": "Veja seus agentes, importe projetos e configure seu celular.",
   "6a48fd0a37e725a1": "Jurídico",
-  "b40c211fe6b5bb82": "Como tratamos seus dados, incluindo os dados de uso anônimos que o OrbiWork coleta.",
-  "e741b1ab9396053a": "Como tratamos seus dados. {telemetryOff}",
+  "a4c62f9830ae17c9": "How we handle your data.",
   "bbcd82c0bb991a0c": "Avisos de dependências, recursos e ferramentas opcionais usados pelo OrbiWork.",
   "e39a57514be028e9": "Revisar",
   "7c0512387c3a42ea": "Estável",
@@ -11513,6 +11491,11 @@
   "404f92786aa9a22f": "Blocos de código, diffs, pré-visualizações de arquivos e o terminal.",
   "5897f301f96f8abe": "Tipografia",
   "eb72dbf46620a039": "Família de {title}",
+  "962a30f0031993d1": "Could not save the update setting",
+  "aa257a451442d768": "Looks for a new release shortly after launch and every four hours. Check for Updates works either way.",
+  "4d8d04a26992a82a": "Check for updates automatically",
+  "f290909c92983784": "Lets paired devices switch this app's update track, download and install updates, and restart it.",
+  "af1994cc6eaeb618": "Allow remote updates",
   "9f3126cbc5f8231f": "Não foi possível encontrar a versão mais recente de {label} no registro npm deste ambiente.",
   "ddc1bd4973399c8d": "Verificando versões…",
   "9ddd2f9f1c9367bc": "Não foi possível mudar para {label}",
@@ -11924,6 +11907,8 @@
   "0c5fc3b5e41e1956": "títulos gerados de threads prompt estilo personalizado nomenclatura renomear gerar novamente",
   "a83570bcb45d8fa1": "sobre verificar atualizações baixar instalar atualizar versão",
   "d65bdf6748801734": "canal de versões estável latest nightly pré-lançamento",
+  "f010c7d7ac5673d1": "auto update background poll github release network",
+  "728751e8a0cef3df": "paired device remote client install restart update permission",
   "11de586eff30258c": "Comando orbi",
   "46dd4dc08c1e552f": "cli terminal shell path instalar linha de comando",
   "86479042bae0e2db": "App móvel",
@@ -11931,7 +11916,7 @@
   "6310b97b04ef239f": "Página de boas-vindas",
   "df9fa3a9cb004b9b": "integração configuração primeira execução primeiros passos agentes importar projetos",
   "3188bc3b3c4508bc": "Política de privacidade",
-  "901a823214edc8c4": "telemetria analytics dados de uso rastreamento legal desativar",
+  "8c8a1e9d9cc2348c": "data legal",
   "82136480255a5106": "OTel OTLP telemetria exportar endpoints logs traces métricas Grafana",
   "659d081051faf7ff": "logs traces processos histórico de recursos falhas spans cpu memória",
   "77754b0eb0d4e537": "relatório bug problema orbi equipe enviar feedback agentes ferramentas automático quando eu pedir",

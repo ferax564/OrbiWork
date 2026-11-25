@@ -1389,12 +1389,16 @@ export function renderMacPasskeyEntitlements(
     <array>
 ${associatedDomains}
     </array>${keychainAccessGroups}${browserPasskeys}
+    <!-- V8 (and the WebAssembly terminal) compiles code at runtime. -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
-    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true/>
+    <!-- The app binary is also the Node runtime for the server and the provider workers
+         and SDK subprocesses it starts, which load npm native addons not signed with
+         this Team ID. -->
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
+    <!-- osascript and other Apple Events senders run by terminals and coding agents
+         inherit the app's TCC identity (NSAppleEventsUsageDescription). -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>
     <!-- The hardened runtime denies camera and microphone to the app and every
@@ -2807,6 +2811,28 @@ export function resolveDesktopProductName(version: string): string {
     : (desktopPackageJson.productName ?? "OrbiWork");
 }
 
+/**
+ * Flipped after afterPack, before signing. RunAsNode stays on: the backend and its children run this
+ * binary with ELECTRON_RUN_AS_NODE, and utilityProcess cannot pass the backend's fds 3-7. NODE_OPTIONS
+ * stays on because it also gates NODE_EXTRA_CA_CERTS, which those children need behind TLS proxies.
+ */
+export function resolveDesktopElectronFuses(
+  platform: typeof BuildPlatform.Type,
+  signed: boolean,
+): Record<string, boolean> {
+  return {
+    runAsNode: true,
+    enableNodeOptionsEnvironmentVariable: true,
+    enableNodeCliInspectArguments: false,
+    enableCookieEncryption: true,
+    // Validated on macOS and Windows; electron-builder embeds the hash before afterPack runs.
+    enableEmbeddedAsarIntegrityValidation: platform === "mac" || platform === "win",
+    onlyLoadAppFromAsar: true,
+    // Flipping fuses breaks an arm64 ad-hoc signature; signed builds are re-signed anyway.
+    ...(platform === "mac" && !signed ? { resetAdHocDarwinSignature: true } : {}),
+  };
+}
+
 export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   platform: typeof BuildPlatform.Type,
   target: string,
@@ -2825,6 +2851,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
 ) {
   const buildConfig: Record<string, unknown> = {
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
+    electronFuses: resolveDesktopElectronFuses(platform, signed),
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
     artifactName: "OrbiWork-${version}-${arch}.${ext}",
@@ -2898,26 +2925,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
           "OrbiWork lets commands run by terminals and coding agents control other apps.",
         NSSpeechRecognitionUsageDescription:
           "OrbiWork transcribes your dictation on this Mac when you choose Apple Speech.",
-        // macOS lists an app under Default web browser only when it opens web
-        // pages as documents as well as http and https links (see protocols).
-        CFBundleDocumentTypes: [
-          {
-            CFBundleTypeName: "Web page",
-            CFBundleTypeRole: "Viewer",
-            LSHandlerRank: "Alternate",
-            LSItemContentTypes: ["public.html", "public.xhtml"],
-          },
-        ],
       },
+      // Only the app's own scheme: no http(s) handler or HTML document type, so the app is
+      // never offered as a web browser and outside links never land in it.
       protocols: [
         {
           name: "OrbiWork",
           schemes: ["orbiwork", "orbiwork-dev"],
-        },
-        {
-          name: "Web site URL",
-          schemes: ["http", "https"],
-          role: "Viewer",
         },
       ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),

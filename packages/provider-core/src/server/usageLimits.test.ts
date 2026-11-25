@@ -1,6 +1,15 @@
+import { it as effectIt } from "@effect/vitest";
+import * as Effect from "effect/Effect";
+import * as TestClock from "effect/testing/TestClock";
 import { describe, expect, it } from "vite-plus/test";
 
-import { applyUsageLimitsUpdate, resolveUsageLimitsAfterProbe } from "./usageLimits.ts";
+import {
+  applyUsageLimitsUpdate,
+  requestUsageLimits,
+  resolveUsageLimitsAfterProbe,
+  setUsageLimitReadsAllowedForTests,
+  whenUsageLimitsRequested,
+} from "./usageLimits.ts";
 
 const checkedAt = "2026-09-03T12:00:00.000Z";
 const session = {
@@ -143,4 +152,21 @@ describe("resolveUsageLimitsAfterProbe", () => {
     expect(resolveUsageLimitsAfterProbe({ published, probed: unsupported })).toBe(unsupported);
     expect(resolveUsageLimitsAfterProbe({ published: undefined, probed: failed })).toBe(failed);
   });
+});
+
+describe("whenUsageLimitsRequested", () => {
+  effectIt.effect("reads quota only in the window after a user request", () =>
+    Effect.gen(function* () {
+      setUsageLimitReadsAllowedForTests(false);
+      let reads = 0;
+      const read = whenUsageLimitsRequested(Effect.sync(() => ++reads));
+      // Boot and health timers never asked: nothing is read.
+      expect(yield* read).toBeUndefined();
+      yield* requestUsageLimits;
+      expect(yield* read).toBe(1);
+      yield* TestClock.adjust("3 minutes");
+      expect(yield* read).toBeUndefined();
+      expect(reads).toBe(1);
+    }),
+  );
 });

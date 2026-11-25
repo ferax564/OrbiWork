@@ -3,6 +3,8 @@ import type {
   ServerProviderUsageLimits,
   ServerProviderUsageWindow,
 } from "@orbiwork/contracts";
+import * as Clock from "effect/Clock";
+import * as Effect from "effect/Effect";
 
 const WINDOW_KIND_ORDER: Record<ServerProviderUsageWindow["kind"], number> = {
   session: 0,
@@ -129,3 +131,46 @@ export function resolveUsageLimitsAfterProbe(input: {
   }
   return probed;
 }
+
+// Quota reads send the user's provider credentials to the provider, so they run only for a short
+// while after the user asks for quota (opens Usage, refreshes providers, or a turn hits a usage
+// limit), never from boot or health-check timers.
+// shortcut: one process-wide window, not per-instance demand; upgrade if instances need separate gating.
+const USAGE_LIMITS_REQUEST_WINDOW_MS = 2 * 60_000;
+let usageLimitsRequestedAtMs: number | undefined;
+
+/** Marks that the user asked for quota; reads in the next two minutes may contact providers. */
+export const requestUsageLimits: Effect.Effect<void> = Effect.flatMap(
+  Clock.currentTimeMillis,
+  (now) =>
+    Effect.sync(() => {
+      usageLimitsRequestedAtMs = now;
+    }),
+);
+
+let usageLimitReadsAlwaysAllowed = false;
+
+/**
+ * Tests only: `true` lets quota reads run without a request (for tests of the reads themselves);
+ * `false` restores the gate and forgets earlier requests. Module state, so set it in beforeAll and
+ * reset it in afterAll.
+ */
+export function setUsageLimitReadsAllowedForTests(allowed: boolean): void {
+  usageLimitReadsAlwaysAllowed = allowed;
+  if (!allowed) usageLimitsRequestedAtMs = undefined;
+}
+
+export const usageLimitsRequested: Effect.Effect<boolean> = Effect.map(
+  Clock.currentTimeMillis,
+  (now) =>
+    usageLimitReadsAlwaysAllowed ||
+    (usageLimitsRequestedAtMs !== undefined &&
+      now >= usageLimitsRequestedAtMs &&
+      now - usageLimitsRequestedAtMs < USAGE_LIMITS_REQUEST_WINDOW_MS),
+);
+
+/** Runs a quota read only after the user asked for quota; otherwise yields undefined (no new reading). */
+export const whenUsageLimitsRequested = <A, E, R>(
+  read: Effect.Effect<A, E, R>,
+): Effect.Effect<A | undefined, E, R> =>
+  Effect.flatMap(usageLimitsRequested, (requested) => (requested ? read : Effect.undefined));

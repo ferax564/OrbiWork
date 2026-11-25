@@ -28,10 +28,14 @@ import { desktopUpdateChannelOf } from "@orbiwork/shared/cliRelease";
 import { isValidDistroName } from "../wsl/wslPathParsing.ts";
 
 export interface DesktopSettings {
+  /** Checks the update feed on launch and every few hours; off until the person turns it on. */
+  readonly automaticUpdateChecks: boolean;
   readonly localEnvironmentEnabled: boolean;
   readonly linuxPasswordStore: LinuxPasswordStorePreference;
   readonly mainWindowBounds: DesktopWindowBounds | null;
   readonly mainWindowMaximized: boolean;
+  /** Lets paired remote clients switch, download and install updates on this machine. */
+  readonly remoteUpdatesAllowed: boolean;
   readonly serverExposureMode: DesktopServerExposureMode;
   readonly tailscaleServeEnabled: boolean;
   readonly tailscaleServePort: number;
@@ -41,6 +45,11 @@ export interface DesktopSettings {
   readonly wslDistro: string | null;
   // Requires restart because the pool chooses its primary spec at layer initialization.
   readonly wslOnly: boolean;
+}
+
+export interface DesktopUpdatePreferences {
+  readonly automaticUpdateChecks?: boolean;
+  readonly remoteUpdatesAllowed?: boolean;
 }
 
 export interface DesktopSettingsChange {
@@ -69,10 +78,12 @@ export const DEFAULT_MAIN_WINDOW_SIZE = {
 } as const;
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
+  automaticUpdateChecks: false,
   localEnvironmentEnabled: true,
   linuxPasswordStore: DEFAULT_LINUX_PASSWORD_STORE,
   mainWindowBounds: null,
   mainWindowMaximized: false,
+  remoteUpdatesAllowed: false,
   serverExposureMode: "local-only",
   tailscaleServeEnabled: false,
   tailscaleServePort: DEFAULT_TAILSCALE_SERVE_PORT,
@@ -96,10 +107,12 @@ const optionalReadableKey = <S extends Schema.Top>(schema: S) =>
   Schema.optionalKey(schema.pipe(Schema.catchDecoding(() => Effect.succeedNone)));
 
 const DesktopSettingsDocument = Schema.Struct({
+  automaticUpdateChecks: optionalReadableKey(Schema.Boolean),
   localEnvironmentEnabled: optionalReadableKey(Schema.Boolean),
   linuxPasswordStore: optionalReadableKey(Schema.Unknown),
   mainWindowBounds: optionalReadableKey(Schema.NullOr(DesktopWindowBoundsDocument)),
   mainWindowMaximized: optionalReadableKey(Schema.Boolean),
+  remoteUpdatesAllowed: optionalReadableKey(Schema.Boolean),
   serverExposureMode: optionalReadableKey(DesktopServerExposureModeSchema),
   tailscaleServeEnabled: optionalReadableKey(Schema.Boolean),
   tailscaleServePort: optionalReadableKey(Schema.Number),
@@ -170,6 +183,9 @@ export class DesktopAppSettings extends Context.Service<
     readonly setUpdateChannel: (
       channel: DesktopUpdateChannel,
     ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
+    readonly setUpdatePreferences: (
+      preferences: DesktopUpdatePreferences,
+    ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
     readonly setWslBackendEnabled: (
       enabled: boolean,
     ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
@@ -225,10 +241,12 @@ function normalizeDesktopSettingsDocument(
     (parsed.wslBackendEnabled === undefined && parsed.wslMode === "wsl");
 
   return {
+    automaticUpdateChecks: parsed.automaticUpdateChecks === true,
     localEnvironmentEnabled: parsed.localEnvironmentEnabled !== false,
     linuxPasswordStore: normalizeLinuxPasswordStorePreference(parsed.linuxPasswordStore),
     mainWindowBounds,
     mainWindowMaximized: mainWindowBounds !== null && parsed.mainWindowMaximized === true,
+    remoteUpdatesAllowed: parsed.remoteUpdatesAllowed === true,
     serverExposureMode:
       parsed.serverExposureMode === "network-accessible" ? "network-accessible" : "local-only",
     tailscaleServeEnabled: parsed.tailscaleServeEnabled === true,
@@ -248,6 +266,13 @@ function toDesktopSettingsDocument(
   defaults: DesktopSettings,
 ): DesktopSettingsDocument {
   const document: Mutable<DesktopSettingsDocument> = {};
+
+  if (settings.automaticUpdateChecks !== defaults.automaticUpdateChecks) {
+    document.automaticUpdateChecks = settings.automaticUpdateChecks;
+  }
+  if (settings.remoteUpdatesAllowed !== defaults.remoteUpdatesAllowed) {
+    document.remoteUpdatesAllowed = settings.remoteUpdatesAllowed;
+  }
 
   if (settings.localEnvironmentEnabled !== defaults.localEnvironmentEnabled) {
     document.localEnvironmentEnabled = settings.localEnvironmentEnabled;
@@ -346,6 +371,18 @@ function setUpdateChannel(
         updateChannel: requestedChannel,
         updateChannelConfiguredByUser: true,
       };
+}
+
+function setUpdatePreferences(
+  settings: DesktopSettings,
+  preferences: DesktopUpdatePreferences,
+): DesktopSettings {
+  const automaticUpdateChecks = preferences.automaticUpdateChecks ?? settings.automaticUpdateChecks;
+  const remoteUpdatesAllowed = preferences.remoteUpdatesAllowed ?? settings.remoteUpdatesAllowed;
+  return settings.automaticUpdateChecks === automaticUpdateChecks &&
+    settings.remoteUpdatesAllowed === remoteUpdatesAllowed
+    ? settings
+    : { ...settings, automaticUpdateChecks, remoteUpdatesAllowed };
 }
 
 function setWslBackendEnabled(settings: DesktopSettings, enabled: boolean): DesktopSettings {
@@ -577,6 +614,13 @@ export const make = Effect.gen(function* () {
 
       return yield* persist((settings) => setUpdateChannel(settings, channel));
     }),
+    setUpdatePreferences: Effect.fn("desktop.settings.setUpdatePreferences")(
+      function* (preferences) {
+        yield* Effect.annotateCurrentSpan({ ...preferences });
+
+        return yield* persist((settings) => setUpdatePreferences(settings, preferences));
+      },
+    ),
     setWslBackendEnabled: Effect.fn("desktop.settings.setWslBackendEnabled")(function* (enabled) {
       yield* Effect.annotateCurrentSpan({ enabled });
 
@@ -646,6 +690,11 @@ export const layerTest = (initialSettings: DesktopSettings = DEFAULT_DESKTOP_SET
         setUpdateChannel: Effect.fn("DesktopAppSettings.setUpdateChannel")(function (channel) {
           return update((settings) => setUpdateChannel(settings, channel));
         }),
+        setUpdatePreferences: Effect.fn("DesktopAppSettings.setUpdatePreferences")(
+          function (preferences) {
+            return update((settings) => setUpdatePreferences(settings, preferences));
+          },
+        ),
         setWslBackendEnabled: Effect.fn("DesktopAppSettings.setWslBackendEnabled")(
           function (enabled) {
             return update((settings) => setWslBackendEnabled(settings, enabled));

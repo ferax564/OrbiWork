@@ -74,6 +74,75 @@ const ACKNOWLEDGED = new Set([
   "Browser.cancelDownload",
 ]);
 
+/**
+ * Commands that read the preview partition's cookies (which may be imported from the user's own
+ * browser) or fetch with them outside the page. Page script still sees non-HttpOnly cookies of the
+ * page it runs in; these would hand over every site's session at once.
+ */
+const DENIED_CDP_METHODS: ReadonlySet<string> = new Set([
+  "Network.getAllCookies",
+  "Network.getCookies",
+  "Network.loadNetworkResource",
+  "Page.getCookies",
+  "Storage.getCookies",
+  "Storage.getSharedStorageEntries",
+  "DOMStorage.getDOMStorageItems",
+  "IndexedDB.requestData",
+  "IndexedDB.getMetadata",
+  "CacheStorage.requestEntries",
+  "CacheStorage.requestCachedResponse",
+  "WebAuthn.getCredential",
+  "WebAuthn.getCredentials",
+]);
+
+const COOKIE_HEADER = /^(?:cookie|set-cookie)$/i;
+const COOKIE_LISTS = ["associatedCookies", "blockedCookies", "exemptedCookies"] as const;
+const COOKIE_HEADERS_TEXT = /^(?:cookie|set-cookie):.*$/gim;
+
+const withoutCookieHeaders = (headers: unknown): unknown => {
+  if (Array.isArray(headers)) {
+    // Fetch domain: [{ name, value }].
+    return headers.filter(
+      (header) => !COOKIE_HEADER.test(String((header as { name?: unknown })?.name ?? "")),
+    );
+  }
+  if (typeof headers !== "object" || headers === null) return headers;
+  return Object.fromEntries(Object.entries(headers).filter(([name]) => !COOKIE_HEADER.test(name)));
+};
+
+/** Drops cookie values from Network and Fetch events, which carry each request's Cookie header. */
+const redactCookieEvent = (method: string, params: unknown): unknown => {
+  if (!/^(?:Network|Fetch)\./.test(method) || typeof params !== "object" || params === null) {
+    return params;
+  }
+  const redacted: Record<string, unknown> = { ...(params as Record<string, unknown>) };
+  for (const key of COOKIE_LISTS) delete redacted[key];
+  for (const key of ["headers", "requestHeaders", "responseHeaders"]) {
+    if (key in redacted) redacted[key] = withoutCookieHeaders(redacted[key]);
+  }
+  for (const key of ["headersText", "requestHeadersText"]) {
+    if (typeof redacted[key] === "string") {
+      redacted[key] = (redacted[key] as string).replace(COOKIE_HEADERS_TEXT, "");
+    }
+  }
+  for (const key of ["request", "response", "redirectResponse"]) {
+    const nested = redacted[key];
+    if (typeof nested !== "object" || nested === null) continue;
+    const copy: Record<string, unknown> = { ...(nested as Record<string, unknown>) };
+    for (const header of ["headers", "requestHeaders"]) {
+      if (header in copy) copy[header] = withoutCookieHeaders(copy[header]);
+    }
+    if (typeof copy["requestHeadersText"] === "string") {
+      copy["requestHeadersText"] = (copy["requestHeadersText"] as string).replace(
+        COOKIE_HEADERS_TEXT,
+        "",
+      );
+    }
+    redacted[key] = copy;
+  }
+  return redacted;
+};
+
 export function createCdpRelayConnection(
   target: CdpRelayTarget,
   write: (message: string) => void,
@@ -212,6 +281,13 @@ export function createCdpRelayConnection(
   let runtimeReset: Promise<unknown> | undefined;
 
   const pageCommand = (command: CdpCommand): Promise<unknown> => {
+    if (DENIED_CDP_METHODS.has(command.method)) {
+      return Promise.reject(
+        new Error(
+          `Not allowed for a desktop preview tab: ${command.method} reads stored credentials`,
+        ),
+      );
+    }
     const child = sessions.get(command.sessionId!) === "page" ? undefined : command.sessionId;
     const owner =
       child === undefined && command.sessionId !== PAGE_SESSION_ID ? command.sessionId : undefined;
@@ -289,8 +365,9 @@ export function createCdpRelayConnection(
           }),
       );
     },
-    event: (method, params, sessionId) => {
+    event: (method, rawParams, sessionId) => {
       if (!attached) return;
+      const params = redactCookieEvent(method, rawParams);
       if (method.startsWith("Page.download")) method = method.replace("Page.", "Browser.");
       // Download events are the browser's; Playwright listens on its root session.
       if (method.startsWith("Browser.download")) {

@@ -59,7 +59,10 @@ import {
   readClaudeSettingsEnv,
 } from "./Drivers/ClaudeSkills.ts";
 import type { ProviderWorkspaceSnapshot } from "@orbiwork/provider-core/server/driver";
-import { makeUnavailableUsageLimits } from "@orbiwork/provider-core/server/usageLimits";
+import {
+  makeUnavailableUsageLimits,
+  usageLimitsRequested,
+} from "@orbiwork/provider-core/server/usageLimits";
 import {
   type ClaudeScopedLimitNames,
   claudeUsageResponseToLimits,
@@ -550,9 +553,11 @@ const probeClaudeCapabilities = (
         // The effort caps are read in parallel under the same deadline; workspace probes skip both.
         const usageCheckedAt = DateTime.formatIso(yield* DateTime.now);
         const { getSettings } = q as ClaudeSettingsQuery;
+        // The usage request reaches Anthropic with the user's token: only when the user asked for quota.
+        const readUsage = includeStatus && (yield* usageLimitsRequested);
         const [usageResult, settingsResult] = yield* Effect.all(
           [
-            includeStatus
+            readUsage
               ? Effect.tryPromise({
                   try: () =>
                     q.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({
@@ -869,7 +874,9 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
     });
   const usageCheckedAt = capabilities.usageCheckedAt ?? checkedAt;
   const usageLimits = !capabilities.usage
-    ? makeUnavailableUsageLimits({ checkedAt, reason: "probeFailed" })
+    ? (yield* usageLimitsRequested)
+      ? makeUnavailableUsageLimits({ checkedAt, reason: "probeFailed" })
+      : undefined
     : scopedLimitNames
       ? yield* recordClaudeUsageResponse(scopedLimitNames, {
           response: capabilities.usage,
@@ -882,6 +889,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
   const resetCredits =
     resolveResetCredits &&
     capabilities.subscriptionType &&
+    usageLimits !== undefined &&
     !usageLimits.unavailable &&
     parsedVersion
       ? yield* resolveResetCredits(parsedVersion)
@@ -905,7 +913,9 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
         ...(authMetadata ? authMetadata : {}),
       },
       ...(versionUpgradeMessage ? { message: versionUpgradeMessage } : {}),
-      usageLimits: resetCredits ? { ...usageLimits, resetCredits } : usageLimits,
+      ...(usageLimits
+        ? { usageLimits: resetCredits ? { ...usageLimits, resetCredits } : usageLimits }
+        : {}),
     },
   });
 });

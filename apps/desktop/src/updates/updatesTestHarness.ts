@@ -44,6 +44,8 @@ export interface UpdatesHarnessOptions {
   readonly savedChannel?: DesktopAppSettings.DesktopSettings["updateChannel"];
   /** Adds a WSL backend beside the primary, as on a Windows host with WSL enabled. */
   readonly wslBackend?: boolean;
+  /** Starts from in-memory settings with these update preferences saved. */
+  readonly updatePreferences?: DesktopAppSettings.DesktopUpdatePreferences;
 }
 
 export function makeHarness(options: UpdatesHarnessOptions = {}) {
@@ -208,10 +210,14 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
     ...(options.savedChannel === undefined
       ? {}
       : { updateChannel: options.savedChannel, updateChannelConfiguredByUser: true }),
+    ...options.updatePreferences,
   };
   const setUpdateChannelError = options.setUpdateChannelError;
   const layerSettings =
-    setUpdateChannelError || options.beforeSetUpdateChannel || options.savedChannel
+    setUpdateChannelError ||
+    options.beforeSetUpdateChannel ||
+    options.savedChannel ||
+    options.updatePreferences
       ? Layer.succeed(DesktopAppSettings.DesktopAppSettings, {
           get: Effect.sync(() => testSettings),
           load: Effect.sync(() => testSettings),
@@ -234,6 +240,15 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
                     }),
                   ),
                 ),
+          setUpdatePreferences: (preferences) =>
+            Effect.sync(() => {
+              const next = { ...testSettings, ...preferences };
+              const changed =
+                next.automaticUpdateChecks !== testSettings.automaticUpdateChecks ||
+                next.remoteUpdatesAllowed !== testSettings.remoteUpdatesAllowed;
+              testSettings = next;
+              return { settings: testSettings, changed };
+            }),
           setWslBackendEnabled: () => Effect.die("unexpected WSL backend toggle"),
           setWslDistro: () => Effect.die("unexpected WSL distro change"),
           setLocalEnvironmentEnabled: () => Effect.die("unexpected local environment toggle"),

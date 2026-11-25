@@ -28,7 +28,6 @@ import type {
   VcsStatusStreamEvent,
   VcsStatusSubscriptionInput,
 } from "@orbiwork/contracts";
-import { DEFAULT_AUTOMATIC_GIT_FETCH_INTERVAL } from "@orbiwork/contracts";
 import { mergeGitStatusParts } from "@orbiwork/shared/git";
 import * as KeyedLock from "@orbiwork/shared/KeyedLock";
 import { resolveProjectSettings } from "@orbiwork/shared/projectSettings";
@@ -41,6 +40,8 @@ import type * as GitVcsDriver from "./GitVcsDriver.ts";
 import { VcsAutomaticFetchInterval } from "./VcsAutomaticFetchInterval.ts";
 
 const VCS_STATUS_REFRESH_FAILURE_BASE_DELAY = Duration.seconds(30);
+// With automatic fetch off, the loop only re-reads the setting (no network) at this cadence.
+const FETCH_OFF_RECHECK_INTERVAL = Duration.seconds(30);
 const VCS_STATUS_REFRESH_FAILURE_MAX_DELAY = Duration.minutes(15);
 const VCS_STATUS_CACHE_CAPACITY = 256;
 const MAX_FAILURE_DIAGNOSTIC_VALUES = 8;
@@ -851,7 +852,7 @@ export const make = Effect.gen(function* () {
     const refreshRemoteStatusIfEnabled = Effect.gen(function* () {
       const configuredInterval = yield* automaticFetchInterval;
       const activeInterval = Duration.isZero(configuredInterval)
-        ? DEFAULT_AUTOMATIC_GIT_FETCH_INTERVAL
+        ? FETCH_OFF_RECHECK_INTERVAL
         : configuredInterval;
       const needsInitialRefresh = yield* Ref.get(needsInitialRefreshRef);
       if (Duration.isZero(configuredInterval) && !needsInitialRefresh) {
@@ -907,9 +908,7 @@ export const make = Effect.gen(function* () {
     if (!refreshImmediately) {
       const configuredInterval = yield* automaticFetchInterval;
       yield* Effect.sleep(
-        Duration.isZero(configuredInterval)
-          ? DEFAULT_AUTOMATIC_GIT_FETCH_INTERVAL
-          : configuredInterval,
+        Duration.isZero(configuredInterval) ? FETCH_OFF_RECHECK_INTERVAL : configuredInterval,
       );
     }
 

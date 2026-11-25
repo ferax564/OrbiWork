@@ -182,7 +182,7 @@ function BackgroundActivityAdvancedDialog({
                   {searchableSetting("git-fetch-interval").title}
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  <T>Refresh remote branch status in the background.</T>
+                  <T>Refresh remote branch status in the background. 0 turns it off.</T>
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">

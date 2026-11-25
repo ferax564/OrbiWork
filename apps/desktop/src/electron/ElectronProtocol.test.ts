@@ -41,7 +41,6 @@ describe("ElectronProtocol", () => {
       yield* protocol.registerDesktopProtocol({
         scheme: "orbiwork",
         assetDirectory: directory,
-        clerkFrontendApiHostname: undefined,
       });
       const request = (pathname: string, init?: RequestInit) =>
         Effect.promise(() => handler!(new Request(`orbiwork://app${pathname}`, init)));
@@ -80,7 +79,6 @@ describe("ElectronProtocol", () => {
           yield* protocol.registerDesktopProtocol({
             scheme: "orbiwork-dev",
             targetOrigin: new URL("http://127.0.0.1:3773/"),
-            clerkFrontendApiHostname: "clerk.orbiwork.invalid",
           });
           assert.isDefined(handler);
 
@@ -97,21 +95,9 @@ describe("ElectronProtocol", () => {
             ),
           );
           assert.equal(yield* Effect.promise(() => response.text()), "ok");
-          assert.include(
-            response.headers.get("content-security-policy") ?? "",
-            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.orbiwork.invalid https://challenges.cloudflare.com",
-          );
-          assert.include(
-            response.headers.get("content-security-policy") ?? "",
-            "connect-src 'self' blob: http: https: ws: wss:",
-          );
-          assert.include(
-            response.headers.get("content-security-policy") ?? "",
-            "img-src 'self' orbiwork-dev: blob: data: http: https:",
-          );
-          assert.include(
-            response.headers.get("content-security-policy") ?? "",
-            "font-src 'self' orbiwork-dev: data:",
+          assert.equal(
+            response.headers.get("content-security-policy"),
+            ElectronProtocol.makeDesktopContentSecurityPolicy("orbiwork-dev"),
           );
         }),
       );
@@ -144,7 +130,6 @@ describe("ElectronProtocol", () => {
           yield* protocol.registerDesktopProtocol({
             scheme: "orbiwork-dev",
             targetOrigin: new URL("http://127.0.0.1:5733/"),
-            clerkFrontendApiHostname: undefined,
           });
           yield* Effect.promise(() =>
             handler!(new Request("orbiwork-dev://app//example.com/src/main.tsx?t=1")),
@@ -176,7 +161,6 @@ describe("ElectronProtocol", () => {
           yield* protocol.registerDesktopProtocol({
             scheme: "orbiwork",
             targetOrigin: new URL("http://127.0.0.1:3773/"),
-            clerkFrontendApiHostname: undefined,
           });
           return yield* Effect.promise(() => handler!(new Request("orbiwork://other/")));
         }),
@@ -185,5 +169,62 @@ describe("ElectronProtocol", () => {
       assert.equal(response.status, 404);
       assert.equal(netFetchMock.mock.calls.length, 0);
     }).pipe(Effect.provide(layerProtocol)),
+  );
+  it("pins the renderer policy: no inline scripts, plugins or base changes", () => {
+    const policy = ElectronProtocol.makeDesktopContentSecurityPolicy("orbiwork", ["'sha256-abc'"]);
+    assert.deepEqual(policy.split("; "), [
+      "default-src 'self'",
+      "script-src 'self' 'wasm-unsafe-eval' 'sha256-abc'",
+      "script-src-attr 'none'",
+      "connect-src 'self' blob: http: https: ws: wss:",
+      "img-src 'self' orbiwork: blob: data: http: https:",
+      "media-src 'self' orbiwork: blob: http: https:",
+      "style-src 'self' 'unsafe-inline'",
+      "font-src 'self' orbiwork: data:",
+      "worker-src 'self' blob:",
+      "frame-src 'self' blob: http: https:",
+      "object-src http: https:",
+      "base-uri 'none'",
+      "form-action 'self'",
+    ]);
+  });
+
+  it("hashes only the inline scripts a document ships", () => {
+    const html =
+      '<script>a()</script><script type="module" src="/x.js"></script>' +
+      "<SCRIPT data-src=1>b()</SCRIPT ><script></script><script>a()</script>";
+    assert.deepEqual(ElectronProtocol.inlineScriptHashes(html), [
+      "'sha256-qVpDBgj7bpq5hMAcGp3AOc79J3Y1Z4HvySTwKrWDoy4='",
+      "'sha256-cf242PFc/kb7xD0Qzhsmd9vvRkc+cWFmbi+k+YvtdKc='",
+    ]);
+  });
+
+  it.effect("allows the served page's inline bootstrap scripts by hash", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const directory = yield* fileSystem.makeTempDirectoryScoped();
+      yield* fileSystem.writeFileString(
+        `${directory}/index.html`,
+        "<html><script>boot()</script></html>",
+      );
+      let handler: ((request: Request) => Promise<Response>) | undefined;
+      handleMock.mockImplementation((_scheme, nextHandler) => {
+        handler = nextHandler;
+      });
+      const protocol = yield* ElectronProtocol.ElectronProtocol;
+      yield* protocol.registerDesktopProtocol({ scheme: "orbiwork", assetDirectory: directory });
+      const page = yield* Effect.promise(() => handler!(new Request("orbiwork://app/")));
+      assert.equal(
+        yield* Effect.promise(() => page.text()),
+        "<html><script>boot()</script></html>",
+      );
+      assert.equal(
+        page.headers.get("content-security-policy"),
+        ElectronProtocol.makeDesktopContentSecurityPolicy(
+          "orbiwork",
+          ElectronProtocol.inlineScriptHashes("<script>boot()</script>"),
+        ),
+      );
+    }).pipe(Effect.provide(Layer.merge(layerProtocol, NodeServices.layer))),
   );
 });

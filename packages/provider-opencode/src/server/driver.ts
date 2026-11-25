@@ -35,6 +35,7 @@ import type { ProviderTextGeneration } from "@orbiwork/provider-core/server/text
 import { ProviderDriverError } from "@orbiwork/provider-core/server/errors";
 import { openCodeUsageReader, type OpenCodeUsageReaderEnv } from "./usage.ts";
 import { readOpenCodeGoUsageLimits } from "./usageLimits.ts";
+import { whenUsageLimitsRequested } from "@orbiwork/provider-core/server/usageLimits";
 import { loadOpenCode2Catalog, loadOpenCode2DirectoryCatalog } from "./openCode2Catalog.ts";
 import {
   checkOpenCodeProviderStatus,
@@ -553,7 +554,7 @@ export const OpenCodeDriver: ProviderDriver<
           Effect.annotateLogs({ providerInstanceId: instanceId }),
           Effect.annotateSpans({ providerInstanceId: instanceId }),
         ),
-        usageLimits: checkUsageLimits,
+        usageLimits: whenUsageLimitsRequested(checkUsageLimits),
       },
       { concurrency: "unbounded" },
     ).pipe(

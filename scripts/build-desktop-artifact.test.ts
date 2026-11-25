@@ -623,6 +623,81 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }),
   );
 
+  it.effect("flips the Electron fuses that do not break the backend, on every platform", () =>
+    Effect.gen(function* () {
+      for (const [platform, target] of [
+        ["mac", "dmg"],
+        ["win", "nsis"],
+        ["linux", "AppImage"],
+      ] as const) {
+        for (const signed of [false, true]) {
+          const config = yield* createBuildConfig(
+            platform,
+            target,
+            "0.1.0",
+            signed,
+            false,
+            undefined,
+            undefined,
+          );
+          assert.deepStrictEqual(config.electronFuses, {
+            // Blocked: the backend and its children run this binary with ELECTRON_RUN_AS_NODE.
+            runAsNode: true,
+            enableNodeOptionsEnvironmentVariable: true,
+            enableNodeCliInspectArguments: false,
+            enableCookieEncryption: true,
+            enableEmbeddedAsarIntegrityValidation: platform !== "linux",
+            onlyLoadAppFromAsar: true,
+            ...(platform === "mac" && !signed ? { resetAdHocDarwinSignature: true } : {}),
+          });
+        }
+      }
+    }).pipe(
+      Effect.provide(
+        ConfigProvider.layer(
+          ConfigProvider.fromEnv({
+            env: {
+              AZURE_TRUSTED_SIGNING_ENDPOINT: "https://eus.codesigning.azure.net",
+              AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: "account",
+              AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME: "profile",
+              AZURE_TRUSTED_SIGNING_PUBLISHER_NAME: "OrbiWork",
+            },
+          }),
+        ),
+      ),
+    ),
+  );
+
+  it.effect("registers only the app's own URL scheme and no web document types", () =>
+    Effect.gen(function* () {
+      const mac = (yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "0.1.0",
+        false,
+        false,
+        undefined,
+        undefined,
+      )).mac as { protocols: Array<{ schemes: string[] }>; extendInfo: Record<string, unknown> };
+      const linux = (yield* createBuildConfig(
+        "linux",
+        "AppImage",
+        "0.1.0",
+        false,
+        false,
+        undefined,
+        undefined,
+      )).linux as { protocols: Array<{ schemes: string[] }> };
+      for (const protocols of [mac.protocols, linux.protocols]) {
+        assert.deepStrictEqual(
+          protocols.flatMap((protocol) => protocol.schemes),
+          ["orbiwork", "orbiwork-dev"],
+        );
+      }
+      assert.notProperty(mac.extendInfo, "CFBundleDocumentTypes");
+    }),
+  );
+
   // pnpm writes "set this to true or false" placeholders into allowBuilds when a
   // tarball changes. pnpm ignores them, but the release build decode rejects them.
   it.effect("decodes the repo allowBuilds and every file: tarball it names exists", () =>
@@ -1571,6 +1646,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     assert.include(entitlements, "<string>webcredentials:clerk.example.com</string>");
     assert.include(entitlements, "<string>webcredentials:example.clerk.accounts.dev</string>");
     assert.include(entitlements, "<key>com.apple.security.cs.allow-jit</key>");
+    // Modern V8 needs only allow-jit; this one would let any page of memory become executable.
+    assert.notInclude(entitlements, "allow-unsigned-executable-memory");
     assert.match(
       entitlements,
       /<key>com\.apple\.security\.automation\.apple-events<\/key>\s*<true\/>/u,

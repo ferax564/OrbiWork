@@ -974,6 +974,20 @@ export const SETTINGS_SEARCH_ITEMS = [
     releaseChannelOnly: true,
   },
   {
+    id: "automatic-update-checks",
+    title: msg("Check for updates automatically"),
+    to: "/settings/about",
+    searchTerms: [msg("auto update background poll github release network")],
+    desktopOnly: true,
+  },
+  {
+    id: "remote-updates",
+    title: msg("Allow remote updates"),
+    to: "/settings/about",
+    searchTerms: [msg("paired device remote client install restart update permission")],
+    desktopOnly: true,
+  },
+  {
     id: "cli-command",
     title: msg("orbi command"),
     to: "/settings/about",
@@ -997,7 +1011,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "privacy-policy",
     title: msg("Privacy policy"),
     to: "/settings/about",
-    searchTerms: [msg("telemetry analytics usage data tracking legal opt out")],
+    searchTerms: [msg("data legal")],
   },
   {
     id: "telemetry-export",

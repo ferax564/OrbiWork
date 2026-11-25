@@ -38,6 +38,12 @@ import * as ProviderEventLoggers from "@orbiwork/provider-core/server/ProviderEv
 import * as ProviderMaintenance from "@orbiwork/provider-core/server/maintenanceResolver";
 import * as OpenCodeRuntime from "./OpenCodeRuntime.ts";
 import { OpenCodeDriver, isLocalOpenCodeServerUrl, openCodeUpdateFor } from "./driver.ts";
+import { setUsageLimitReadsAllowedForTests } from "@orbiwork/provider-core/server/usageLimits";
+import { afterAll, beforeAll } from "vite-plus/test";
+
+// These tests cover reading quota; the request gate itself is tested in provider-core.
+beforeAll(() => setUsageLimitReadsAllowedForTests(true));
+afterAll(() => setUsageLimitReadsAllowedForTests(false));
 import * as OpenCodeServerLedger from "./OpenCodeServerLedger.ts";
 import {
   OPENCODE_2_RESPONSES,

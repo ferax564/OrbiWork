@@ -9,6 +9,9 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import * as ElectronDialog from "../../electron/ElectronDialog.ts";
+import * as ElectronWindow from "../../electron/ElectronWindow.ts";
+import * as BrowserImport from "../../preview/BrowserImport/BrowserImport.ts";
 import * as PreviewManager from "../../preview/Manager.ts";
 import * as PreviewIpc from "./preview.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
@@ -33,6 +36,56 @@ vi.mock("electron", () => ({
 }));
 
 const decodeCaptureFailure = Schema.decodeUnknownEffect(PreviewCaptureFailure);
+
+describe("browser cookie import", () => {
+  const importWith = (response: number) => {
+    const importCookies = vi.fn(() =>
+      Effect.succeed({ imported: 3, skipped: 0, skippedDomains: [] }),
+    );
+    const showMessageBox = vi.fn((_options: unknown) =>
+      Effect.succeed({ response, checkboxChecked: false }),
+    );
+    const run = PreviewIpc.importBrowserCookies
+      .handler(
+        {
+          environmentId: "env-1",
+          sourceId: "chrome",
+          sourceProfileDirectory: "Default",
+          targetProfileId: DEFAULT_BROWSER_PROFILE_ID,
+        },
+        undefined,
+      )
+      .pipe(
+        Effect.provideService(BrowserImport.BrowserImport, {
+          listSources: Effect.succeed([]),
+          importCookies,
+        } as unknown as BrowserImport.BrowserImport["Service"]),
+        Effect.provideService(ElectronDialog.ElectronDialog, {
+          showMessageBox,
+        } as unknown as ElectronDialog.ElectronDialog["Service"]),
+        Effect.provideService(ElectronWindow.ElectronWindow, {
+          main: Effect.succeedNone,
+        } as unknown as ElectronWindow.ElectronWindow["Service"]),
+      );
+    return { run, importCookies, showMessageBox };
+  };
+
+  effectIt.effect("imports nothing unless the person confirms in a main-process dialog", () =>
+    Effect.gen(function* () {
+      const declined = importWith(0);
+      expect(yield* declined.run).toEqual({ imported: 0, skipped: 0, skippedDomains: [] });
+      expect(declined.importCookies).not.toHaveBeenCalled();
+      expect(declined.showMessageBox.mock.calls[0]?.[0]).toMatchObject({
+        defaultId: 0,
+        cancelId: 0,
+      });
+
+      const confirmed = importWith(1);
+      expect(yield* confirmed.run).toEqual({ imported: 3, skipped: 0, skippedDomains: [] });
+      expect(confirmed.importCookies).toHaveBeenCalledOnce();
+    }),
+  );
+});
 
 describe("preview IPC methods", () => {
   const invokeCapture = (

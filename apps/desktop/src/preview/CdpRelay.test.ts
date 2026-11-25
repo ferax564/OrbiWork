@@ -138,6 +138,93 @@ describe("CDP relay", () => {
   });
 });
 
+describe("CDP relay credential guard", () => {
+  it("refuses cookie- and credential-reading commands on every page session", async () => {
+    const send = vi.fn(async () => ({ cookies: [{ name: "sid", value: "secret" }] }));
+    const written: Array<Record<string, unknown>> = [];
+    const relay = makeRelay(makeTarget(send), (raw) => written.push(JSON.parse(raw)));
+    relay.receive(JSON.stringify({ id: 1, method: "Target.setAutoAttach", params: {} }));
+    await settle();
+    const methods = [
+      "Network.getAllCookies",
+      "Network.getCookies",
+      "Storage.getCookies",
+      "Page.getCookies",
+      "Network.loadNetworkResource",
+    ];
+    methods.forEach((method, index) =>
+      relay.receive(
+        JSON.stringify({
+          id: 10 + index,
+          method,
+          params: {},
+          sessionId: index % 2 === 0 ? "orbi-preview-page" : "iframe-session",
+        }),
+      ),
+    );
+    // The browser session never reaches the page, and refuses storage commands too.
+    relay.receive(JSON.stringify({ id: 20, method: "Storage.getCookies", params: {} }));
+    await settle();
+    expect(send).not.toHaveBeenCalled();
+    for (const id of [10, 11, 12, 13, 14, 20]) {
+      expect(written).toContainEqual(expect.objectContaining({ id, error: expect.anything() }));
+    }
+    expect(JSON.stringify(written)).not.toContain("secret");
+  });
+
+  it("strips cookie values from network events", async () => {
+    const written: Array<Record<string, unknown>> = [];
+    const relay = makeRelay(makeTarget(vi.fn()), (raw) => written.push(JSON.parse(raw)));
+    relay.receive(JSON.stringify({ id: 1, method: "Target.setAutoAttach", params: {} }));
+    await settle();
+    relay.event(
+      "Network.requestWillBeSentExtraInfo",
+      {
+        requestId: "r1",
+        headers: { Cookie: "sid=secret", accept: "*/*" },
+        associatedCookies: [{ cookie: { name: "sid", value: "secret" } }],
+      },
+      "",
+    );
+    relay.event(
+      "Network.responseReceivedExtraInfo",
+      {
+        requestId: "r1",
+        headers: { "set-cookie": "sid=secret", "content-type": "text/html" },
+        headersText: "HTTP/1.1 200 OK\r\nSet-Cookie: sid=secret\r\n",
+        blockedCookies: [{ cookie: { value: "secret" } }],
+      },
+      "",
+    );
+    relay.event(
+      "Fetch.requestPaused",
+      {
+        requestId: "f1",
+        request: { url: "https://example.com/", headers: { cookie: "sid=secret" } },
+        responseHeaders: [
+          { name: "Set-Cookie", value: "sid=secret" },
+          { name: "x", value: "1" },
+        ],
+      },
+      "",
+    );
+    expect(JSON.stringify(written)).not.toContain("secret");
+    expect(written.slice(-3).map((message) => message["params"])).toEqual([
+      { requestId: "r1", headers: { accept: "*/*" } },
+      {
+        requestId: "r1",
+        headers: { "content-type": "text/html" },
+        headersText: "HTTP/1.1 200 OK\r\n\r\n",
+      },
+      {
+        requestId: "f1",
+        request: { url: "https://example.com/", headers: {} },
+        responseHeaders: [{ name: "x", value: "1" }],
+      },
+    ]);
+  });
+});
+
 describe("CDP relay extra sessions", () => {
   it("gives a second page session the page's commands and events", async () => {
     const send = vi.fn<CdpRelayTarget["send"]>(async () => ({}));

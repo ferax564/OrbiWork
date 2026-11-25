@@ -32,7 +32,6 @@ import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
-import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 
 it.effect("parks automatic pull until activation without delaying command readiness", () =>
@@ -131,9 +130,7 @@ it.effect("parks automatic pull until activation without delaying command readin
         listShells: () => Effect.succeed(snapshot.projects),
       }),
       Layer.mock(ProjectService.ProjectService)({ snapshot: Effect.succeed(snapshot) }),
-      Layer.mock(ThreadManagement.ThreadManagementService)({
-        countThreads: () => Effect.succeed(0),
-      }),
+      Layer.mock(ThreadManagement.ThreadManagementService)({}),
       Layer.mock(ThreadLaunch.ThreadLaunchService)({}),
       Layer.mock(ServiceLauncherClient.ServiceLauncherClient)({
         managed: true,
@@ -151,8 +148,6 @@ it.effect("parks automatic pull until activation without delaying command readin
             Effect.onInterrupt(() => Deferred.succeed(statusInterrupted, undefined)),
           ),
       }),
-      Layer.mock(AnalyticsService.AnalyticsService)({ record: () => Effect.succeed(true) }),
-      // No provider logins or Connect link, so startup records no owners.
       FileSystem.layerNoop({}),
       Layer.mock(ServerSecretStore.ServerSecretStore)({ get: () => Effect.succeedNone }),
       NodeCrypto.layer,

@@ -50,7 +50,10 @@ import {
   type ServerProviderDraft,
 } from "@orbiwork/provider-core/server/snapshotProbe";
 import { expandHomePath } from "@orbiwork/provider-core/server/pathExpansion";
-import { makeUnavailableUsageLimits } from "@orbiwork/provider-core/server/usageLimits";
+import {
+  makeUnavailableUsageLimits,
+  whenUsageLimitsRequested,
+} from "@orbiwork/provider-core/server/usageLimits";
 import {
   codexRateLimitsFailureMessage,
   codexRateLimitsToLimits,
@@ -792,8 +795,9 @@ const probeCodexAppServerProvider = Effect.fn("probeCodexAppServerProvider")(fun
             !input.skipNativeUsage &&
             config !== undefined &&
             codexRoutesSpendNativeQuota(accountResponse, config.config);
+          // Codex reads quota from chatgpt.com with the user's login: only when the user asked.
           const readUsage: Effect.Effect<CodexRateLimitsProbe | undefined> = nativeUsage
-            ? readCodexRateLimits(client, deadlineMs)
+            ? whenUsageLimitsRequested(readCodexRateLimits(client, deadlineMs))
             : Effect.undefined;
           return readUsage.pipe(
             Effect.map((rateLimits) => ({
@@ -1134,19 +1138,21 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
   const usageLimits =
     !snapshot.nativeUsage && !accountStatus.message
       ? makeUnavailableUsageLimits({ checkedAt, reason: "unsupported" })
-      : snapshot.rateLimits === undefined || "failure" in snapshot.rateLimits
-        ? makeUnavailableUsageLimits({
-            checkedAt,
-            reason: "probeFailed",
-            ...(accountStatus.message ? { message: accountStatus.message } : {}),
-            ...(snapshot.rateLimits ? { message: snapshot.rateLimits.failure } : {}),
-          })
-        : codexRateLimitsToLimits({
-            snapshot: snapshot.rateLimits.snapshot,
-            rateLimitsByLimitId: snapshot.rateLimits.rateLimitsByLimitId,
-            resetCredits: snapshot.rateLimits.resetCredits,
-            checkedAt,
-          });
+      : snapshot.nativeUsage && snapshot.rateLimits === undefined && !accountStatus.message
+        ? undefined // Not read: the user has not asked for quota.
+        : snapshot.rateLimits === undefined || "failure" in snapshot.rateLimits
+          ? makeUnavailableUsageLimits({
+              checkedAt,
+              reason: "probeFailed",
+              ...(accountStatus.message ? { message: accountStatus.message } : {}),
+              ...(snapshot.rateLimits ? { message: snapshot.rateLimits.failure } : {}),
+            })
+          : codexRateLimitsToLimits({
+              snapshot: snapshot.rateLimits.snapshot,
+              rateLimitsByLimitId: snapshot.rateLimits.rateLimitsByLimitId,
+              resetCredits: snapshot.rateLimits.resetCredits,
+              checkedAt,
+            });
 
   return buildServerProvider({
     presentation: CODEX_PRESENTATION,
@@ -1184,7 +1190,7 @@ export const checkCodexProviderStatus = Effect.fn("checkCodexProviderStatus")(fu
         : snapshot.models === undefined
           ? { message: "Codex did not return its model catalog in time." }
           : {}),
-      ...(managedAuth ? {} : { usageLimits }),
+      ...(managedAuth || usageLimits === undefined ? {} : { usageLimits }),
     },
   });
 });

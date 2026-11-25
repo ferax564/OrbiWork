@@ -127,8 +127,8 @@ const policies = (): ReadonlyArray<Policy> => [
   },
   {
     id: "Telemetry",
-    title: "Allow usage data",
-    help: "Disabled stops OrbiWork from sending product usage data and relay connection traces. Enabled cannot turn them on for a user who turned them off.",
+    title: "Allow relay connection traces",
+    help: "Disabled stops OrbiWork from sending relay connection traces. Enabled cannot turn them on for a user who turned them off.",
     toggle: "Telemetry",
   },
   {

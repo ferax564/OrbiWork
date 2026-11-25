@@ -76,7 +76,7 @@ Locks and provider fields go in the two JSON policies, as the same objects a pol
 Machines pick up a change at the next Group Policy refresh; run `gpupdate /target:computer /force`
 to apply it now, then restart OrbiWork.
 Setting **Allow Orbi Connect**, **Allow webhook tasks**, **Allow importing browser cookies**, or
-**Allow usage data** to **Disabled** turns that feature off. Setting any other OrbiWork policy to
+**Allow relay connection traces** to **Disabled** turns that feature off. Setting any other OrbiWork policy to
 **Disabled** restricts nothing, the same as **Not Configured**.
 
 **Windows registry value.** Instead of the template, set the `Policy` value (`REG_SZ`) to the whole policy as one line of JSON,
@@ -256,8 +256,8 @@ so restart OrbiWork after that.
   Browser tabs stream from it instead, and port forwarding and **Open on this device** are
   unavailable. This wins over the user's
   [Preview tunnel setting](./remote-access.md#browser-on-a-remote-environment).
-- `telemetry: false`: the server and desktop app send no [product usage data](./telemetry.md) or
-  relay connection traces. A policy cannot turn them on. A browser that opens the server, such as
+- `telemetry: false`: the server and desktop app send no
+  [relay connection traces](./telemetry.md#relay-connection-diagnostics). A policy cannot turn them on. A browser that opens the server, such as
   app.orbiwork.invalid, still sends its own relay traces.
 
 ### Providers

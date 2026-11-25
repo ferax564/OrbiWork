@@ -1087,9 +1087,17 @@ export const make = Effect.gen(function* () {
     };
   });
 
+  // Background checks contact the update feed, so they run only once the person turns them on.
+  const automaticCheck = (reason: "startup" | "poll") =>
+    desktopSettings.get.pipe(
+      Effect.flatMap((settings) =>
+        settings.automaticUpdateChecks ? checkForUpdates(reason) : Effect.succeed(false),
+      ),
+    );
+
   const startUpdatePollers: Effect.Effect<void, never, Scope.Scope> = Effect.gen(function* () {
     yield* Effect.sleep(AUTO_UPDATE_STARTUP_DELAY).pipe(
-      Effect.andThen(checkForUpdates("startup")),
+      Effect.andThen(automaticCheck("startup")),
       Effect.catchCause((cause) => {
         if (Cause.hasInterruptsOnly(cause)) {
           return Effect.void;
@@ -1104,7 +1112,7 @@ export const make = Effect.gen(function* () {
       Effect.forkScoped,
     );
     yield* Effect.sleep(AUTO_UPDATE_POLL_INTERVAL).pipe(
-      Effect.andThen(checkForUpdates("poll")),
+      Effect.andThen(automaticCheck("poll")),
       Effect.forever,
       Effect.catchCause((cause) => {
         if (Cause.hasInterruptsOnly(cause)) {

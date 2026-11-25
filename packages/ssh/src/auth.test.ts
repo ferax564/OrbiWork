@@ -1,3 +1,6 @@
+// @effect-diagnostics nodeBuiltinImport:off - Runs the askpass helpers as ssh would.
+import * as NodeChildProcess from "node:child_process";
+
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 
@@ -15,6 +18,32 @@ import * as HostProcess from "@orbiwork/shared/HostProcess";
 import { symlinksSupported } from "@orbiwork/shared/testing/symlinks";
 
 import { buildSshChildEnvironment, isSshAgentSigningFailure, isSshAuthFailure } from "./auth.ts";
+
+const target = {
+  alias: "devbox",
+  hostname: "devbox.example.com",
+  username: "julius",
+  port: null,
+} as const;
+
+const fakeSsh = (banner: string) =>
+  ChildProcessSpawner.make(() =>
+    Effect.succeed(
+      ChildProcessSpawner.makeHandle({
+        pid: ChildProcessSpawner.ProcessId(123),
+        stdout: Stream.empty,
+        stderr: Stream.make(new TextEncoder().encode(`${banner}\r\n`)),
+        all: Stream.empty,
+        exitCode: Effect.succeed(ChildProcessSpawner.ExitCode(0)),
+        isRunning: Effect.succeed(false),
+        kill: () => Effect.void,
+        stdin: Sink.drain,
+        getInputFd: () => Sink.drain,
+        getOutputFd: () => Stream.empty,
+        unref: Effect.succeed(Effect.void),
+      }),
+    ),
+  );
 
 describe("ssh auth", () => {
   it.effect("detects ssh auth failures from common permission denied messages", () =>
@@ -71,23 +100,38 @@ describe("ssh auth", () => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const directory = yield* fs.makeTempDirectoryScoped({ prefix: "orbi-ssh-askpass-test-" });
-      const env = yield* buildSshChildEnvironment({
-        authSecret: "super-secret",
-        interactiveAuth: true,
-        askpassDirectory: directory,
-        baseEnv: {},
-      });
+      const { env, secretFile, secretMode, secretContents } = yield* Effect.scoped(
+        Effect.gen(function* () {
+          const env = yield* buildSshChildEnvironment({
+            authSecret: "super-secret",
+            interactiveAuth: true,
+            askpassDirectory: directory,
+            baseEnv: {},
+            target,
+          });
+          const secretFile = env.ORBI_SSH_AUTH_SECRET_FILE ?? "";
+          return {
+            env,
+            secretFile,
+            secretMode: (yield* fs.stat(secretFile)).mode & 0o777,
+            secretContents: yield* fs.readFileString(secretFile),
+          };
+        }),
+      );
 
       const askpassPath = path.join(directory, "ssh-askpass.sh");
       assert.equal(env.SSH_ASKPASS, askpassPath);
       assert.equal(env.SSH_ASKPASS_REQUIRE, "force");
-      assert.equal(env.ORBI_SSH_AUTH_SECRET, "super-secret");
       assert.equal(env.DISPLAY, "orbiwork");
       assert.equal(yield* fs.exists(askpassPath), true);
-      assert.include(
-        yield* fs.readFileString(askpassPath),
-        'printf "%s\\n" "$ORBI_SSH_AUTH_SECRET"',
-      );
+      // The password is in no environment variable, only in a private file beside the helper.
+      assert.isFalse("ORBI_SSH_AUTH_SECRET" in env);
+      for (const value of Object.values(env)) assert.notInclude(value ?? "", "super-secret");
+      assert.equal(path.dirname(secretFile), directory);
+      assert.equal(secretMode, 0o600);
+      assert.equal(secretContents.split("\n")[0], "super-secret");
+      assert.isFalse(yield* fs.exists(secretFile), "the attempt's end removes the password file");
+      assert.notInclude(yield* fs.readFileString(askpassPath), "super-secret");
     }).pipe(
       Effect.provide(Layer.merge(NodeServices.layer, Layer.succeed(HostProcess.Platform, "linux"))),
     ),
@@ -157,6 +201,7 @@ describe("ssh auth", () => {
           interactiveAuth: true,
           askpassDirectory: dir,
           baseEnv: {},
+          target,
         }).pipe(
           Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
           Effect.provideService(HostProcess.IsExecutable, testCase.isExecutable),
@@ -171,18 +216,97 @@ describe("ssh auth", () => {
         assert.equal(env.NODE_OPTIONS, testCase.nodeOptions);
         assert.equal(env.ELECTRON_RUN_AS_NODE, testCase.runAsNode);
         assert.equal(env.SSH_ASKPASS_REQUIRE, "force");
-        assert.equal(env.ORBI_SSH_AUTH_SECRET, "super-secret");
+        assert.isFalse("ORBI_SSH_AUTH_SECRET" in env);
+        assert.include(env.ORBI_SSH_AUTH_SECRET_FILE ?? "", `${dir}\\ssh-askpass-secret-`);
       }
 
       assert.equal(yield* fs.exists(`${dir}\\ssh-askpass.cmd`), false);
-      assert.notInclude(yield* fs.readFileString(`${dir}\\ssh-askpass.cjs`), "process.argv");
       assert.include(
         yield* fs.readFileString(`${dir}\\ssh-askpass.sh`),
-        'printf "%s\\n" "$ORBI_SSH_AUTH_SECRET"',
+        "ORBI_SSH_AUTH_SECRET_FILE",
       );
     }).pipe(
       Effect.provide(Layer.merge(NodeServices.layer, Layer.succeed(HostProcess.Platform, "win32"))),
     ),
+  );
+
+  // ssh passes the prompt as the helper's last argument and sends whatever the helper prints.
+  it.effect.each(["linux", "win32"] as const)(
+    "answers only this account's password prompt (%s helper)",
+    (platform) =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const directory = yield* fs.makeTempDirectoryScoped({ prefix: "orbi-ssh-askpass-test-" });
+        const ask = (env: NodeJS.ProcessEnv, prompt: string) => {
+          const command =
+            platform === "win32"
+              ? [process.execPath, `${directory}\\ssh-askpass.cjs`]
+              : ["sh", `${directory}/ssh-askpass.sh`];
+          const result = NodeChildProcess.spawnSync(command[0]!, [...command.slice(1), prompt], {
+            encoding: "utf8",
+            env: { PATH: process.env.PATH ?? "", ...env },
+          });
+          return { status: result.status, stdout: result.stdout };
+        };
+        const declined = { status: 1, stdout: "" };
+        const askpassEnv = (secret: string | null) =>
+          buildSshChildEnvironment({
+            ...(secret === null ? {} : { authSecret: secret }),
+            interactiveAuth: true,
+            askpassDirectory: directory,
+            baseEnv: {},
+            target,
+          }).pipe(
+            Effect.provideService(
+              ChildProcessSpawner.ChildProcessSpawner,
+              fakeSsh("OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2"),
+            ),
+            Effect.provideService(HostProcess.Platform, platform),
+            Effect.provideService(HostProcess.IsExecutable, false),
+          );
+
+        const env = yield* askpassEnv("pa ss'\"$(id)");
+        const secretFile = env.ORBI_SSH_AUTH_SECRET_FILE ?? "";
+        for (const prompt of [
+          "Enter passphrase for key '/home/julius/.ssh/id_ed25519': ",
+          "Are you sure you want to continue connecting (yes/no/[fingerprint])? ",
+          "The authenticity of host 'devbox.example.com (10.0.0.2)' can't be established.\nED25519 key fingerprint is SHA256:abc.\nAre you sure you want to continue connecting (yes/no/[fingerprint])? ",
+          "julius@jumphost's password: ",
+          "root@devbox.example.com's password: ",
+          "(julius@devbox.example.com) Verification code: ",
+          "Password: ",
+          "julius@devbox.example.com's password: \njulius@devbox.example.com's password: ",
+          "",
+        ]) {
+          assert.deepEqual(ask(env, prompt), declined, prompt);
+        }
+        assert.isTrue(yield* fs.exists(secretFile), "a declined prompt leaves the password unread");
+        assert.deepEqual(ask(env, "Julius@DevBox.example.com's password: "), {
+          status: 0,
+          stdout: "pa ss'\"$(id)\n",
+        });
+        assert.isFalse(yield* fs.exists(secretFile), "the helper removes the password it sent");
+        assert.deepEqual(ask(env, "julius@devbox.example.com's password: "), declined);
+
+        const keyboardInteractive = yield* askpassEnv("pw");
+        assert.deepEqual(ask(keyboardInteractive, "(julius@devbox) Password:"), {
+          status: 0,
+          stdout: "pw\n",
+        });
+        // Without a saved password nothing is answered, even when this process names a file.
+        const inherited = yield* fs.makeTempFileScoped({ directory });
+        yield* fs.writeFileString(inherited, "leaked\njulius@devbox.example.com's password:\n");
+        const noSecret = yield* askpassEnv(null);
+        assert.equal(noSecret.ORBI_SSH_AUTH_SECRET_FILE, "");
+        // The spawn merges this process's environment first, then the built one.
+        assert.deepEqual(
+          ask(
+            { ORBI_SSH_AUTH_SECRET_FILE: inherited, ...noSecret },
+            "julius@devbox.example.com's password: ",
+          ),
+          declined,
+        );
+      }).pipe(Effect.provide(NodeServices.layer)),
   );
 
   it.effect("reuses the default askpass directory across interactive commands", () =>
@@ -294,7 +418,6 @@ describe("ssh auth", () => {
       };
       const askpassPath = buildSshChildEnvironment({
         interactiveAuth: true,
-        authSecret: "pw",
       }).pipe(
         Effect.map((env) => env.SSH_ASKPASS ?? ""),
         Effect.provideService(FileSystem.FileSystem, trackedFs),
@@ -343,7 +466,7 @@ describe("ssh auth", () => {
       assert.equal(yield* Fiber.join(next), first);
       assert.equal(callsDuringCancellation, callsBeforeCancellation);
       assert.equal(helperWrites, 3);
-      assert.include(yield* fs.readFileString(first), 'printf "%s\\n" "$ORBI_SSH_AUTH_SECRET"');
+      assert.include(yield* fs.readFileString(first), "ORBI_SSH_AUTH_SECRET_FILE");
     }).pipe(
       Effect.provide(Layer.merge(NodeServices.layer, Layer.succeed(HostProcess.Platform, "linux"))),
     ),

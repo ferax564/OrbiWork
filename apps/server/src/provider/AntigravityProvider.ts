@@ -40,7 +40,10 @@ import {
   isCommandMissingCause,
   type ServerProviderDraft,
 } from "@orbiwork/provider-core/server/snapshotProbe";
-import { resolveUsageLimitsAfterProbe } from "@orbiwork/provider-core/server/usageLimits";
+import {
+  resolveUsageLimitsAfterProbe,
+  usageLimitsRequested,
+} from "@orbiwork/provider-core/server/usageLimits";
 
 import { antigravityThinkingConfig } from "./acp/AntigravityAcpSupport.ts";
 
@@ -263,7 +266,8 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
   const republish = yield* Deferred.make<Effect.Effect<ServerProvider>>();
   const scope = yield* Effect.scope;
   const refreshUsage = Effect.fn("AntigravityProvider.refreshUsage")(function* () {
-    if (!options.probeUsage || (yield* PublishingUsage)) return;
+    // Quota is read from Google with the user's token only after the user asked for it.
+    if (!options.probeUsage || (yield* PublishingUsage) || !(yield* usageLimitsRequested)) return;
     yield* FiberHandle.run(
       usageRead,
       options.probeUsage.pipe(

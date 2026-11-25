@@ -12,7 +12,6 @@ import * as Threads from "../orchestration-v2/ThreadManagementService.ts";
 import * as Projects from "../project/ProjectService.ts";
 import * as Providers from "../provider/ProviderRegistry.ts";
 import * as Settings from "../serverSettings.ts";
-import { providerDimensions } from "../telemetry/ProviderDimensions.ts";
 import {
   FEEDBACK_AWAITING_APPROVAL_NOTE,
   FEEDBACK_SUBJECT_MESSAGE,
@@ -62,8 +61,8 @@ export class FeedbackService extends Context.Service<
   FeedbackService,
   {
     /**
-     * Sends an unprompted report at once. A requested one is shown to the user in a card and
-     * returns at once; it is stored and sent only if they choose Send.
+     * Stores an unprompted report at once. A requested one is shown to the user in a card and
+     * returns at once; it is stored only if they choose Send. Reports never leave this machine.
      */
     readonly submit: (
       input: FeedbackInput,
@@ -153,10 +152,6 @@ const make = Effect.fn("FeedbackService.make")(function* (
         source: caller.source,
         threadId: caller.threadId ?? null,
         runId,
-        dimensions:
-          caller.source === "mcp" && thread !== undefined
-            ? providerDimensions(providerList, thread.modelSelection)
-            : {},
       });
     }
 

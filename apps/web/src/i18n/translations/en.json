@@ -3104,7 +3104,6 @@
   "c646366e142ba05f": "Desktop WSL state is unavailable.",
   "228dcd284ea651b3": "Failed to load WSL state.",
   "b08d105dd2553f8d": "The project did not appear in the desktop app.",
-  "7a4b3f3b83e121d7": "{organization} turned off anonymous usage data.",
   "d85822b18e9475df": "Managed by {organization}.",
   "a6dd531d58080010": "Connect to this server to check releases.",
   "314cdccee9c14774": "This server does not support registry lookups. Update it before switching tracks.",
@@ -6229,26 +6228,6 @@
   ],
   "216ab7514aea1d61": "Start without an agent",
   "501ce2d99da8bfd1": "Set up one agent to start.",
-  "be251ac2f3bc4756": [
-    "OrbiWork collects anonymous usage data to improve the app. To opt out, see the",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "privacy policy"
-    },
-    "."
-  ],
-  "b33f35083757b42c": [
-    "See the",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "privacy policy"
-    },
-    "."
-  ],
   "f77d000c0710f066": "Turn on",
   "4ed27bf946e504db": "Set up",
   "7a26eaacff0607f7": [
@@ -7708,7 +7687,7 @@
   "26684694c93ae9bd": "Tune the shared power policy and the background intervals that feed it.",
   "e05df18a60c4310e": "Shared policy",
   "1a242d5421628927": "Controls whether background work may run after a subscribed interval fires.",
-  "77fdf9a4e5c0285d": "Refresh remote branch status in the background.",
+  "772c96160d2ae7ce": "Refresh remote branch status in the background. 0 turns it off.",
   "a28418c4fb8f07c2": "seconds",
   "ec045fc4902f8611": "Provider health interval",
   "bae66b38e31db722": "Refresh provider availability, versions, and auth state. Model catalog updates follow Provider update checks.",
@@ -10258,8 +10237,7 @@
   "c424bee294b9f778": "This environment is managed by {organization}. Some settings and features follow its policy.",
   "82d9538af590f58c": "See your agents, import projects, and set up your phone.",
   "6a48fd0a37e725a1": "Legal",
-  "b40c211fe6b5bb82": "How we handle your data, including the anonymous usage data OrbiWork collects.",
-  "e741b1ab9396053a": "How we handle your data. {telemetryOff}",
+  "a4c62f9830ae17c9": "How we handle your data.",
   "bbcd82c0bb991a0c": "Notices for dependencies, assets, and optional tools used by OrbiWork.",
   "e39a57514be028e9": "Review",
   "7c0512387c3a42ea": "Stable",
@@ -11523,6 +11501,11 @@
   "404f92786aa9a22f": "Code blocks, diffs, file previews, and the terminal.",
   "5897f301f96f8abe": "Typography",
   "eb72dbf46620a039": "{title} family",
+  "962a30f0031993d1": "Could not save the update setting",
+  "aa257a451442d768": "Looks for a new release shortly after launch and every four hours. Check for Updates works either way.",
+  "4d8d04a26992a82a": "Check for updates automatically",
+  "f290909c92983784": "Lets paired devices switch this app's update track, download and install updates, and restart it.",
+  "af1994cc6eaeb618": "Allow remote updates",
   "9f3126cbc5f8231f": "Could not find the latest {label} release in this environment's npm registry.",
   "ddc1bd4973399c8d": "Checking releases…",
   "9ddd2f9f1c9367bc": "Could not switch to {label}",
@@ -11934,6 +11917,8 @@
   "0c5fc3b5e41e1956": "generated thread titles prompt custom style naming rename regenerate",
   "a83570bcb45d8fa1": "about check for updates download install upgrade release",
   "d65bdf6748801734": "release channel stable latest nightly prerelease",
+  "f010c7d7ac5673d1": "auto update background poll github release network",
+  "728751e8a0cef3df": "paired device remote client install restart update permission",
   "11de586eff30258c": "orbi command",
   "46dd4dc08c1e552f": "cli terminal shell path install command line",
   "86479042bae0e2db": "Mobile app",
@@ -11941,7 +11926,7 @@
   "6310b97b04ef239f": "Welcome page",
   "df9fa3a9cb004b9b": "onboarding setup first run getting started agents import projects",
   "3188bc3b3c4508bc": "Privacy policy",
-  "901a823214edc8c4": "telemetry analytics usage data tracking legal opt out",
+  "8c8a1e9d9cc2348c": "data legal",
   "82136480255a5106": "OTel OTLP telemetry export endpoints logs traces metrics Grafana",
   "659d081051faf7ff": "logs traces processes resource history failures spans cpu memory",
   "77754b0eb0d4e537": "report bug problem orbi team send feedback agents tools automatic when i ask",

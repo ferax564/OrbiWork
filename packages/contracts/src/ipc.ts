@@ -345,6 +345,15 @@ export const DesktopUpdateStateSchema = Schema.Struct({
   trackMismatch: Schema.optionalKey(Schema.Struct({ buildChannel: DesktopUpdateChannelSchema })),
 });
 
+/** Both stay off until the person at this machine turns them on. */
+export const DesktopUpdatePreferencesSchema = Schema.Struct({
+  /** Checks the update feed shortly after launch and every four hours. */
+  automaticUpdateChecks: Schema.Boolean,
+  /** Lets paired remote clients switch tracks, download and install updates here. */
+  remoteUpdatesAllowed: Schema.Boolean,
+});
+export type DesktopUpdatePreferences = typeof DesktopUpdatePreferencesSchema.Type;
+
 export const DesktopCliCommandStateSchema = Schema.Struct({
   supported: Schema.Boolean,
   installedPath: Schema.NullOr(Schema.String),
@@ -1209,6 +1218,10 @@ export interface DesktopBridge {
     minimumVersion?: string,
   ) => Promise<DesktopUpdateState>;
   checkForUpdate: () => Promise<DesktopUpdateCheckResult>;
+  getUpdatePreferences: () => Promise<DesktopUpdatePreferences>;
+  setUpdatePreferences: (
+    preferences: Partial<DesktopUpdatePreferences>,
+  ) => Promise<DesktopUpdatePreferences>;
   downloadUpdate: () => Promise<DesktopUpdateActionResult>;
   /** With a version, installs only that downloaded build. */
   installUpdate: (expectedVersion?: string) => Promise<DesktopUpdateActionResult>;

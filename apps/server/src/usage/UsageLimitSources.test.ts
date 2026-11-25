@@ -117,6 +117,10 @@ it.effect("reads a management key from its secret provider", () => {
   });
   return Effect.gen(function* () {
     const sources = yield* UsageLimitSources.make;
+    // Hubs are not read at startup or on a timer; only an explicit refresh reads them.
+    yield* TestClock.adjust("30 minutes");
+    expect(authorizations).toEqual([]);
+    yield* sources.refresh;
     const snapshots = yield* sources.streamChanges.pipe(
       Stream.filter((next) => next.length > 0),
       Stream.runHead,
@@ -477,6 +481,7 @@ it.effect("the reset fallback refreshes its hub, and a stalled hub cannot hold t
               refresh: Effect.suspend(() => refresh),
             }),
           ),
+          Layer.provide(ServerSettings.layerTest({})),
         ),
       ),
     );
@@ -487,5 +492,43 @@ it.effect("the reset fallback refreshes its hub, and a stalled hub cannot hold t
     const stalled = yield* Effect.forkChild(lookup);
     yield* TestClock.adjust("5 seconds");
     expect(yield* Fiber.join(stalled)).toBeNull();
+  }),
+);
+
+it.effect("the reset fallback reads a configured hub that was never polled", () =>
+  Effect.gen(function* () {
+    yield* TestClock.setTime(NOW);
+    const roomLeft = { ...hub([{ windows: [spent("five_hour", 2)] }]), origin: "http://hub.test" };
+    let current: ReadonlyArray<UsageLimitSourceSnapshot> = [];
+    const resetAt = yield* UsageLimitSources.UsageLimitResetFallback.pipe(
+      Effect.flatMap((fallback) =>
+        fallback.resetAt(ProviderDriverKind.make("claudeAgent"), "http://hub.test", null),
+      ),
+      Effect.provide(
+        UsageLimitSources.layerResetFallback.pipe(
+          Layer.provide(
+            Layer.mock(UsageLimitSources.UsageLimitSources)({
+              current: Effect.sync(() => current),
+              refresh: Effect.sync(() => {
+                current = [roomLeft];
+              }),
+            }),
+          ),
+          Layer.provide(
+            ServerSettings.layerTest({
+              usageLimitSources: {
+                [UsageLimitSourceId.make("hub")]: {
+                  kind: "cliproxy",
+                  url: "http://hub.test/management.html",
+                  managementKey: "key",
+                  enabled: true,
+                },
+              },
+            }),
+          ),
+        ),
+      ),
+    );
+    expect(resetAt).toBe(at(2));
   }),
 );

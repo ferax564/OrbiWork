@@ -303,6 +303,12 @@ export const make = Effect.gen(function* () {
     yield* loadSavedRates;
     if (ratesFetchedAtMs !== null && now - ratesFetchedAtMs < maxAgeMs) return;
     if (ratesLastFailedAtMs !== null && now - ratesLastFailedAtMs < RATES_REFRESH_FLOOR_MS) return;
+    // The price table comes from GitHub: fetch it only when provider update checks are on.
+    const fetchAllowed = yield* settingsService.getSettings.pipe(
+      Effect.map((settings) => settings.enableProviderUpdateChecks),
+      Effect.orElseSucceed(() => false),
+    );
+    if (!fetchAllowed) return;
 
     let fetched = yield* fetchRates(LITELLM_RATES_URL);
     if (fetched === null) {

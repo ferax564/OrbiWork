@@ -21,6 +21,7 @@ import {
 } from "./status.ts";
 import { grokUsageReader } from "./usage.ts";
 import { readGrokAccount } from "./usageLimits.ts";
+import { whenUsageLimitsRequested } from "@orbiwork/provider-core/server/usageLimits";
 import { makeManagedServerProvider } from "@orbiwork/provider-core/server/managedProvider";
 import {
   defaultProviderContinuationIdentity,
@@ -216,12 +217,18 @@ export const GrokDriver: ProviderDriver<GrokSettings, GrokDriverEnv, Path.Path> 
             snapshot.auth.status === "authenticated"
           ),
         (snapshot) =>
-          readGrokAccount(processEnv).pipe(
-            Effect.map(({ email, usageLimits }) => ({
-              ...snapshot,
-              auth: email ? { ...snapshot.auth, email } : snapshot.auth,
-              usageLimits,
-            })),
+          whenUsageLimitsRequested(readGrokAccount(processEnv)).pipe(
+            Effect.map((account) =>
+              account === undefined
+                ? snapshot
+                : {
+                    ...snapshot,
+                    auth: account.email
+                      ? { ...snapshot.auth, email: account.email }
+                      : snapshot.auth,
+                    usageLimits: account.usageLimits,
+                  },
+            ),
           ),
       ),
       Effect.map(stampIdentity),

@@ -324,6 +324,9 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   setUpdateChannel: (channel, minimumVersion) =>
     ipcRenderer.invoke(IpcChannels.UPDATE_SET_CHANNEL_CHANNEL, { channel, minimumVersion }),
   checkForUpdate: () => ipcRenderer.invoke(IpcChannels.UPDATE_CHECK_CHANNEL),
+  getUpdatePreferences: () => ipcRenderer.invoke(IpcChannels.UPDATE_GET_PREFERENCES_CHANNEL),
+  setUpdatePreferences: (preferences) =>
+    ipcRenderer.invoke(IpcChannels.UPDATE_SET_PREFERENCES_CHANNEL, preferences),
   downloadUpdate: () => ipcRenderer.invoke(IpcChannels.UPDATE_DOWNLOAD_CHANNEL),
   installUpdate: (expectedVersion) =>
     ipcRenderer.invoke(IpcChannels.UPDATE_INSTALL_CHANNEL, expectedVersion),

@@ -216,7 +216,10 @@ const layerService = (input: {
     Layer.provideMerge(Layer.succeed(HostProcess.Platform, input.platform ?? "linux")),
     Layer.provideMerge(Layer.succeed(HostProcess.Hostname, input.hostname ?? "usage-test-host")),
     Layer.provideMerge(Layer.succeed(HostProcess.HomeDirectory, input.home)),
-    Layer.provideMerge(ServerSettings.layerTest(input.settings)),
+    // Tests below exercise price fetching, which the setting gates; the default-off case has its own test.
+    Layer.provideMerge(
+      ServerSettings.layerTest({ enableProviderUpdateChecks: true, ...input.settings }),
+    ),
     Layer.provideMerge(
       Layer.succeed(
         HttpClient.HttpClient,
@@ -4278,6 +4281,29 @@ describe("UsageService", () => {
         assert.deepStrictEqual(cached.buckets, summary.buckets);
         assert.strictEqual(requests.length, 2);
       }),
+  );
+
+  it.effect("does not fetch the price table while provider update checks are off", () =>
+    Effect.gen(function* () {
+      const { transcript, settings, home } = yield* setup;
+      yield* Effect.promise(() => NodeFSP.writeFile(transcript, claudeLine(1, 5)));
+      const requests: string[] = [];
+      const service = yield* UsageService.make.pipe(
+        Effect.provide(
+          layerService({
+            prefix: "usage-service-rates-gated-test",
+            home,
+            settings: { ...settings, enableProviderUpdateChecks: false },
+            onRatesFetch: (request) => requests.push(request.url),
+          }),
+        ),
+      );
+      const summary = yield* service.readSummary(WINDOW);
+      const refreshed = yield* service.refreshRates;
+      assert.deepStrictEqual(requests, []);
+      assert.strictEqual(summary.pricing.status, "unavailable");
+      assert.strictEqual(refreshed.status, "unavailable");
+    }),
   );
 
   it.effect("refetches cached rates early for a model they do not list", () =>

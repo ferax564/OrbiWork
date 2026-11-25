@@ -30,6 +30,7 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as HostProcess from "@orbiwork/shared/HostProcess";
 
 import * as ProviderLatestVersions from "@orbiwork/provider-core/server/ProviderLatestVersions";
+import { requestUsageLimits } from "@orbiwork/provider-core/server/usageLimits";
 import * as ModelManifest from "./ModelManifest.ts";
 import { applyProviderCompatibility } from "./providerCompatibility.ts";
 import * as ServerConfig from "../config.ts";
@@ -838,6 +839,8 @@ export const layer = Layer.effect(
 
     const refresh = Effect.fn("refresh")(function* (provider?: ProviderDriverKind) {
       if (provider === undefined) {
+        // Only the client's refresh (Usage view, refresh button) asks for every provider: read quota too.
+        yield* requestUsageLimits;
         return yield* refreshAll();
       }
       return yield* refreshInstance(defaultInstanceIdForDriver(provider));

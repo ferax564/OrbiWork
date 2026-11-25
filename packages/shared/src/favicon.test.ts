@@ -19,27 +19,33 @@ describe("faviconUrlForOrigin", () => {
 });
 
 describe("toolActivityFaviconUrl", () => {
-  it("uses the page origin instead of a third-party favicon service", () => {
-    expect(toolActivityFaviconUrl({ pageUrl: "https://example.com/docs/page?q=1" }, "light")).toBe(
-      "https://example.com/favicon.ico",
-    );
-    expect(toolActivityFaviconUrl({ pageUrl: "http://localhost:5173/app" }, "light")).toBe(
-      "http://localhost:5173/favicon.ico",
-    );
-  });
-
-  it("accepts provider-supplied image URLs but rejects extension URLs", () => {
+  it("never builds a request to the visited site or a hosted icon", () => {
+    expect(
+      toolActivityFaviconUrl({ pageUrl: "https://example.com/docs/page?q=1" }, "light"),
+    ).toBeNull();
+    expect(toolActivityFaviconUrl({ pageUrl: "https://github.com/org/repo" }, "dark")).toBeNull();
     expect(
       toolActivityFaviconUrl(
         { pageUrl: "https://example.com/docs", faviconUrl: "https://example.com/icon.png" },
         "light",
       ),
-    ).toBe("https://example.com/icon.png");
+    ).toBeNull();
     expect(
       toolActivityFaviconUrl(
         { pageUrl: "https://example.com/docs", faviconUrl: "chrome-extension://example/_favicon/" },
         "light",
       ),
-    ).toBe("https://example.com/favicon.ico");
+    ).toBeNull();
+  });
+
+  it("keeps inline data icons a provider event supplied", () => {
+    const light = "data:image/png;base64,AAAA";
+    const dark = "data:image/png;base64,BBBB";
+    const icon = { pageUrl: "https://example.com", faviconUrl: light, faviconUrlDark: dark };
+    expect(toolActivityFaviconUrl(icon, "light")).toBe(light);
+    expect(toolActivityFaviconUrl(icon, "dark")).toBe(dark);
+    expect(
+      toolActivityFaviconUrl({ ...icon, faviconUrlDark: "https://x.test/d.svg" }, "dark"),
+    ).toBe(light);
   });
 });

@@ -1,4 +1,5 @@
 import * as CodexErrors from "effect-codex-app-server/errors";
+import { requestUsageLimits } from "@orbiwork/provider-core/server/usageLimits";
 import { vi } from "vite-plus/test";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as CodexInstallation from "./CodexInstallation.ts";
@@ -938,6 +939,8 @@ it.layer(
 
     it.effect("shows Codex usage that answers after three seconds inside the probe budget", () =>
       Effect.gen(function* () {
+        // Quota is read only after the user asks for it (Usage view or a full refresh).
+        yield* requestUsageLimits;
         const usageRequested = yield* Deferred.make<void>();
         const spawner = ChildProcessSpawner.make(() =>
           Effect.gen(function* () {

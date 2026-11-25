@@ -67,6 +67,10 @@ const layerServerConfig = ServerConfig.layerTest(process.cwd(), {
 const layerTest = GitVcsDriver.layer.pipe(
   Layer.provideMerge(layerServerConfig),
   Layer.provideMerge(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer)),
+  // These tests exercise background upstream fetches, which are off by default.
+  Layer.provideMerge(
+    Layer.succeed(VcsAutomaticFetchInterval, Effect.succeed(Duration.seconds(30))),
+  ),
 );
 
 const makeNonRepositoryHandle = () =>

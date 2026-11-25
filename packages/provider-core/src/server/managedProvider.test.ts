@@ -19,6 +19,7 @@ import * as TestClock from "effect/testing/TestClock";
 
 import * as ProviderHost from "./ProviderHost.ts";
 import { makeManagedServerProvider } from "./managedProvider.ts";
+import { setUsageLimitReadsAllowedForTests } from "./usageLimits.ts";
 
 const emptyCapabilities = createModelCapabilities({ optionDescriptors: [] });
 const fastModeCapabilities = createModelCapabilities({
@@ -1027,6 +1028,39 @@ describe("makeManagedServerProvider", () => {
         } as const;
         yield* Ref.set(probeSnapshot, { ...refreshedSnapshot, usageLimits: completeLimits });
         assert.deepStrictEqual((yield* provider.refresh).usageLimits, completeLimits);
+      }),
+    ).pipe(Effect.provide(layerAlwaysRunTest)),
+  );
+});
+
+describe("usage limits without a user request", () => {
+  it.effect("keeps the published reading when a background check skips quota", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        setUsageLimitReadsAllowedForTests(false);
+        const limits = {
+          checkedAt: "2026-04-10T00:00:01.000Z",
+          windows: [{ id: "five_hour", kind: "session", label: "Session", usedPercent: 10 }],
+        } as const;
+        const probeSnapshot = yield* Ref.make<ServerProvider>({
+          ...refreshedSnapshot,
+          usageLimits: limits,
+        });
+        const provider = yield* makeManagedServerProvider<TestSettings>({
+          resolveMaintenance: () => Effect.succeed(maintenanceCapabilities),
+          getSettings: Effect.succeed({ enabled: true }),
+          streamSettings: Stream.empty,
+          haveSettingsChanged: (previous, next) => previous.enabled !== next.enabled,
+          initialSnapshot: () => Effect.succeed(initialSnapshot),
+          checkProvider: Ref.get(probeSnapshot),
+          refreshOnInterval: false,
+        });
+        yield* Stream.take(provider.streamChanges, 1).pipe(Stream.runDrain);
+        assert.deepStrictEqual((yield* provider.getSnapshot).usageLimits, limits);
+
+        // A driver that was not asked for quota reports none; the last reading stays.
+        yield* Ref.set(probeSnapshot, refreshedSnapshotSecond);
+        assert.deepStrictEqual((yield* provider.refresh).usageLimits, limits);
       }),
     ).pipe(Effect.provide(layerAlwaysRunTest)),
   );

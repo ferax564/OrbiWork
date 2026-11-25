@@ -3104,7 +3104,6 @@
   "c646366e142ba05f": "L’état WSL de l’app desktop n’est pas disponible.",
   "228dcd284ea651b3": "Échec du chargement de l’état WSL.",
   "b08d105dd2553f8d": "Le projet n’est pas apparu dans l’app desktop.",
-  "7a4b3f3b83e121d7": "{organization} a désactivé les données d’utilisation anonymes.",
   "d85822b18e9475df": "Géré par {organization}.",
   "a6dd531d58080010": "Connectez-vous à ce serveur pour vérifier les versions.",
   "314cdccee9c14774": "Ce serveur ne prend pas en charge les recherches dans le registre. Mettez-le à jour avant de changer de canal.",
@@ -6228,26 +6227,6 @@
   ],
   "216ab7514aea1d61": "Commencer sans agent",
   "501ce2d99da8bfd1": "Configurez un agent pour commencer.",
-  "be251ac2f3bc4756": [
-    "OrbiWork collecte des données d’utilisation anonymes pour améliorer l’app. Pour vous désinscrire, consultez la",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "politique de confidentialité"
-    },
-    "."
-  ],
-  "b33f35083757b42c": [
-    "Consultez la",
-    " ",
-    {
-      "t": "a",
-      "i": 1,
-      "c": "politique de confidentialité"
-    },
-    "."
-  ],
   "f77d000c0710f066": "Activer",
   "4ed27bf946e504db": "Configurer",
   "7a26eaacff0607f7": [
@@ -7702,7 +7681,7 @@
   "26684694c93ae9bd": "Ajustez la politique d’alimentation partagée et les intervalles d’arrière-plan qui l’alimentent.",
   "e05df18a60c4310e": "Politique partagée",
   "1a242d5421628927": "Détermine si le travail en arrière-plan peut s’exécuter après le déclenchement d’un intervalle abonné.",
-  "77fdf9a4e5c0285d": "Actualiser l’état des branches distantes en arrière-plan.",
+  "772c96160d2ae7ce": "Refresh remote branch status in the background. 0 turns it off.",
   "a28418c4fb8f07c2": "secondes",
   "ec045fc4902f8611": "Intervalle de santé des fournisseurs",
   "bae66b38e31db722": "Actualise la disponibilité, les versions et l’état d’authentification des fournisseurs. Les mises à jour du catalogue de modèles suivent les vérifications de mise à jour des fournisseurs.",
@@ -10248,8 +10227,7 @@
   "c424bee294b9f778": "Cet environnement est géré par {organization}. Certains paramètres et fonctionnalités suivent sa politique.",
   "82d9538af590f58c": "Voyez vos agents, importez des projets et configurez votre téléphone.",
   "6a48fd0a37e725a1": "Mentions légales",
-  "b40c211fe6b5bb82": "Comment nous traitons vos données, y compris les données d’utilisation anonymes collectées par OrbiWork.",
-  "e741b1ab9396053a": "Comment nous traitons vos données. {telemetryOff}",
+  "a4c62f9830ae17c9": "How we handle your data.",
   "bbcd82c0bb991a0c": "Mentions relatives aux dépendances, ressources et outils facultatifs utilisés par OrbiWork.",
   "e39a57514be028e9": "Consulter",
   "7c0512387c3a42ea": "Stable",
@@ -11513,6 +11491,11 @@
   "404f92786aa9a22f": "Blocs de code, diffs, aperçus de fichiers et terminal.",
   "5897f301f96f8abe": "Typographie",
   "eb72dbf46620a039": "Famille {title}",
+  "962a30f0031993d1": "Could not save the update setting",
+  "aa257a451442d768": "Looks for a new release shortly after launch and every four hours. Check for Updates works either way.",
+  "4d8d04a26992a82a": "Check for updates automatically",
+  "f290909c92983784": "Lets paired devices switch this app's update track, download and install updates, and restart it.",
+  "af1994cc6eaeb618": "Allow remote updates",
   "9f3126cbc5f8231f": "Impossible de trouver la dernière version {label} dans le registre npm de cet environnement.",
   "ddc1bd4973399c8d": "Vérification des versions…",
   "9ddd2f9f1c9367bc": "Impossible de passer à {label}",
@@ -11924,6 +11907,8 @@
   "0c5fc3b5e41e1956": "titres de fils générés prompt style personnalisé nommage renommer régénérer",
   "a83570bcb45d8fa1": "à propos rechercher des mises à jour télécharger installer mettre à niveau version",
   "d65bdf6748801734": "canal de publication stable latest nightly préversion",
+  "f010c7d7ac5673d1": "auto update background poll github release network",
+  "728751e8a0cef3df": "paired device remote client install restart update permission",
   "11de586eff30258c": "Commande orbi",
   "46dd4dc08c1e552f": "cli terminal shell chemin installer ligne de commande",
   "86479042bae0e2db": "App mobile",
@@ -11931,7 +11916,7 @@
   "6310b97b04ef239f": "Page d’accueil",
   "df9fa3a9cb004b9b": "prise en main configuration premier lancement démarrer agents importer projets",
   "3188bc3b3c4508bc": "Politique de confidentialité",
-  "901a823214edc8c4": "télémétrie analytique données d’utilisation suivi mentions légales refuser",
+  "8c8a1e9d9cc2348c": "data legal",
   "82136480255a5106": "OTel OTLP télémétrie export points de terminaison journaux traces métriques Grafana",
   "659d081051faf7ff": "journaux traces processus historique des ressources échecs spans cpu mémoire",
   "77754b0eb0d4e537": "rapport bug problème orbi équipe envoyer retour agents outils automatique à ma demande",

@@ -844,7 +844,7 @@ describe("serverSettings helpers", () => {
       automaticGitFetchInterval: Duration.seconds(15),
     });
     const next = applyServerSettingsPatch(custom, {
-      automaticGitFetchInterval: Duration.seconds(30),
+      automaticGitFetchInterval: Duration.zero,
     });
 
     expect(next.backgroundActivity).toEqual({
@@ -853,7 +853,8 @@ describe("serverSettings helpers", () => {
       overrides: {},
     });
     expect(next.backgroundActivityProfile).toBe("balanced");
-    expect(Duration.toMillis(next.automaticGitFetchInterval)).toBe(30_000);
+    // Balanced leaves automatic git fetch off.
+    expect(Duration.toMillis(next.automaticGitFetchInterval)).toBe(0);
   });
 
   it("replaces the complete background override record", () => {

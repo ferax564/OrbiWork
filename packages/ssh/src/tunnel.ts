@@ -7,7 +7,7 @@ import type {
   DesktopSshEnvironmentTarget,
 } from "@orbiwork/contracts";
 import { waitForHttpReady as waitForHttpReadyShared } from "@orbiwork/shared/httpReadiness";
-import { cliReleaseDownloadBaseUrl } from "@orbiwork/shared/cliRelease";
+import { type CliArchivePlatformKey, cliReleaseDownloadBaseUrl } from "@orbiwork/shared/cliRelease";
 import * as KeyedLock from "@orbiwork/shared/KeyedLock";
 import * as NetService from "@orbiwork/shared/Net";
 import { extractJsonObject, fromLenientJson } from "@orbiwork/shared/schemaJson";
@@ -69,7 +69,6 @@ const SSH_TUNNEL_FORWARD_PROBE_INTERVAL_MS = 100;
 // Cold archive launches download and extract ~70 MB and may wait on an install lock.
 // Lock waits must outlast both downloads and extraction; SSH must outlast install or wait plus readiness.
 // Leave slack for verification and extraction, which have no timeout.
-const REMOTE_ARCHIVE_CHECKSUMS_SECONDS = 30;
 const REMOTE_ARCHIVE_DOWNLOAD_SECONDS = 240;
 const REMOTE_ARCHIVE_LOCK_WAIT_SECONDS = 360;
 const REMOTE_ARCHIVE_LAUNCH_TIMEOUT_MS = 900_000;
@@ -112,6 +111,11 @@ export interface RemoteOrbiRunnerOptions {
   readonly nodeEngineRange?: string | null;
   readonly archiveVersion?: string | null;
   readonly releaseBaseUrl?: string | null;
+  /**
+   * SHA-256 of each release archive, by platform key, from the app's own trusted manifest. The
+   * remote install refuses an archive without one, so a mirror or release cannot swap it.
+   */
+  readonly archiveSha256?: Readonly<Partial<Record<CliArchivePlatformKey, string>>> | null;
 }
 
 export interface SshEnvironmentManagerOptions {
@@ -542,6 +546,15 @@ if ! orbi_runtime_ready; then
     printf 'Remote host needs tar to unpack %s. Install tar on it and try again.\\n' "$ORBI_ARCHIVE" >&2
     exit 1
   fi
+  # The digest comes from the app, never from the download origin, which could swap both.
+  case "$ORBI_PLATFORM_KEY" in
+@@ORBI_ARCHIVE_SHA256_CASES@@
+    *) ORBI_EXPECTED= ;;
+  esac
+  if [ -z "$ORBI_EXPECTED" ]; then
+    printf 'This OrbiWork app has no trusted SHA-256 digest for %s, so it will not install it. Install orbi %s on this host yourself and try again.\\n' "$ORBI_ARCHIVE" "$ORBI_ARCHIVE_VERSION" >&2
+    exit 1
+  fi
   ORBI_STAGING="$(mktemp -d "$HOME/.orbi/runtime/versions/.staging-XXXXXX")"
   trap 'rm -rf "$ORBI_STAGING" "$ORBI_LOCK"' EXIT
   orbi_fetch() {
@@ -553,15 +566,13 @@ if ! orbi_runtime_ready; then
       exit 1
     }
   }
-  orbi_fetch "$ORBI_RELEASE_BASE_URL/v$ORBI_ARCHIVE_VERSION/SHA256SUMS" "$ORBI_STAGING/SHA256SUMS" @@ORBI_ARCHIVE_CHECKSUMS_SECONDS@@
   orbi_fetch "$ORBI_RELEASE_BASE_URL/v$ORBI_ARCHIVE_VERSION/$ORBI_ARCHIVE" "$ORBI_STAGING/$ORBI_ARCHIVE" @@ORBI_ARCHIVE_DOWNLOAD_SECONDS@@
-  ORBI_EXPECTED="$(grep " \\*\\{0,1\\}$ORBI_ARCHIVE$" "$ORBI_STAGING/SHA256SUMS" | cut -d' ' -f1)"
   if command -v sha256sum >/dev/null 2>&1; then
     ORBI_ACTUAL="$(sha256sum < "$ORBI_STAGING/$ORBI_ARCHIVE" | cut -d' ' -f1)"
   else
     ORBI_ACTUAL="$(shasum -a 256 < "$ORBI_STAGING/$ORBI_ARCHIVE" | cut -d' ' -f1)"
   fi
-  if [ -z "$ORBI_EXPECTED" ] || [ "$ORBI_ACTUAL" != "$ORBI_EXPECTED" ]; then
+  if [ "$ORBI_ACTUAL" != "$ORBI_EXPECTED" ]; then
     printf 'Checksum mismatch for %s.\\n' "$ORBI_ARCHIVE" >&2; exit 1
   fi
   if ! ORBI_TAR_ERROR="$(tar -xzf "$ORBI_STAGING/$ORBI_ARCHIVE" -C "$ORBI_STAGING" --strip-components=1 2>&1)"; then
@@ -571,7 +582,7 @@ if ! orbi_runtime_ready; then
     fi
     exit 1
   fi
-  rm -f "$ORBI_STAGING/$ORBI_ARCHIVE" "$ORBI_STAGING/SHA256SUMS"
+  rm -f "$ORBI_STAGING/$ORBI_ARCHIVE"
   # Prove the binary runs here (libc, arch) before marking it ready, or every
   # later launch would exec a broken install instead of retrying.
   if ! "$ORBI_STAGING/orbi" --version >/dev/null 2>&1; then
@@ -1153,8 +1164,47 @@ export class SshMissingRunnerError extends Schema.TaggedError<SshMissingRunnerEr
   }
 }
 
+export class SshInvalidRunnerOptionError extends Schema.TaggedError<SshInvalidRunnerOptionError>()(
+  "SshInvalidRunnerOptionError",
+  { option: Schema.String },
+) {
+  override get message(): string {
+    return `The remote orbi runner option '${this.option}' is not safe to send to the remote shell.`;
+  }
+}
+
+// Each value lands in a single-quoted word inside a quoted heredoc: a line break could end the
+// heredoc early, and a leading `-` would read as an option to node or curl.
+function checkRunnerValue(option: string, value: string): string {
+  if (/[\u0000-\u001f\u007f]/u.test(value) || value.startsWith("-")) {
+    throw new SshInvalidRunnerOptionError({ option });
+  }
+  return value;
+}
+
+// Keep aligned with the platform keys the runner script's `uname` check produces.
+const RUNNER_ARCHIVE_PLATFORM_KEYS = ["darwin-arm64", "linux-arm64", "linux-x64"] as const;
+
+function archiveSha256Cases(input: RemoteOrbiRunnerOptions | undefined): string {
+  const digests = input?.archiveSha256 ?? {};
+  for (const key of Object.keys(digests)) {
+    if (!(RUNNER_ARCHIVE_PLATFORM_KEYS as ReadonlyArray<string>).includes(key)) {
+      if (key.startsWith("win32-")) continue;
+      throw new SshInvalidRunnerOptionError({ option: `archiveSha256.${key}` });
+    }
+  }
+  return RUNNER_ARCHIVE_PLATFORM_KEYS.flatMap((key) => {
+    const digest = digests[key]?.trim().toLowerCase();
+    if (digest === undefined || digest === "") return [];
+    if (!/^[0-9a-f]{64}$/u.test(digest)) {
+      throw new SshInvalidRunnerOptionError({ option: `archiveSha256.${key}` });
+    }
+    return [`    ${key}) ORBI_EXPECTED=${digest} ;;`];
+  }).join("\n");
+}
+
 export function buildRemoteOrbiRunnerScript(input?: RemoteOrbiRunnerOptions): string {
-  const nodeScriptPath = input?.nodeScriptPath?.trim() || "";
+  const nodeScriptPath = checkRunnerValue("nodeScriptPath", input?.nodeScriptPath?.trim() || "");
   const archiveVersion = input?.archiveVersion?.trim() || "";
   if (nodeScriptPath === "" && archiveVersion === "") {
     throw new SshMissingRunnerError();
@@ -1162,10 +1212,13 @@ export function buildRemoteOrbiRunnerScript(input?: RemoteOrbiRunnerOptions): st
   if (archiveVersion !== "" && !EXACT_ARCHIVE_VERSION.test(archiveVersion)) {
     throw new SshInvalidArchiveVersionError({ archiveVersion });
   }
-  const releaseBaseUrl = cliReleaseDownloadBaseUrl("", input?.releaseBaseUrl ?? undefined).replace(
-    /\/v$/u,
-    "",
+  const releaseBaseUrl = checkRunnerValue(
+    "releaseBaseUrl",
+    cliReleaseDownloadBaseUrl("", input?.releaseBaseUrl ?? undefined).replace(/\/v$/u, ""),
   );
+  if (!/^https?:\/\/[^\s'"\\]+$/u.test(releaseBaseUrl)) {
+    throw new SshInvalidRunnerOptionError({ option: "releaseBaseUrl" });
+  }
   return stripTrailingNewlines(
     applyScriptPlaceholders(REMOTE_RUNNER_SCRIPT, {
       ORBI_NODE_SCRIPT_PATH: shellSingleQuote(nodeScriptPath),
@@ -1173,7 +1226,7 @@ export function buildRemoteOrbiRunnerScript(input?: RemoteOrbiRunnerOptions): st
       ORBI_RELEASE_BASE_URL: shellSingleQuote(releaseBaseUrl),
       ORBI_ARCHIVE_LOCK_WAIT_SECONDS: String(REMOTE_ARCHIVE_LOCK_WAIT_SECONDS),
       ORBI_ARCHIVE_DOWNLOAD_SECONDS: String(REMOTE_ARCHIVE_DOWNLOAD_SECONDS),
-      ORBI_ARCHIVE_CHECKSUMS_SECONDS: String(REMOTE_ARCHIVE_CHECKSUMS_SECONDS),
+      ORBI_ARCHIVE_SHA256_CASES: archiveSha256Cases(input),
       ORBI_NODE_ENV_SCRIPT: buildRemoteNodeEnvScript(input),
     }),
   );
@@ -1182,7 +1235,9 @@ export function buildRemoteOrbiRunnerScript(input?: RemoteOrbiRunnerOptions): st
 export function buildRemoteNodeEnvScript(input?: RemoteOrbiRunnerOptions): string {
   return stripTrailingNewlines(
     applyScriptPlaceholders(REMOTE_NODE_ENV_SCRIPT, {
-      ORBI_NODE_ENGINE_RANGE: shellSingleQuote(input?.nodeEngineRange?.trim() || ""),
+      ORBI_NODE_ENGINE_RANGE: shellSingleQuote(
+        checkRunnerValue("nodeEngineRange", input?.nodeEngineRange?.trim() || ""),
+      ),
       ORBI_NODE_ENGINE_CHECK_SCRIPT: stripTrailingNewlines(buildRemoteNodeEngineCheckScript()),
     }),
   );
@@ -1533,9 +1588,12 @@ const startSshTunnel = Effect.fn("ssh/tunnel.startSshTunnel")(function* (input: 
   | Path.Path
   | HttpClient.HttpClient
   | NetService.NetService
+  | Scope.Scope
 > {
   const hostSpec = yield* buildSshHostSpecEffect(input.resolvedTarget);
+  // The password file is removed when this attempt ends, ready or not; the tunnel outlives it.
   const childEnvironment = yield* SshAuth.buildSshChildEnvironment({
+    target: input.resolvedTarget,
     ...(input.authOptions.authSecret === undefined
       ? {}
       : { authSecret: input.authOptions.authSecret }),
@@ -1804,7 +1862,7 @@ const startSshTunnel = Effect.fn("ssh/tunnel.startSshTunnel")(function* (input: 
     ),
   );
   return tunnelEntry;
-});
+}, Effect.scoped);
 
 const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.make")(function* (
   options: SshEnvironmentManagerOptions = {},

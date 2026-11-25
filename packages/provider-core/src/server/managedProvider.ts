@@ -20,7 +20,9 @@ import * as ProviderHost from "./ProviderHost.ts";
 import {
   applyUsageLimitsUpdate,
   makeUsageLimits,
+  requestUsageLimits,
   resolveUsageLimitsAfterProbe,
+  usageLimitsRequested,
 } from "./usageLimits.ts";
 import type { ManagedServerProvider } from "./snapshot.ts";
 
@@ -190,6 +192,8 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
 
     // A probe without usage must not erase a report published while its I/O was in flight.
     const usageBeforeProbe = (yield* Ref.get(snapshotStateRef)).snapshot.usageLimits;
+    // Without a user request the probe skips quota reads, so it says nothing about usage.
+    const usageRequested = yield* usageLimitsRequested;
     const probedSnapshot = yield* input.checkProvider.pipe(
       Effect.provideService(DeferringFailedCheck, options?.deferFailure === true),
     );
@@ -222,7 +226,8 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
         const usageLimits = switchedAccount
           ? probedSnapshot.usageLimits
           : probedSnapshot.usageLimits === undefined &&
-              state.snapshot.usageLimits !== usageBeforeProbe
+              (state.snapshot.usageLimits !== usageBeforeProbe ||
+                (!usageRequested && probedSnapshot.auth.status === "authenticated"))
             ? state.snapshot.usageLimits
             : resolveUsageLimitsAfterProbe({
                 published: state.snapshot.usageLimits,
@@ -313,6 +318,8 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
       snapshot.usageLimits.unavailable?.reason === "unsupported"
     )
       return;
+    // Called when a turn hits a usage limit: reading quota now is part of that turn.
+    yield* requestUsageLimits;
     // An in-flight refresh may have read cached usage, so one refresh waits behind it.
     const claim = Symbol();
     const release = Ref.update(usageRefreshQueued, (queued) => (queued === claim ? null : queued));
@@ -353,7 +360,9 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
   ) {
     const { snapshot } = yield* Ref.get(snapshotStateRef);
     if (!snapshot.enabled) return;
-    if (!needsUsageRecovery(snapshot) || !input.checkUsageLimits) {
+    // Timers never read quota on their own; recovery runs only inside a user's request window.
+    const recoverUsage = needsUsageRecovery(snapshot) && (yield* usageLimitsRequested);
+    if (!recoverUsage || !input.checkUsageLimits) {
       if (needsProviderRefresh(snapshot)) {
         yield* applySnapshotBase(yield* input.getSettings, { forceRefresh: true, deferFailure });
       }

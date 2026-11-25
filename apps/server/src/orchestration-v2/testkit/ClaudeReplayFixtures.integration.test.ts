@@ -17,6 +17,7 @@ import { ClaudeOrchestratorReplayHarness } from "../Adapters/ClaudeAdapterV2.tes
 import * as IdAllocator from "@orbiwork/provider-core/server/IdAllocator";
 import * as Orchestrator from "../Orchestrator.ts";
 import { userFacingDispatchErrorMessage } from "../UserFacingErrors.ts";
+import * as ServerSettings from "../../serverSettings.ts";
 import * as UsageLimitSources from "../../usage/UsageLimitSources.ts";
 import { claudeUsageLimitFailure } from "./fixtures/usage_limit/claude_output.ts";
 import { provideDeterministicTestRuntime } from "./DeterministicRuntime.ts";
@@ -193,6 +194,7 @@ describe("Claude Agent SDK replay fixtures", () => {
                 refresh: Effect.void,
               }),
             ),
+            Layer.provide(ServerSettings.layerTest({})),
           ),
         ),
       );

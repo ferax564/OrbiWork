@@ -99,6 +99,17 @@ function commandArgs(command: ChildProcess.Command): ReadonlyArray<string> {
 }
 
 const ARCHIVE = { archiveVersion: "1.2.3-preview.20260911.4" } as const;
+const sha256Of = (file: string) =>
+  NodeChildProcess.execFileSync(
+    "sh",
+    [
+      "-c",
+      'if command -v sha256sum >/dev/null; then sha256sum <"$1"; else shasum -a 256 <"$1"; fi',
+      "sh",
+      file,
+    ],
+    { encoding: "utf8" },
+  ).split(" ")[0]!;
 
 // Emulates `orbi serve`: it takes the home owner lock at startup, then binds
 // once a second server has tried the same home (or after 2s), so a concurrent
@@ -327,7 +338,13 @@ describe("ssh tunnel scripts", () => {
           { mode: 0o755 },
         );
         const runner = NodePath.join(root, "run-orbi.sh");
-        NodeFS.writeFileSync(runner, SshTunnel.buildRemoteOrbiRunnerScript(ARCHIVE));
+        NodeFS.writeFileSync(
+          runner,
+          SshTunnel.buildRemoteOrbiRunnerScript({
+            ...ARCHIVE,
+            archiveSha256: { "darwin-arm64": "a".repeat(64) },
+          }),
+        );
         const result = NodeChildProcess.spawnSync("sh", [runner, "--version"], {
           encoding: "utf8",
           env: { HOME: NodePath.join(root, "home"), PATH: `${bin}:${process.env.PATH ?? ""}` },
@@ -409,9 +426,6 @@ describe("ssh tunnel scripts", () => {
         mode: 0o755,
       });
       NodeChildProcess.execFileSync("tar", ["-czf", archive, "orbi"], { cwd: release });
-      NodeChildProcess.execFileSync("sh", ["-c", `sha256sum ${archive} > SHA256SUMS`], {
-        cwd: release,
-      });
       for (const tool of [
         "sh",
         "mkdir",
@@ -442,7 +456,15 @@ describe("ssh tunnel scripts", () => {
         { mode: 0o755 },
       );
       const runner = NodePath.join(root, "run-orbi.sh");
-      NodeFS.writeFileSync(runner, SshTunnel.buildRemoteOrbiRunnerScript(ARCHIVE));
+      NodeFS.writeFileSync(
+        runner,
+        SshTunnel.buildRemoteOrbiRunnerScript({
+          ...ARCHIVE,
+          archiveSha256: {
+            "linux-x64": sha256Of(NodePath.join(release, archive)),
+          },
+        }),
+      );
       const result = NodeChildProcess.spawnSync(NodePath.join(bin, "sh"), [runner, "--version"], {
         encoding: "utf8",
         env: { HOME: home, PATH: bin },
@@ -453,6 +475,98 @@ describe("ssh tunnel scripts", () => {
     } finally {
       NodeFS.rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  // The download origin serves a tampered archive together with sums that match it.
+  const installFromTamperedOrigin = (archiveSha256: string | undefined) => {
+    const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "orbi-ssh-runner-"));
+    try {
+      const bin = NodePath.join(root, "bin");
+      const release = NodePath.join(root, "release");
+      const home = NodePath.join(root, "home");
+      const archive = `orbi-${ARCHIVE.archiveVersion}-linux-x64.tar.gz`;
+      NodeFS.mkdirSync(bin);
+      NodeFS.mkdirSync(home);
+      NodeFS.mkdirSync(NodePath.join(release, "orbi"), { recursive: true });
+      NodeFS.writeFileSync(NodePath.join(release, "orbi", "orbi"), "#!/bin/sh\necho tampered\n", {
+        mode: 0o755,
+      });
+      NodeChildProcess.execFileSync("tar", ["-czf", archive, "orbi"], { cwd: release });
+      const servedDigest = sha256Of(NodePath.join(release, archive));
+      NodeFS.writeFileSync(NodePath.join(release, "SHA256SUMS"), `${servedDigest}  ${archive}\n`);
+      NodeFS.writeFileSync(
+        NodePath.join(bin, "uname"),
+        '#!/bin/sh\ncase "$1" in -s) echo Linux ;; -m) echo x86_64 ;; esac\n',
+        { mode: 0o755 },
+      );
+      NodeFS.writeFileSync(
+        NodePath.join(bin, "curl"),
+        `#!/bin/sh\necho "download $*" >&2\nfor last; do :; done\nfor a; do case "$a" in http*) src="${release}/\${a##*/}" ;; esac; done\nexec cat "$src" > "$last"\n`,
+        { mode: 0o755 },
+      );
+      const runner = NodePath.join(root, "run-orbi.sh");
+      NodeFS.writeFileSync(
+        runner,
+        SshTunnel.buildRemoteOrbiRunnerScript({
+          ...ARCHIVE,
+          ...(archiveSha256 === undefined ? {} : { archiveSha256: { "linux-x64": archiveSha256 } }),
+        }),
+      );
+      const result = NodeChildProcess.spawnSync("sh", [runner, "--version"], {
+        encoding: "utf8",
+        env: { HOME: home, PATH: `${bin}:${process.env.PATH ?? ""}` },
+      });
+      const installed = NodeFS.existsSync(
+        NodePath.join(home, ".orbi", "runtime", "versions", ARCHIVE.archiveVersion),
+      );
+      return { result, installed };
+    } finally {
+      NodeFS.rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("refuses to install a release archive without a digest from the app", () => {
+    const { result, installed } = installFromTamperedOrigin(undefined);
+    assert.notEqual(result.status, 0);
+    assert.include(result.stderr, "no trusted SHA-256 digest");
+    assert.notInclude(result.stderr, "download ");
+    assert.isFalse(installed);
+  });
+
+  it("refuses an archive that does not match the app's digest, whatever the origin's sums say", () => {
+    const { result, installed } = installFromTamperedOrigin("0".repeat(64));
+    assert.notEqual(result.status, 0);
+    assert.include(result.stderr, "Checksum mismatch");
+    assert.notInclude(result.stderr, "SHA256SUMS");
+    assert.notInclude(result.stdout, "tampered");
+    assert.isFalse(installed);
+  });
+
+  it("rejects runner values that could escape the remote script", () => {
+    for (const options of [
+      { ...ARCHIVE, archiveSha256: { "linux-x64": "not-hex" } },
+      { ...ARCHIVE, archiveSha256: { "linux-x64": `${"a".repeat(64)}\nrm -rf ~` } },
+      { ...ARCHIVE, releaseBaseUrl: "https://mirror.example/x\nSH\nrm -rf ~" },
+      { ...ARCHIVE, releaseBaseUrl: "-K/etc/passwd" },
+      { ...ARCHIVE, releaseBaseUrl: "file:///tmp/orbi" },
+      { nodeScriptPath: "/srv/orbi/server.ts\nSH\nrm -rf ~" },
+      { nodeScriptPath: "--require=/tmp/evil.js" },
+      { nodeScriptPath: "/srv/orbi/server.ts", nodeEngineRange: ">=22\nSH" },
+    ]) {
+      assert.throws(
+        () => SshTunnel.buildRemoteLaunchScript(options),
+        SshTunnel.SshInvalidRunnerOptionError,
+        undefined,
+        JSON.stringify(options),
+      );
+    }
+    assert.include(
+      SshTunnel.buildRemoteOrbiRunnerScript({
+        ...ARCHIVE,
+        archiveSha256: { "linux-x64": "A".repeat(64), "win32-x64": "b".repeat(64) },
+      }),
+      `linux-x64) ORBI_EXPECTED=${"a".repeat(64)} ;;`,
+    );
   });
 
   it("names missing tar before downloading the release archive", () => {

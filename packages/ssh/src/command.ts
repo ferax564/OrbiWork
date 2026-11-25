@@ -250,9 +250,12 @@ const runSshCommandInScope = Effect.fn("ssh/command.runSshCommand.inScope")(func
 > {
   const hostSpec = yield* buildSshHostSpecEffect(target);
   const environment = yield* buildSshChildEnvironment({
+    target,
     ...(input.interactiveAuth === undefined ? {} : { interactiveAuth: input.interactiveAuth }),
     ...(input.authSecret === undefined ? {} : { authSecret: input.authSecret }),
   }).pipe(
+    // The password file lives only as long as this command.
+    Effect.provideService(Scope.Scope, commandScope),
     Effect.mapError(
       (cause) =>
         new SshCommandError({

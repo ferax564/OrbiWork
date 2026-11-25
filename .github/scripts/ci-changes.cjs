@@ -34,8 +34,6 @@ const RUST = /^native\/(resource-monitor|kde-snap-shot|hyprland-snap-shot)\//;
 
 // These tests read other packages without declaring dependencies.
 const TEST_ONLY_DEPS = {
-  // Evals import the server's source to test its real model-facing text.
-  "@orbiwork/evals": ["orbi"],
   "@orbiwork/provider-pi": ["@orbiwork/client-runtime"],
   "@orbiwork/scripts": [
     "@orbiwork/desktop",

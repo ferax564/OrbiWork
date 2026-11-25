@@ -45,6 +45,8 @@ import * as ElectronTheme from "../../electron/ElectronTheme.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
 import * as Electron from "electron";
 import { msg } from "gt-i18n";
+import * as NodeDnsPromises from "node:dns/promises";
+import * as NodeNet from "node:net";
 import * as MacPermissions from "../../permissions/MacPermissions.ts";
 import { safariPermissionCheck } from "../../preview/BrowserImport/SafariPermission.ts";
 import { m } from "../../i18n/messages.ts";
@@ -372,12 +374,72 @@ export const openExternal = DesktopIpc.makeIpcMethod({
 });
 
 const READ_MEDIA_MAX_BYTES = 256 * 1024 * 1024;
+const READ_MEDIA_MAX_REDIRECTS = 5;
 
 // No URL field: media URLs can carry signed query tokens.
 class MediaReadError extends Schema.TaggedError<MediaReadError>()("MediaReadError", {
   message: Schema.String,
   cause: Schema.Defect(),
 }) {}
+
+const NON_PUBLIC_ADDRESSES = new NodeNet.BlockList();
+for (const [network, prefix] of [
+  ["0.0.0.0", 8],
+  ["10.0.0.0", 8],
+  ["100.64.0.0", 10],
+  ["127.0.0.0", 8],
+  ["169.254.0.0", 16],
+  ["172.16.0.0", 12],
+  ["192.168.0.0", 16],
+  ["224.0.0.0", 3],
+] as const) {
+  NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, "ipv4");
+}
+// ::/96 covers loopback and unspecified; BlockList checks IPv4-mapped addresses against IPv4 rules.
+for (const [network, prefix] of [
+  ["::", 96],
+  ["fc00::", 7],
+  ["fe80::", 10],
+  ["ff00::", 8],
+] as const) {
+  NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, "ipv6");
+}
+
+/**
+ * Whether the main process may read this URL for the renderer: public hosts, or a local backend's
+ * own origin. Other loopback, private and link-local targets are refused, including names that
+ * resolve to them. shortcut: the address is checked before the fetch connects, so a DNS answer
+ * that changes in between is not caught; pin the resolved address if the fetch moves off net.
+ */
+const isReadableMediaUrl = async (
+  url: URL,
+  localBackendOrigins: ReadonlySet<string>,
+): Promise<boolean> => {
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (localBackendOrigins.has(url.origin)) return true;
+  const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) return false;
+  const family = NodeNet.isIP(hostname);
+  const addresses =
+    family !== 0
+      ? [{ address: hostname, family }]
+      : await NodeDnsPromises.lookup(hostname, { all: true, verbatim: true }).catch(() => []);
+  return (
+    addresses.length > 0 &&
+    addresses.every(
+      ({ address, family }) => !NON_PUBLIC_ADDRESSES.check(address, family === 6 ? "ipv6" : "ipv4"),
+    )
+  );
+};
+
+const localBackendOrigins = Effect.gen(function* () {
+  const origins = new Set<string>();
+  for (const instance of yield* (yield* DesktopBackendPool.DesktopBackendPool).list) {
+    const config = yield* instance.currentConfig;
+    if (Option.isSome(config)) origins.add(config.value.httpBaseUrl.origin);
+  }
+  return origins;
+});
 
 // The renderer can display media it cannot fetch(); reading here keeps Save and Copy working for it.
 export const readMedia = DesktopIpc.makeIpcMethod({
@@ -395,10 +457,22 @@ export const readMedia = DesktopIpc.makeIpcMethod({
       return null;
     }
     const session = window.value.webContents.session;
+    const allowedOrigins = yield* localBackendOrigins;
     return yield* Effect.tryPromise({
       try: async () => {
-        // Like an <img>, send the session's cookies.
-        const response = await session.fetch(url, { credentials: "include" });
+        // Cookies would let any page the renderer names be read as the user; signed media URLs
+        // carry their own tokens. Each redirect hop is checked like the first URL.
+        let target = new URL(url);
+        let response: Response | undefined;
+        for (let hop = 0; hop <= READ_MEDIA_MAX_REDIRECTS; hop++) {
+          await response?.body?.cancel();
+          if (!(await isReadableMediaUrl(target, allowedOrigins))) return null;
+          response = await session.fetch(target.href, { credentials: "omit", redirect: "manual" });
+          const location = response.headers.get("location");
+          if (response.status < 300 || response.status >= 400 || location === null) break;
+          target = new URL(location, target);
+        }
+        if (response === undefined) return null;
         const mimeType = response.headers.get("content-type") ?? "";
         if (!response.ok || !response.body) {
           await response.body?.cancel();

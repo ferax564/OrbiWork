@@ -37,10 +37,14 @@ import {
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";
+import { msg } from "gt-i18n";
 import * as NodeURL from "node:url";
 
+import * as ElectronDialog from "../../electron/ElectronDialog.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
+import { m } from "../../i18n/messages.ts";
 import * as BrowserImport from "../../preview/BrowserImport/BrowserImport.ts";
+import { BROWSER_IMPORT_SOURCES } from "../../preview/BrowserImport/Sources.ts";
 import * as LoopbackTunnel from "../../preview/LoopbackTunnel.ts";
 import * as PreviewManager from "../../preview/Manager.ts";
 import { normalizeCaptureFailure } from "../../preview/captureErrors.ts";
@@ -445,6 +449,34 @@ export const importBrowserCookies = DesktopIpc.makeIpcMethod({
     ...importInput
   }) {
     const browserImport = yield* BrowserImport.BrowserImport;
+    // The renderer's own wizard is not proof the person asked: confirm in the main process, so no
+    // script in the renderer can copy browser sessions into the preview without them.
+    const sourceName =
+      BROWSER_IMPORT_SOURCES.find((source) => source.id === importInput.sourceId)?.name ??
+      importInput.sourceId;
+    const owner = yield* (yield* ElectronWindow.ElectronWindow).main;
+    const { response } = yield* (yield* ElectronDialog.ElectronDialog)
+      .showMessageBox(
+        {
+          type: "warning",
+          title: m(msg("Import browser cookies?")),
+          message: m(msg("Copy your {browser} sign-ins into the OrbiWork preview?"), {
+            browser: sourceName,
+          }),
+          detail: m(
+            msg(
+              "Agents that use this preview profile can act on those sites as you. Only continue if you started this import.",
+            ),
+          ),
+          buttons: [m(msg("Cancel")), m(msg("Import cookies"))],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        },
+        Option.getOrUndefined(owner),
+      )
+      .pipe(Effect.orElseSucceed(() => ({ response: 0, checkboxChecked: false })));
+    if (response !== 1) return { imported: 0, skipped: 0, skippedDomains: [] };
     const { scope, persistent, namespace } = resolvePartitionScope(
       environmentId,
       importInput.targetProfileId,

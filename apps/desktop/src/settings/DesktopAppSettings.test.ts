@@ -27,6 +27,8 @@ const DesktopSettingsPatch = Schema.Struct({
     ),
   ),
   mainWindowMaximized: Schema.optionalKey(Schema.Boolean),
+  automaticUpdateChecks: Schema.optionalKey(Schema.Boolean),
+  remoteUpdatesAllowed: Schema.optionalKey(Schema.Boolean),
   serverExposureMode: Schema.optionalKey(Schema.Literals(["local-only", "network-accessible"])),
   tailscaleServeEnabled: Schema.optionalKey(Schema.Boolean),
   tailscaleServePort: Schema.optionalKey(Schema.Number),
@@ -128,6 +130,31 @@ describe("DesktopSettings", () => {
     }),
   );
 
+  it.effect("keeps update checks and remote updates off until turned on, and persists them", () =>
+    withSettings(
+      Effect.gen(function* () {
+        const settings = yield* DesktopAppSettings.DesktopAppSettings;
+        const initial = yield* settings.load;
+        assert.isFalse(initial.automaticUpdateChecks);
+        assert.isFalse(initial.remoteUpdatesAllowed);
+        assert.isTrue(
+          (yield* settings.setUpdatePreferences({ automaticUpdateChecks: true })).changed,
+        );
+        assert.isTrue(
+          (yield* settings.setUpdatePreferences({ remoteUpdatesAllowed: true })).changed,
+        );
+        assert.isFalse(
+          (yield* settings.setUpdatePreferences({ remoteUpdatesAllowed: true })).changed,
+        );
+        assert.deepEqual(yield* settings.load, {
+          ...initial,
+          automaticUpdateChecks: true,
+          remoteUpdatesAllowed: true,
+        });
+      }),
+    ),
+  );
+
   it.effect(
     "persists disabling and re-enabling local execution without clearing backend settings",
     () =>
@@ -224,9 +251,11 @@ describe("DesktopSettings", () => {
 
         assert.deepEqual(yield* settings.load, {
           linuxPasswordStore: "auto",
+          automaticUpdateChecks: false,
           localEnvironmentEnabled: true,
           mainWindowBounds: { x: 120, y: 80, width: 1280, height: 900 },
           mainWindowMaximized: false,
+          remoteUpdatesAllowed: false,
           serverExposureMode: "network-accessible",
           tailscaleServeEnabled: true,
           tailscaleServePort: 8443,
@@ -377,9 +406,11 @@ describe("DesktopSettings", () => {
 
         assert.deepEqual(yield* settings.load, {
           linuxPasswordStore: "auto",
+          automaticUpdateChecks: false,
           localEnvironmentEnabled: true,
           mainWindowBounds: null,
           mainWindowMaximized: false,
+          remoteUpdatesAllowed: false,
           serverExposureMode: "local-only",
           tailscaleServeEnabled: false,
           tailscaleServePort: 443,
@@ -406,9 +437,11 @@ describe("DesktopSettings", () => {
 
         assert.deepEqual(yield* settings.load, {
           linuxPasswordStore: "auto",
+          automaticUpdateChecks: false,
           localEnvironmentEnabled: true,
           mainWindowBounds: null,
           mainWindowMaximized: false,
+          remoteUpdatesAllowed: false,
           serverExposureMode: "local-only",
           tailscaleServeEnabled: false,
           tailscaleServePort: 443,

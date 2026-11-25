@@ -17,6 +17,7 @@ import * as Stream from "effect/Stream";
 
 import * as DesktopObservability from "../app/DesktopObservability.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
+import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublisher.ts";
 import * as DesktopUpdates from "./DesktopUpdates.ts";
 import {
@@ -29,6 +30,9 @@ const { logInfo, logError } = DesktopObservability.makeComponentLogger("desktop-
 
 const ACTION_RETRY_DELAY = Duration.millis(250);
 const PREPARED_UPDATE_TTL = Duration.minutes(5);
+// Remote clients read this reason; it is not localized on this machine.
+export const REMOTE_UPDATES_NOT_ALLOWED_REASON =
+  "This desktop app does not allow remote clients to update it. Turn on Allow remote updates in its About settings.";
 
 interface PreparedUpdate {
   readonly requestId: string;
@@ -52,9 +56,15 @@ export const listen: Effect.Effect<
   | DesktopUpdates.DesktopUpdates
   | DesktopTelemetryPublisher.DesktopTelemetryPublisher
   | DesktopBackendPool.DesktopBackendPool
+  | DesktopAppSettings.DesktopAppSettings
   | Scope.Scope
 > = Effect.gen(function* () {
   const updates = yield* DesktopUpdates.DesktopUpdates;
+  const settings = yield* DesktopAppSettings.DesktopAppSettings;
+  // Read per request: the person at this machine can turn it off between a prepare and a commit.
+  const remoteUpdatesAllowed = settings.get.pipe(
+    Effect.map((current) => current.remoteUpdatesAllowed),
+  );
   const backends = yield* DesktopBackendPool.DesktopBackendPool;
   const publisher = yield* DesktopTelemetryPublisher.DesktopTelemetryPublisher;
   const activeRequestIdRef = yield* Ref.make(Option.none<string>());
@@ -166,6 +176,14 @@ export const listen: Effect.Effect<
           ] as const;
         });
         if (!shouldStart) return;
+        if (!(yield* remoteUpdatesAllowed)) {
+          yield* publishReport(
+            yield* updates.getState,
+            { outcome: "failed", reason: REMOTE_UPDATES_NOT_ALLOWED_REASON },
+            request.requestId,
+          );
+          return;
+        }
 
         const now = yield* Clock.currentTimeMillis;
         const prepared = yield* Ref.modify(preparedUpdateRef, (current) =>
@@ -453,6 +471,19 @@ export const listen: Effect.Effect<
   yield* Stream.runForEach(publisher.updateCommits, (commit) =>
     Effect.gen(function* () {
       const current = yield* updates.getState;
+      if (!(yield* remoteUpdatesAllowed)) {
+        yield* Ref.update(preparedUpdateRef, (prepared) =>
+          Option.isSome(prepared) && prepared.value.requestId === commit.requestId
+            ? Option.none()
+            : prepared,
+        );
+        yield* publishReport(
+          current,
+          { outcome: "failed", reason: REMOTE_UPDATES_NOT_ALLOWED_REASON },
+          commit.requestId,
+        );
+        return;
+      }
       const now = yield* Clock.currentTimeMillis;
       const claim = yield* Ref.modify(
         preparedUpdateRef,

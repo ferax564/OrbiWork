@@ -122,6 +122,10 @@
   "202e13f15a3dcd30": "Копировать ссылку",
   "8af79268f2349f4c": "Копировать адрес электронной почты",
   "a9f9254d458e49fe": "Копировать изображение",
+  "503024daf9af9151": "Import browser cookies?",
+  "37c4184bee9f7f28": "Copy your {browser} sign-ins into the OrbiWork preview?",
+  "ca16ed6379c881fa": "Agents that use this preview profile can act on those sites as you. Only continue if you started this import.",
+  "8bc3e907c3fdbe3a": "Import cookies",
   "9c1b20fbc881de5d": "Конфигурация десктопа",
   "1b14230874f19eb9": "Изображения"
 }

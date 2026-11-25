@@ -13,6 +13,7 @@ import * as Schema from "effect/Schema";
 import * as HttpClient from "effect/http/HttpClient";
 import { cursorRateModel } from "./accountUsage.ts";
 import { readCursorUsageLimits } from "./usageLimits.ts";
+import { whenUsageLimitsRequested } from "@orbiwork/provider-core/server/usageLimits";
 
 import * as ProviderHost from "@orbiwork/provider-core/server/ProviderHost";
 import { makeCursorTextGeneration } from "./textGeneration.ts";
@@ -237,10 +238,16 @@ export const CursorDriver: ProviderDriver<
                 snapshot.auth.status === "authenticated"
               ),
             (snapshot) =>
-              readCursorUsageLimits(effectiveConfig, {
-                ...processEnv,
-                CURSOR_API_KEY: apiKey,
-              }).pipe(Effect.map((usageLimits) => ({ ...snapshot, usageLimits }))),
+              whenUsageLimitsRequested(
+                readCursorUsageLimits(effectiveConfig, {
+                  ...processEnv,
+                  CURSOR_API_KEY: apiKey,
+                }),
+              ).pipe(
+                Effect.map((usageLimits) =>
+                  usageLimits === undefined ? snapshot : { ...snapshot, usageLimits },
+                ),
+              ),
           ),
         ),
       ),
