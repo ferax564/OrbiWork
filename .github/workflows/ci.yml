@@ -47,10 +47,15 @@ jobs:
             run: vp run --filter orbi test
           - name: web unit
             run: cd apps/web && vp test run --project unit
-          # Two files at a time: with more, the browser on a hosted runner sometimes dies
-          # mid-run and every file after it is skipped.
-          - name: web browser
-            run: cd apps/web && DEBUG=vite:deps,vite:hmr,vite:config,vite:proxy,vite:ws vp test run --project browser --maxWorkers=2
+          # Shards keep one bad file from taking the whole browser run down with it.
+          - name: web browser 1/4
+            run: cd apps/web && vp test run --project browser --shard=1/4
+          - name: web browser 2/4
+            run: cd apps/web && vp test run --project browser --shard=2/4
+          - name: web browser 3/4
+            run: cd apps/web && vp test run --project browser --shard=3/4
+          - name: web browser 4/4
+            run: cd apps/web && vp test run --project browser --shard=4/4
           - name: desktop
             run: vp run --filter @orbiwork/desktop test
           - name: packages
