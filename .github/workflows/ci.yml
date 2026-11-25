@@ -35,9 +35,22 @@ jobs:
       - run: vp run i18n:check
 
   test:
-    name: Test
+    name: Test (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      # One failing group must not cancel the others; each reports on its own.
+      fail-fast: false
+      matrix:
+        include:
+          - name: server
+            filter: "--filter orbi"
+          - name: web
+            filter: "--filter @orbiwork/web"
+          - name: desktop
+            filter: "--filter @orbiwork/desktop"
+          - name: packages
+            filter: "--filter '!@orbiwork/monorepo' --filter '!orbi' --filter '!@orbiwork/web' --filter '!@orbiwork/desktop'"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -52,4 +65,4 @@ jobs:
       - run: vp install
       - run: vp run --filter @orbiwork/desktop ensure:electron
       - run: node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
-      - run: vp run --parallel --concurrency-limit 4 --filter '!@orbiwork/monorepo' test
+      - run: vp run --parallel --concurrency-limit 4 ${{ matrix.filter }} test

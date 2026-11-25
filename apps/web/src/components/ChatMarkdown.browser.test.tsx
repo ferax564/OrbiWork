@@ -369,23 +369,21 @@ it("highlights a code block's own source when an earlier block of the same lengt
 });
 
 describe("ChatMarkdown favicon privacy", () => {
-  it("suppresses private link images while preserving public links across updates", async () => {
+  it("never loads an image for a link, public or private", async () => {
     setup();
     const markdown = (url: string) => <ChatMarkdown cwd="/tmp/project" text={`[Link](${url})`} />;
     await using screen = await render(markdown("https://example.com"));
     const { container, rerender } = screen;
-    expect([...container.querySelectorAll("img")].map((image) => image.src)).toEqual([
-      "https://www.google.com/s2/favicons?domain=example.com&sz=32",
-    ]);
-    for (const url of ["http://192.168.1.10:8080", "http://localhost:3000", "http://home.arpa"]) {
+    for (const url of [
+      "https://example.com",
+      "http://192.168.1.10:8080",
+      "http://localhost:3000",
+      "https://github.com/ferax564/orbiwork/pull/1",
+    ]) {
       await rerender(markdown(url));
+      expect(container.querySelector("a")).not.toBeNull();
       expect(container.querySelectorAll("img")).toHaveLength(0);
     }
-    await rerender(markdown("https://example.com"));
-    expect(container.querySelectorAll("img")).toHaveLength(1);
-    await rerender(markdown("https://github.com/ferax564/orbiwork/pull/1"));
-    expect(container.querySelectorAll("img")).toHaveLength(0);
-    expect(container.querySelector("a svg")).not.toBeNull();
   });
 });
 

@@ -16,26 +16,7 @@ import { __setClientSettingsForTests } from "../../hooks/useSettings";
 import { deriveProviderInstanceEntries } from "../../providerInstances";
 import { ProviderModelPicker } from "./ProviderModelPicker";
 
-it("keeps each registry image when adding a model from another ACP agent", async () => {
-  const icons = [
-    "https://cdn.agentclientprotocol.com/registry/icons/picker-explicit.svg",
-    "https://cdn.agentclientprotocol.com/registry/v1/latest/picker-by-id.svg",
-  ];
-  const cache = await caches.open("orbi-acp-registry-icons-v1");
-  await using _cachedIcons = {
-    async [Symbol.asyncDispose]() {
-      await Promise.all(icons.map((url) => cache.delete(url)));
-    },
-  };
-  for (const [index, url] of icons.entries()) {
-    await cache.put(
-      url,
-      new Response(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${11 + index * 6}" height="10"><path d="M0 0h10v10H0z"/></svg>`,
-        { headers: { "content-type": "image/svg+xml" } },
-      ),
-    );
-  }
+it("shows a glyph per ACP agent, never its registry image, when adding a model from another agent", async () => {
   const entries = deriveProviderInstanceEntries(
     ["First", "Second"].map((name) => ({
       instanceId: ProviderInstanceId.make(name.toLowerCase()),
@@ -55,7 +36,9 @@ it("keeps each registry image when adding a model from another ACP agent", async
     })),
   ).map((entry, index) => ({
     ...entry,
-    ...(index === 0 ? { acpRegistryIconUrl: icons[0] } : { acpRegistryAgentId: "picker-by-id" }),
+    ...(index === 0
+      ? { acpRegistryIconUrl: "https://cdn.agentclientprotocol.com/registry/icons/first.svg" }
+      : { acpRegistryAgentId: "picker-by-id" }),
   }));
   const first = { instanceId: entries[0]!.instanceId, model: "first" };
   const options = new Map(entries.map((entry) => [entry.instanceId, entry.models]));
@@ -78,12 +61,12 @@ it("keeps each registry image when adding a model from another ACP agent", async
   }
 
   await using screen = await render(<Picker />);
-  const imageWidths = () =>
-    Array.from(
-      screen.container.querySelectorAll<HTMLImageElement>("[data-chat-provider-model-picker] img"),
-      (image) => image.naturalWidth,
-    );
-  await vi.waitFor(() => expect(imageWidths()).toEqual([11]));
+  const picker = () => screen.container.querySelector("[data-chat-provider-model-picker]")!;
+  const triggerGlyphs = () =>
+    picker().querySelectorAll(
+      '[data-chat-provider-model-picker-icon] [data-slot="acp-icon-fallback"]',
+    ).length;
+  await vi.waitFor(() => expect(triggerGlyphs()).toBe(1));
   await screen.getByRole("button", { name: "First model", exact: true }).click();
   await page.getByRole("button", { name: "Second agent", exact: true }).click();
   await userEvent.keyboard("{Shift>}");
@@ -93,7 +76,8 @@ it("keeps each registry image when adding a model from another ACP agent", async
     await userEvent.keyboard("{/Shift}");
   }
   await userEvent.keyboard("{Escape}");
-  await vi.waitFor(() => expect(imageWidths()).toEqual([11, 17]));
+  await vi.waitFor(() => expect(triggerGlyphs()).toBe(2));
+  expect(picker().querySelector("img")).toBeNull();
 });
 
 it("keeps a docked picker open after a pick and hands focus to that model's effort", async () => {
