@@ -765,10 +765,6 @@ export const OrchestratorMcpScheduledTask = Schema.Struct({
   schedule: ScheduledTaskSchedule,
   nextRunAt: Schema.NullOr(IsoDateTime),
   lastRunStatus: ScheduledTaskRunStatus,
-  webhookUrl: Schema.optional(Schema.String).annotate({
-    description:
-      "Webhook bearer URL, returned only on task creation to callers allowed to run it. Lists and updates omit it; the user can copy it from Settings. Creation may omit it without Orbi Connect remote access or run permission.",
-  }),
   webhookSignature: Schema.optional(Schema.Literals(["none", "set"])),
   blockedByPolicy: Schema.optional(Schema.String).annotate({
     description: "Present when an administrator's policy stops this task from running.",

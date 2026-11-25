@@ -55,10 +55,6 @@
       "types": "./src/projectFavicon.ts",
       "import": "./src/projectFavicon.ts"
     },
-    "./mobileSourceMaps": {
-      "types": "./src/mobileSourceMaps.ts",
-      "import": "./src/mobileSourceMaps.ts"
-    },
     "./model": {
       "types": "./src/model.ts",
       "import": "./src/model.ts"
@@ -207,9 +203,9 @@
       "types": "./src/remote.ts",
       "import": "./src/remote.ts"
     },
-    "./relaySigning": {
-      "types": "./src/relaySigning.ts",
-      "import": "./src/relaySigning.ts"
+    "./stableStringify": {
+      "types": "./src/stableStringify.ts",
+      "import": "./src/stableStringify.ts"
     },
     "./dpop": {
       "types": "./src/dpop.ts",
@@ -227,18 +223,6 @@
       "types": "./src/dpopCommon.ts",
       "import": "./src/dpopCommon.ts"
     },
-    "./relayAuth": {
-      "types": "./src/relayAuth.ts",
-      "import": "./src/relayAuth.ts"
-    },
-    "./relayUrl": {
-      "types": "./src/relayUrl.ts",
-      "import": "./src/relayUrl.ts"
-    },
-    "./relayJwt": {
-      "types": "./src/relayJwt.ts",
-      "import": "./src/relayJwt.ts"
-    },
     "./oauthScope": {
       "types": "./src/oauthScope.ts",
       "import": "./src/oauthScope.ts"
@@ -254,10 +238,6 @@
     "./cliArgs": {
       "types": "./src/cliArgs.ts",
       "import": "./src/cliArgs.ts"
-    },
-    "./connectAuth": {
-      "types": "./src/connectAuth.ts",
-      "import": "./src/connectAuth.ts"
     },
     "./symlink": {
       "types": "./src/symlink.ts",
@@ -330,14 +310,6 @@
     "./terminalLabels": {
       "types": "./src/terminalLabels.ts",
       "import": "./src/terminalLabels.ts"
-    },
-    "./relayClient": {
-      "types": "./src/relayClient.ts",
-      "import": "./src/relayClient.ts"
-    },
-    "./relayTracing": {
-      "types": "./src/relayTracing.ts",
-      "import": "./src/relayTracing.ts"
     },
     "./preview": {
       "types": "./src/preview.ts",
@@ -507,9 +479,9 @@
       "types": "./src/codexAuthCallback.ts",
       "import": "./src/codexAuthCallback.ts"
     },
-    "./codexAuthHandoff": {
-      "types": "./src/codexAuthHandoff.ts",
-      "import": "./src/codexAuthHandoff.ts"
+    "./codexAuthRequest": {
+      "types": "./src/codexAuthRequest.ts",
+      "import": "./src/codexAuthRequest.ts"
     },
     "./oauthCallback": {
       "types": "./src/oauthCallback.ts",

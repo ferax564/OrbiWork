@@ -22,10 +22,6 @@ import {
 } from "@orbiwork/client-runtime/connection";
 import { bootstrapRemoteBearerSession } from "@orbiwork/client-runtime/authorization";
 import { fetchRemoteEnvironmentDescriptor } from "@orbiwork/client-runtime/environment";
-import {
-  managedRelayAccountChanges,
-  managedRelaySessionAtom,
-} from "@orbiwork/client-runtime/relay";
 import { EnvironmentRpcRequestObserver } from "@orbiwork/client-runtime/rpc";
 import {
   AuthStandardClientScopes,
@@ -54,9 +50,7 @@ import {
   type PrimaryEnvironmentTarget,
 } from "../environments/primary/target";
 import { clearComposerDraftsEnvironment } from "../composerDraftStore";
-import { isHostedStaticApp } from "../hostedPairing";
 import { isLocalEnvironmentDisabled } from "../localEnvironment";
-import { appAtomRegistry } from "../rpc/atomRegistry";
 import { acknowledgeRpcRequest, trackRpcRequestSent } from "../rpc/requestLatencyState";
 import {
   desktopLocalConnectionId,
@@ -164,9 +158,6 @@ const layerWakeups = Wakeups.layer({
             }),
         ).pipe(Effect.asVoid),
       ),
-      managedRelayAccountChanges(appAtomRegistry).pipe(
-        Stream.map(() => "credentials-changed" as const),
-      ),
       networkPathChanges,
     ],
     { concurrency: "unbounded" },
@@ -176,7 +167,6 @@ const layerWakeups = Wakeups.layer({
 export function currentClientMetadata() {
   return clientPresentationMetadata({
     appVersion: APP_VERSION,
-    hosted: isHostedStaticApp(),
     identity: {
       userAgent: navigator.userAgent,
       platform: navigator.platform,
@@ -355,39 +345,6 @@ const layerCapabilities = Layer.effectContext(
     const presentation = ClientCapabilities.ClientPresentation.of({
       metadata: currentClientMetadata(),
     });
-    const cloudSession = ClientCapabilities.CloudSession.of({
-      identity: Effect.sync(() =>
-        Option.fromNullishOr(appAtomRegistry.get(managedRelaySessionAtom)),
-      ),
-      clerkToken: Effect.gen(function* () {
-        const session = appAtomRegistry.get(managedRelaySessionAtom);
-        if (session === null) {
-          return yield* new ConnectionBlockedError({
-            reason: "authentication",
-            detail: m(msg("Sign in to Orbi Connect to connect this environment.")),
-          });
-        }
-        const token = yield* session.readClerkToken().pipe(
-          Effect.mapError(
-            (error) =>
-              new ConnectionTransientError({
-                reason: "network",
-                detail: error.message,
-              }),
-          ),
-        );
-        if (token === null) {
-          return yield* new ConnectionBlockedError({
-            reason: "authentication",
-            detail: m(msg("The Orbi Connect session is unavailable.")),
-          });
-        }
-        return token;
-      }),
-    });
-    const identity = ClientCapabilities.RelayDeviceIdentity.of({
-      deviceId: Effect.succeedNone,
-    });
     const primaryAuth = ClientCapabilities.PrimaryEnvironmentAuth.of({
       bearerToken: Effect.tryPromise({
         try: readDesktopPrimaryBearerToken,
@@ -444,9 +401,7 @@ const layerCapabilities = Layer.effectContext(
       }),
     });
 
-    return Context.make(ClientCapabilities.CloudSession, cloudSession).pipe(
-      Context.add(ClientCapabilities.PrimaryEnvironmentAuth, primaryAuth),
-      Context.add(ClientCapabilities.RelayDeviceIdentity, identity),
+    return Context.make(ClientCapabilities.PrimaryEnvironmentAuth, primaryAuth).pipe(
       Context.add(ClientCapabilities.ClientPresentation, presentation),
       Context.add(ClientCapabilities.SshEnvironmentGateway, ssh),
     );
@@ -657,7 +612,7 @@ export function secondaryRegistrationsToRetainAfterTopologyRead(
 const layerPlatformConnectionSource = Layer.effect(
   PlatformConnectionSource.PlatformConnectionSource,
   Effect.gen(function* () {
-    if (isHostedStaticApp() || isLocalEnvironmentDisabled()) {
+    if (isLocalEnvironmentDisabled()) {
       return PlatformConnectionSource.PlatformConnectionSource.of({
         registrations: Stream.empty,
       });

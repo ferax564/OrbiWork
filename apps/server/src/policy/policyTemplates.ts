@@ -76,7 +76,7 @@ const policies = (): ReadonlyArray<Policy> => [
   {
     id: "Clients",
     title: "Allowed clients",
-    help: "What may connect to OrbiWork on this machine.\n\nWithout Remote, OrbiWork only listens on this machine, does not create pairing links, signs out devices that paired earlier, and turns Orbi Connect off. Check at least one client.\n\nDisabled or Not Configured: no restriction.",
+    help: "What may connect to OrbiWork on this machine.\n\nWithout Remote, OrbiWork only listens on this machine, does not create pairing links, and signs out devices that paired earlier. Check at least one client.\n\nDisabled or Not Configured: no restriction.",
     elements: [
       {
         kind: "checkbox",
@@ -96,16 +96,10 @@ const policies = (): ReadonlyArray<Policy> => [
         kind: "checkbox",
         list: "Clients",
         name: "remote",
-        label: "Remote: phones, other computers, app.orbiwork.invalid",
+        label: "Remote: phones and other computers",
         defaultChecked: false,
       },
     ],
-  },
-  {
-    id: "Connect",
-    title: "Allow Orbi Connect",
-    help: "Disabled turns Orbi Connect off and unlinks this machine. Other remote access still follows Allowed clients.\n\nEnabled or Not Configured leaves Orbi Connect available.",
-    toggle: "Connect",
   },
   {
     id: "WebhookTasks",
@@ -124,12 +118,6 @@ const policies = (): ReadonlyArray<Policy> => [
     title: "Allow the preview tunnel",
     help: "Disabled stops other devices from opening this machine's local servers through OrbiWork: no in-app browser tabs loaded on the device, no Open on this device, no port forwarding. Browser tabs still stream from this machine.",
     toggle: "PreviewTunnel",
-  },
-  {
-    id: "Telemetry",
-    title: "Allow relay connection traces",
-    help: "Disabled stops OrbiWork from sending relay connection traces. Enabled cannot turn them on for a user who turned them off.",
-    toggle: "Telemetry",
   },
   {
     id: "AllowedDrivers",

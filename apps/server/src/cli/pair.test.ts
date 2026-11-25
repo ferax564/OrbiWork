@@ -430,10 +430,9 @@ describe("orbi pair", () => {
           typeof error === "object" && error !== null && "cause" in error ? error.cause : error,
         );
         assert.include(rendered, "No running OrbiWork server found.");
-        for (const subcommand of ["serve", "connect"]) {
-          const { command } = yield* resolveHostCliCommand(subcommand, ["--base-dir", baseDir]);
-          assert.include(rendered, `\`${command}\``);
-        }
+        const { command } = yield* resolveHostCliCommand("serve", ["--base-dir", baseDir]);
+        assert.include(rendered, `\`${command}\``);
+        assert.notInclude(rendered, "Orbi Connect");
       }),
     ).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );

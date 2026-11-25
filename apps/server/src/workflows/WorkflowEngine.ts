@@ -580,7 +580,6 @@ const make = Effect.fn("WorkflowEngine.make")(function* (
       const key =
         authored ??
         (sent === undefined ? undefined : `${sent}:${delivery.request.headers[sent]}`) ??
-        delivery.deliveryId ??
         (yield* random.uuidV4());
       const idempotencyKey = `hook:${hook.hookId}:${key}`;
       // A retry of a run that exists starts nothing, so it takes none of the minute.

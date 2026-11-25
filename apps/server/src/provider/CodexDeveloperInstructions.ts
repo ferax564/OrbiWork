@@ -1,4 +1,3 @@
-import type { AgentFeedbackMode } from "@orbiwork/contracts";
 import type { V2TurnStartParams__AdditionalContextEntry } from "effect-codex-app-server/schema";
 import { buildRuntimeInstructions } from "@orbiwork/provider-core/server/runtimeInstructions";
 
@@ -33,7 +32,6 @@ const toolInstructions = (availability: boolean | OrbiWorkToolAvailability): str
 };
 
 export interface CodexRuntimeInfo {
-  readonly agentFeedback?: AgentFeedbackMode;
   readonly model: string;
   readonly modelName?: string | undefined;
   readonly reasoningEffort?: string | undefined;

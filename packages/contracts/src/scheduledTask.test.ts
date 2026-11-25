@@ -5,10 +5,12 @@ import {
   MIN_SCHEDULED_TASK_INTERVAL_MS,
   ScheduledTaskSchedule,
   ScheduledTaskUpsertSchedule,
+  ScheduledTaskWebhookEndpoint,
 } from "./scheduledTask.ts";
 
 const decodeSchedule = Schema.decodeUnknownSync(ScheduledTaskSchedule);
 const decodeUpsertSchedule = Schema.decodeUnknownSync(ScheduledTaskUpsertSchedule);
+const decodeWebhookEndpoint = Schema.decodeUnknownSync(ScheduledTaskWebhookEndpoint);
 
 describe("ScheduledTaskSchedule", () => {
   it("keeps legacy sub-minute persisted schedules readable", () => {
@@ -49,6 +51,21 @@ it.each(["literal", " ", "\t\n", "{{body.bad", "{{unknown.field}}"])(
     ).toThrow();
   },
 );
+it("still decodes webhook schedules and tasks saved with removed relay-only fields", () => {
+  const stored = { type: "webhook", signature: null, maxDeliveryAgeMinutes: 90 };
+  expect(decodeSchedule(stored)).toEqual({ type: "webhook", signature: null });
+  expect(decodeUpsertSchedule({ type: "webhook", maxDeliveryAgeMinutes: 90 })).toEqual({
+    type: "webhook",
+  });
+  expect(
+    decodeWebhookEndpoint({
+      path: "/hooks/task-1/token",
+      url: "https://relay.example/v1/hooks/0123456789abcdef/task-1/token",
+      hasSecret: false,
+    }),
+  ).toEqual({ path: "/hooks/task-1/token", hasSecret: false });
+});
+
 describe("webhook filters", () => {
   const accepts = (filters: unknown) => {
     try {

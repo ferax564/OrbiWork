@@ -304,7 +304,7 @@ it.effect("advertises the extension and lists each milestone type to outside cli
     expect(discovered.result!.capabilities.events).toEqual({});
 
     const { events } = (yield* call("events/list")).result!;
-    expect(events).toHaveLength(12);
+    expect(events).toHaveLength(10);
     const settledType = events.find(
       (event: { name: string }) => event.name === "thread.run_settled",
     );
@@ -336,7 +336,7 @@ it.effect("lists workflow event types only while Labs → Workflows is on", () =
     const { call } = yield* serveWith({ workflowsEnabled: false });
     const { events } = (yield* call("events/list")).result!;
     const names = (events as ReadonlyArray<{ name: string }>).map((event) => event.name);
-    expect(names).toHaveLength(6);
+    expect(names).toHaveLength(4);
     expect(names.some((name) => name.startsWith("workflow."))).toBe(false);
     const poll = yield* call("events/poll", { name: "workflow.run_ended", cursor: null });
     expect(poll.error).toBeDefined();

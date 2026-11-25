@@ -37,7 +37,7 @@ instead of this one. The user may be on an old release with an old copy.
 ## 4. Get the source
 
 Before cloning, ask the user which version, device, and surface the bug happened
-on. The bug may have happened on another machine, a remote server, the mobile app,
+on. The bug may have happened on another machine, a remote server, a phone browser,
 or an older build they have since updated. Check their answer against local facts
 where they apply: the server version in the context file, or `serverVersion` from
 `<origin>/.well-known/orbi/environment` when a local server is running. If neither
@@ -67,9 +67,9 @@ different code depending on it:
 
 - How is OrbiWork running on this machine: `orbi serve` in a terminal, the
   background service, or the desktop app?
-- Which surface is the user connecting from: the website (app.orbiwork.invalid), the
+- Which surface is the user connecting from: a web browser, the
   desktop app against a local server, the desktop app against a remote server,
-  or the mobile app?
+  or a phone browser?
 
 Then work from evidence, not assumption. In rough order of value:
 

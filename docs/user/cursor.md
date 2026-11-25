@@ -32,7 +32,6 @@ servers, or after a successful CLI login, use **Restart agent session**.
 
 Choose **Sign in**, then open the sign-in page and complete it in your browser. OrbiWork
 updates automatically when sign-in finishes. This works when connected to a remote environment too.
-On mobile, use **Settings > Providers** for an already configured Cursor instance.
 
 Each provider instance keeps its own login on the environment that runs it. Your Cursor editor and
 CLI login are separate. A configured `CURSOR_API_KEY` overrides browser sign-in; remove that override

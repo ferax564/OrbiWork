@@ -202,7 +202,7 @@ const handler = Effect.gen(function* () {
         Effect.succeed(
           HttpServerResponse.text(error.message, { status: 403, headers: PORT_REFUSED_HEADERS }),
         ),
-      // Not 502: Cloudflare, in front of Orbi Connect, swaps an origin 502 for its own page.
+      // Not 502: a proxy such as Cloudflare in front of the server swaps an origin 502 for its own page.
       PreviewTunnelConnectError: (error) =>
         Effect.succeed(
           HttpServerResponse.text(error.message, { status: 403, headers: PORT_REFUSED_HEADERS }),

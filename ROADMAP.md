@@ -23,7 +23,7 @@ the server is tests. The bloat is feature breadth and compatibility layers, not 
 - Product analytics off by default; no baked-in ingest key or host.
 - Provider update checks and the remote model manifest off by default.
 - Preview tunnel off by default; new-device approval on by default.
-- Relay tracing requires an explicit opt-in on server, desktop and web.
+- Relay tracing requires an explicit opt-in on server, desktop and web (the relay is now gone).
 - No favicon lookups for arbitrary links.
 - Mobile: over-the-air updates off with no built-in feed; crash reports opt-in; no default trace host.
 - `.env.example` carries no third-party identifiers.
@@ -36,7 +36,7 @@ the server is tests. The bloat is feature breadth and compatibility layers, not 
 - Gate or bundle the model price table fetched by the usage service.
 - Desktop: updates opt-in with a settings toggle; remote-triggered update, downgrade and channel
   change require local consent.
-- Remove the agent feedback delivery path (it can carry conversation excerpts).
+- Done: remove the agent feedback delivery path (it can carry conversation excerpts).
 - Remove the star prompt and the token check behind it.
 - Add a network-capture regression check: a clean profile at startup and at idle makes zero
   outbound connections.
@@ -46,8 +46,9 @@ the server is tests. The bloat is feature breadth and compatibility layers, not 
 The hosted relay design makes a third party a trusted broker: its signing key can open a full
 session, traffic is readable at the tunnel edge, and tunnel routes are set remotely.
 
-- Remove hosted sign-in, the relay client, the managed tunnel, guest share links, activity
-  publishing, webhook-triggered tasks and `infra/relay`.
+- Done: removed hosted sign-in, the relay client, the managed tunnel, guest share links, activity
+  publishing, webhook delivery through the relay, the third-party chat account link and
+  `infra/relay`. Webhooks sent straight to the server's own address stay.
 - First split the service launcher, boot service and runtime pinning out of `cloud/`, which mixes
   them with the hosted code.
 - Keep SSH and Tailscale. Harden SSH: pass the password over a file descriptor, scope the askpass
@@ -59,16 +60,16 @@ session, traffic is readable at the tunnel edge, and tunnel routes are set remot
 In order of value for effort:
 
 1. `.repos/` vendored references (24k files, 240 MB). Fetch on demand instead.
-2. Mobile app, its scripts, workflows, patches and lint rules (about 290k lines, 85 MB). Phones
-   use the web UI over Tailscale.
+2. Done: mobile app, its scripts, workflows, patches and lint rules (about 290k lines, 85 MB).
+   Phones use the web UI over Tailscale.
 3. Upstream CI (29 workflows, most on runners a fork does not have) replaced by one job:
    format, lint, typecheck, unused-code check, tests.
-4. `infra/`, `evals/`, marketing site, release and packaging scripts tied to upstream services.
+4. `evals/`, marketing site, release and packaging scripts tied to upstream services.
 5. Providers: keep Claude and Codex, generic ACP optional. Drop the rest, including a 16.7 MB
    SDK patch. Prune the generated Codex schema (56k lines) to reachable methods; keep one ACP
    schema version.
 6. Source control: keep git and GitHub; GitLab optional. Drop six forges and commit no SDL schemas.
-7. Server features: device simulators, triage, feedback, HTML render, speech; make workflows,
+7. Server features: device simulators, triage, HTML render, speech; make workflows,
    pull-request review, usage and peer links lazy and default-off.
 8. Web: nine non-English catalogs, office/PDF/SQLite viewers, 3D device viewer, theme import,
    and the settings pages for everything removed above.

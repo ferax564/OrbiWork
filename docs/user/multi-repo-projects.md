@@ -26,7 +26,7 @@ place they could not reach before.
 
 - On web and desktop, use **Add folder** under **Repositories**.
 - If the project folder has a `.code-workspace` file, the folders it lists outside the project are
-  offered there with an **Add** button, on mobile too.
+  offered there with an **Add** button.
 - From a script, `orbi project add <path> --track <folder>` adds one.
 
 **Remove** takes an added folder out of the project. It never deletes files. Added folders are
@@ -72,8 +72,6 @@ Git actions run in one repository at a time.
 - **Web and desktop:** the thread details panel lists the repositories the thread changed, most
   recent first, each with its branch and uncommitted changes. Expand one to commit, push, or open a
   pull request there. **Other repositories...** adds any other repository of the project.
-- **Mobile:** open **Git controls** in the thread. The sheet lists the repositories under
-  **Repositories**; tap one for its own commit, push, and pull request actions.
 
 A pull request opened in a repository is linked to the thread under that repository, not under the
 project's.
@@ -88,7 +86,7 @@ Every repository is included when the project covers eight or fewer; with more, 
 included until you choose. A repository with no commit yet is left out, since it has nothing to
 branch from. On web and desktop, your last choice is remembered for the project in
 that browser. To bring another repository into a running thread, pick it under **Other
-repositories** in the thread details panel or the mobile Git sheet.
+repositories** in the thread details panel.
 
 Each repository starts from the thread's base branch where it has a branch of that name, and from
 its own default branch otherwise. A plain folder has no branch picker, so on web and desktop you

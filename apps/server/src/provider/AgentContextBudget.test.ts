@@ -44,7 +44,6 @@ import { PullRequestReviewGuideService } from "../pullRequest/PullRequestReviewG
 import { PullRequestService } from "../pullRequest/PullRequestService.ts";
 import { ScheduledTaskService } from "../scheduledTasks/ScheduledTaskService.ts";
 import { SecretRequests } from "../secrets/SecretRequests.ts";
-import { FeedbackStore } from "../feedback/FeedbackStore.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
 import { SourceControlRepositoryService } from "../sourceControl/SourceControlRepositoryService.ts";
 import { GitVcsDriver } from "../vcs/GitVcsDriver.ts";
@@ -86,7 +85,6 @@ const toolHandlerServices = Layer.mergeAll(
   Layer.mock(RemoteDelegation)({}),
   Layer.mock(ScheduledTaskService)({}),
   Layer.mock(SecretRequests)({}),
-  Layer.mock(FeedbackStore)({}),
   NodeSqliteClient.layer({ filename: ":memory:" }),
   ServerConfig.layerTest(process.cwd(), { prefix: "orbi-agent-context-budget-" }),
   Layer.mock(ServerEnvironment)({}),

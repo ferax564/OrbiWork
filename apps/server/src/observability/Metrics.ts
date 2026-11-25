@@ -114,11 +114,6 @@ export const webhookDeliveryDuration = Metric.timer("orbi_webhook_delivery_durat
   description: "Time to verify, log, and enqueue one webhook request.",
 });
 
-export const webhookHeldDelay = Metric.timer("orbi_webhook_held_delay", {
-  description:
-    "Time between the relay receiving a webhook request and the environment handling it.",
-});
-
 export const webhookRunsTotal = Metric.counter("orbi_webhook_runs_total", {
   description: "Runs started from webhook deliveries, by outcome.",
 });

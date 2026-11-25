@@ -27,7 +27,6 @@ export const receiveProviderAuthCallback = DesktopIpc.makeIpcMethod({
         receiveCodexAuthCallback(
           authorizationUrl,
           (url) => runPromise(shell.openExternal(url)),
-          undefined,
           signal,
         ),
       catch: () =>

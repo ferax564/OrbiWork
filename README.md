@@ -52,8 +52,9 @@ pnpm test
 
 ## Status of this codebase
 
-Parts of the tree still describe features that are scheduled for removal (a hosted relay and
-account system, a mobile app, a long tail of providers and forges). Their documentation under
+The hosted relay and account system has been removed; remote access is your own network
+(LAN pairing), Tailscale, or SSH. Parts of the tree still describe features that are scheduled
+for removal (a long tail of providers and forges). Their documentation under
 [docs/](./docs/README.md) may mention install channels and services that do not exist for
 OrbiWork. Hostnames ending in `.invalid` are placeholders that resolve nowhere.
 

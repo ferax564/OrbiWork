@@ -74,7 +74,7 @@ const DEFAULT_DIFF_LAYOUT: DiffLayout = "stacked";
 
 export const SidebarProjectSortOrder = Schema.Literals(["updated_at", "created_at", "manual"]);
 export type SidebarProjectSortOrder = typeof SidebarProjectSortOrder.Type;
-export const DEFAULT_SIDEBAR_PROJECT_SORT_ORDER: SidebarProjectSortOrder = "updated_at";
+const DEFAULT_SIDEBAR_PROJECT_SORT_ORDER: SidebarProjectSortOrder = "updated_at";
 
 export const SidebarThreadSortOrder = Schema.Literals(["updated_at", "created_at"]);
 export type SidebarThreadSortOrder = typeof SidebarThreadSortOrder.Type;
@@ -1152,10 +1152,6 @@ export type BackgroundActivitySettings = typeof BackgroundActivitySettings.Type;
 export const ResponseStreamingMode = Schema.Literals(["turn", "paragraph"]);
 export type ResponseStreamingMode = typeof ResponseStreamingMode.Type;
 
-/** `on-request`: agents report only when the user asks. `auto`: they also report on their own. */
-export const AgentFeedbackMode = Schema.Literals(["off", "on-request", "auto"]);
-export type AgentFeedbackMode = typeof AgentFeedbackMode.Type;
-
 const StorageRetentionDays = Schema.NullOr(
   Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 3650 })),
 );
@@ -1406,9 +1402,6 @@ export const ServerSettings = Schema.Struct({
   responseStreamingMode: ResponseStreamingMode.pipe(
     Schema.withDecodingDefault(Effect.succeed("paragraph" as const)),
   ),
-  agentFeedback: Schema.Struct({
-    mode: AgentFeedbackMode.pipe(Schema.withDecodingDefaultKey(Effect.succeed("off" as const))),
-  }).pipe(Schema.withDecodingDefault(Effect.succeed({ mode: "off" as const }))),
   enableProviderUpdateChecks: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(false)),
   ),
@@ -1417,10 +1410,6 @@ export const ServerSettings = Schema.Struct({
   ),
   /** Holds an OS sleep inhibitor while any run is active; closing a laptop lid still sleeps it. */
   keepAwakeWhileAgentsWork: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
-  /** New Orbi Connect device keys wait for approval from someone already trusted here. */
-  requireConnectDeviceApproval: Schema.Boolean.pipe(
-    Schema.withDecodingDefault(Effect.succeed(true)),
-  ),
 
   enableAgentBrowserAccess: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   /** Lets clients reach this machine's loopback ports over `/api/preview/tunnel`. */
@@ -1504,8 +1493,6 @@ export const ServerSettings = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed([])),
   ),
   hideTaggedThreads: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-  /** Beta: guest links for this machine's threads. Off refuses new links and pauses existing ones. */
-  guestSharingEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   /**
    * Beta: links to the user's other machines, both ways. Off refuses new links, calls over links
    * and tasks on another machine; tasks already running there finish.
@@ -1884,11 +1871,9 @@ export const ServerSettingsPatch = Schema.Struct({
   worktreesDirectory: Schema.optionalKey(TrimmedString),
   fastWorktreeCheckout: Schema.optionalKey(Schema.Boolean),
   responseStreamingMode: Schema.optionalKey(ResponseStreamingMode),
-  agentFeedback: Schema.optionalKey(Schema.Struct({ mode: AgentFeedbackMode })),
   enableProviderUpdateChecks: Schema.optionalKey(Schema.Boolean),
   continueThreadsAfterServerUpdate: Schema.optionalKey(Schema.Boolean),
   keepAwakeWhileAgentsWork: Schema.optionalKey(Schema.Boolean),
-  requireConnectDeviceApproval: Schema.optionalKey(Schema.Boolean),
   enableAgentBrowserAccess: Schema.optionalKey(Schema.Boolean),
   enablePreviewTunnel: Schema.optionalKey(Schema.Boolean),
   cloudSpeechCredentials: Schema.optionalKey(
@@ -1948,7 +1933,6 @@ export const ServerSettingsPatch = Schema.Struct({
   snoozePresets: Schema.optionalKey(SnoozePresetSettings),
   hiddenThreadTags: Schema.optionalKey(Schema.Array(Schema.String)),
   hideTaggedThreads: Schema.optionalKey(Schema.Boolean),
-  guestSharingEnabled: Schema.optionalKey(Schema.Boolean),
   linkedEnvironmentsEnabled: Schema.optionalKey(Schema.Boolean),
   workflowsEnabled: Schema.optionalKey(Schema.Boolean),
   promptSuggestionsEnabled: Schema.optionalKey(Schema.Boolean),
@@ -2051,7 +2035,7 @@ export function requiredScopesForServerSettingsPatch(
   let changesAccess = false;
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
-    if (key === "requireConnectDeviceApproval" || key === "enablePreviewTunnel") {
+    if (key === "enablePreviewTunnel") {
       changesAccess = true;
     } else if (
       key === "providers" ||

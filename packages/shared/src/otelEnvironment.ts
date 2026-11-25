@@ -318,20 +318,6 @@ export const load: Effect.Effect<OtelEnvironment> = Config.all({
   Effect.orDie,
 );
 
-export const isRelayTracingEnabled = (env: Readonly<Record<string, string | undefined>>) =>
-  Config.all({
-    ...sdkFlags,
-    telemetry: flag("ORBIWORK_TELEMETRY_ENABLED", ORBIWORK_TRUE, ORBIWORK_FALSE, String),
-  }).pipe(
-    Effect.map(
-      ({ telemetry, orbi, spec }) =>
-        telemetry.value === true && !(orbi.value ?? spec.value ?? false),
-    ),
-    Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord(env))),
-    Effect.orDie,
-    Effect.runSync,
-  );
-
 export type SignalName = "traces" | "metrics" | "logs";
 
 export interface SignalEndpoint {

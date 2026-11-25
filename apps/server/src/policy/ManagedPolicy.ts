@@ -26,7 +26,6 @@ import {
 } from "@orbiwork/shared/managedPolicyFile";
 
 import { telemetryChannel } from "../config.ts";
-import * as ManagedLimits from "./managedLimits.ts";
 import * as ManagedProviders from "./managedProviders.ts";
 import * as ManagedSettings from "./managedSettings.ts";
 
@@ -70,7 +69,7 @@ export const loadedPolicy = Effect.fn("ManagedPolicy.loadedPolicy")(function* (
  */
 export function deniedBy(
   policy: Pick<ManagedPolicy["Service"], "document">,
-  capability: "webhookTasks" | "telemetry" | "previewTunnel",
+  capability: "webhookTasks" | "previewTunnel",
 ): string | undefined {
   return policy.document?.limits?.[capability] === false ? policy.document.organization : undefined;
 }
@@ -133,19 +132,15 @@ function summarizeLimits(
     maxRuntimeMode,
     clients,
     webhookTasks,
-    telemetry,
     browserCookieImport,
     previewTunnel,
     providers,
     updates,
   } = document.limits ?? {};
-  const connect = ManagedLimits.allowsConnect({ document });
   return {
     ...(maxRuntimeMode === undefined ? {} : { maxRuntimeMode }),
     ...(clients === undefined ? {} : { clients }),
-    ...(connect ? {} : { connect: false }),
     ...(webhookTasks === undefined ? {} : { webhookTasks }),
-    ...(telemetry === undefined ? {} : { telemetry }),
     ...(browserCookieImport === undefined ? {} : { browserCookieImport }),
     ...(previewTunnel === undefined ? {} : { previewTunnel }),
     ...(providers?.allowedDrivers === undefined && Object.keys(lockedInstanceFields).length === 0

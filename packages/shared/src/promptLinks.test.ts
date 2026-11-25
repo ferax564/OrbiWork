@@ -10,7 +10,7 @@ import {
   sanitizeLinkedPrompt,
   withoutPromptLinkParams,
 } from "./promptLinks.ts";
-import { hostedThreadLink } from "./threadLinks.ts";
+import { threadAppLink } from "./threadLinks.ts";
 
 describe("sanitizeLinkedPrompt", () => {
   it("removes characters a reader cannot see and counts them", () => {
@@ -100,8 +100,9 @@ describe("link round trips", () => {
       provider: "claudeAgent",
       model: "opus",
     });
+    expect(link.startsWith("orbiwork://new?")).toBe(true);
     const path = promptLinkAppPath(link);
-    expect(path).toBe(new URL(link).pathname + new URL(link).search);
+    expect(path).toBe(`/new${new URL(link).search}`);
     const parsed = parseNewThreadLink(new URL(link).search);
     expect(parsed.ok && parsed.value.kind === "new" && parsed.value.prompt.text).toBe(
       "Swear count & rating?",
@@ -109,34 +110,25 @@ describe("link round trips", () => {
   });
 
   it("opens a copied thread link in the app at that thread", () => {
-    const link = hostedThreadLink({
+    const link = threadAppLink({
       environmentId: EnvironmentId.make("env-1"),
       threadId: ThreadId.make("mcp:1"),
     });
     const path = promptLinkAppPath(link);
     expect(path).toBe("/env-1/mcp%3A1");
-    const deepLink = promptLinkDeepLink(path!);
-    expect(deepLink).toBe("orbiwork://threads/env-1/mcp%3A1");
-    expect(promptLinkAppPath(deepLink)).toBe(path);
+    expect(link).toBe("orbiwork://threads/env-1/mcp%3A1");
+    expect(promptLinkDeepLink(path!)).toBe(link);
   });
 
-  it("maps app scheme and hosted links to in-app paths, and nothing else", () => {
+  it("maps app scheme links to in-app paths, and nothing else", () => {
     expect(promptLinkAppPath("orbiwork://new?prompt=hi")).toBe("/new?prompt=hi");
     expect(promptLinkAppPath("orbiwork-dev://threads/env-1/thread-1")).toBe("/env-1/thread-1");
-    expect(promptLinkAppPath("https://app.orbiwork.invalid/env-1/thread-1?prompt=go")).toBe(
+    expect(promptLinkAppPath("orbiwork://threads/env-1/thread-1?prompt=go")).toBe(
       "/env-1/thread-1?prompt=go",
     );
-    expect(promptLinkAppPath("https://app.orbiwork.invalid/threads/env-1/thread-1")).toBe(
-      "/env-1/thread-1",
-    );
-    expect(promptLinkAppPath("https://app.orbiwork.invalid/threads/env-1/thread-1?prompt=go")).toBe(
-      "/env-1/thread-1?prompt=go",
-    );
-    // The web app's own thread route, reloaded, is no link.
-    expect(promptLinkAppPath("https://app.orbiwork.invalid/env-1/thread-1")).toBeNull();
-    expect(promptLinkAppPath("https://app.orbiwork.invalid/threads/env-1")).toBeNull();
-    expect(promptLinkAppPath("https://app.orbiwork.invalid/settings/general")).toBeNull();
-    expect(promptLinkAppPath("https://evil.test/new?prompt=hi")).toBeNull();
+    expect(promptLinkAppPath("orbiwork://threads/env-1")).toBeNull();
+    expect(promptLinkAppPath("https://example.test/new?prompt=hi")).toBeNull();
+    expect(promptLinkAppPath("https://example.test/threads/env-1/thread-1")).toBeNull();
     expect(promptLinkAppPath("orbiwork://app/index.html")).toBeNull();
   });
 
@@ -144,10 +136,8 @@ describe("link round trips", () => {
     const canParse = URL.canParse;
     Reflect.deleteProperty(URL, "canParse");
     try {
-      expect(promptLinkAppPath("https://app.orbiwork.invalid/new?prompt=hi")).toBe(
-        "/new?prompt=hi",
-      );
-      expect(promptLinkAppPath("https://app.orbiwork.invalid/")).toBeNull();
+      expect(promptLinkAppPath("orbiwork://new?prompt=hi")).toBe("/new?prompt=hi");
+      expect(promptLinkAppPath("orbiwork://new/extra")).toBeNull();
       expect(promptLinkAppPath("not a url")).toBeNull();
     } finally {
       URL.canParse = canParse;

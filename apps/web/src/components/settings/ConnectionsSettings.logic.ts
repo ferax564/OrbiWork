@@ -2,9 +2,8 @@ import { thrownErrorMessage } from "@orbiwork/client-runtime/errors";
 import * as DateTime from "effect/DateTime";
 import { msg } from "gt-react";
 
-import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
+import { resolveDesktopPairingUrl } from "./pairingUrls";
 import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "@orbiwork/shared/remote";
-import { readHostedPairingRequest } from "../../hostedPairing";
 import { m, type MessageResolver } from "../../i18n/messages";
 import {
   isLoopbackHostname,
@@ -13,7 +12,6 @@ import {
 } from "~/environments/primary";
 import {
   type AdvertisedEndpoint,
-  type AuthClientMetadata,
   type AuthClientSession,
   type AuthGrantScope,
   type AuthPairingLink,
@@ -258,14 +256,6 @@ export function parsePairingUrlFields(
         ? trimmed
         : `https://${trimmed}`;
     const url = new URL(urlLikeInput, window.location.origin);
-    const hostedPairingRequest = readHostedPairingRequest(url);
-    if (hostedPairingRequest) {
-      return {
-        host: hostedPairingRequest.host,
-        pairingCode: hostedPairingRequest.token,
-      };
-    }
-
     const pairingCode = getPairingTokenFromUrl(url);
     if (!pairingCode) return null;
     return {
@@ -440,12 +430,6 @@ export function resolveAdvertisedEndpointPairingUrl(
   endpoint: AdvertisedEndpoint,
   credential: string,
 ): string {
-  if (endpoint.compatibility.hostedHttpsApp === "compatible") {
-    return (
-      resolveHostedPairingUrl(endpoint.httpBaseUrl, credential) ??
-      resolveDesktopPairingUrl(endpoint.httpBaseUrl, credential)
-    );
-  }
   return resolveDesktopPairingUrl(endpoint.httpBaseUrl, credential);
 }
 
@@ -461,23 +445,10 @@ export function resolveCurrentOriginPairingUrl(
   return setPairingTokenOnUrl(url, credential).toString();
 }
 
-export function isHostedAppPairingUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.pathname === "/pair" && url.searchParams.has("host");
-  } catch {
-    return false;
-  }
-}
-
 export function endpointShareHint(
   endpoint: AdvertisedEndpoint,
-  url: string,
   resolve: MessageResolver = m,
 ): string {
-  if (isHostedAppPairingUrl(url)) {
-    return resolve(msg("Opens the hosted app, no install needed"));
-  }
   switch (endpoint.reachability) {
     case "lan":
       return resolve(msg("Devices on the same network"));
@@ -507,31 +478,4 @@ export function resolveAccessEnvironmentId(input: {
     (input.environments.find((environment) => environment.connected) ?? input.environments[0])
       ?.environmentId ?? null
   );
-}
-
-/** A short name for a Orbi Connect device: its label, or what it runs on. */
-export function connectDeviceName(
-  {
-    client,
-  }: {
-    readonly client?: AuthClientMetadata | undefined;
-  },
-  resolve: MessageResolver = m,
-): string {
-  return client?.label ?? client?.os ?? client?.browser ?? resolve(msg("this device"));
-}
-
-/** How a Orbi Connect device describes itself. It can say anything, so the code is what to trust. */
-export function describeConnectDeviceClient(
-  {
-    client,
-  }: {
-    readonly client?: AuthClientMetadata | undefined;
-  },
-  resolve: MessageResolver = m,
-): string {
-  const bits = [client?.label, client?.os, client?.browser, client?.ipAddress].filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
-  return bits.length > 0 ? [...new Set(bits)].join(" · ") : resolve(msg("Unknown device"));
 }

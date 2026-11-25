@@ -1075,9 +1075,27 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
 
       const settings = yield* serverSettings.getSettings;
 
-      assert.equal(settings.agentFeedback.mode, "off");
+      assert.notProperty(settings, "agentFeedback");
       assert.isFalse(settings.continueThreadsAfterServerUpdate);
       assert.equal(yield* fileSystem.readFileString(serverConfig.settingsPath), raw);
+    }).pipe(Effect.provide(layerServerSettings())),
+  );
+
+  it.effect("loads a file that still holds removed agent feedback and guest link settings", () =>
+    Effect.gen(function* () {
+      const serverConfig = yield* ServerConfig.ServerConfig;
+      const fileSystem = yield* FileSystem.FileSystem;
+      const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
+      yield* fileSystem.writeFileString(
+        serverConfig.settingsPath,
+        '{"agentFeedback":{"mode":"auto"},"guestSharingEnabled":true,"continueThreadsAfterServerUpdate":true}',
+      );
+
+      const settings = yield* serverSettings.getSettings;
+
+      assert.isTrue(settings.continueThreadsAfterServerUpdate);
+      assert.notProperty(settings, "agentFeedback");
+      assert.notProperty(settings, "guestSharingEnabled");
     }).pipe(Effect.provide(layerServerSettings())),
   );
 
@@ -2425,13 +2443,29 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
       assert.isFalse(settings.projectSettingsFolded);
       assert.isFalse(settings.continueThreadsAfterServerUpdate);
       assert.equal(settings.usageHistoryRetentionDays, "unlimited");
-      assert.isTrue(settings.requireConnectDeviceApproval);
       assert.isFalse(settings.enablePreviewTunnel);
       assert.isFalse(settings.enableAgentBrowserAccess);
       assert.equal(settings.defaultRuntimeMode, "approval-required");
       assert.deepEqual(settings.projectSettingsOverrides, {});
 
       assert.equal(yield* fileSystem.readFileString(serverConfig.settingsPath), broken);
+    }).pipe(Effect.provide(layerServerSettings())),
+  );
+
+  it.effect("loads a settings.json that still holds the removed Connect approval setting", () =>
+    Effect.gen(function* () {
+      const serverConfig = yield* ServerConfig.ServerConfig;
+      const fileSystem = yield* FileSystem.FileSystem;
+      const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
+      yield* fileSystem.writeFileString(
+        serverConfig.settingsPath,
+        JSON.stringify({ requireConnectDeviceApproval: false, enablePreviewTunnel: true }),
+      );
+
+      const settings = yield* serverSettings.getSettings;
+      // A broken file would fall back to the safe defaults, which turn the tunnel off.
+      assert.isTrue(settings.enablePreviewTunnel);
+      assert.notProperty(settings, "requireConnectDeviceApproval");
     }).pipe(Effect.provide(layerServerSettings())),
   );
 });

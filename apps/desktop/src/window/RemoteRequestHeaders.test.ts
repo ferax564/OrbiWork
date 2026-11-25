@@ -8,14 +8,12 @@ import {
 const packagedPolicy: MainWindowRequestHeaderPolicy = {
   desktopOrigin: "orbiwork://app",
   mainWebContentsId: 42,
-  clerkFrontendApiHostname: "clerk.orbiwork.invalid",
   isDevelopment: false,
 };
 
 const devPolicy: MainWindowRequestHeaderPolicy = {
   desktopOrigin: "orbiwork-dev://app",
   mainWebContentsId: 42,
-  clerkFrontendApiHostname: "clerk.orbiwork.invalid",
   devServerOrigin: "http://devbox.internal:5733",
   isDevelopment: true,
 };
@@ -65,22 +63,17 @@ describe("RemoteRequestHeaders", () => {
     });
   });
 
-  it("preserves headers for Clerk frontend API requests", () => {
-    for (const url of [
-      "https://clerk.orbiwork.invalid/v1/client",
-      "https://CLERK.OrbiWork.INVALID./v1/client",
-    ]) {
-      const headers = stripDesktopOriginHeaders(packagedPolicy, {
-        url,
-        webContentsId: 42,
-        frame: { parent: null },
-        requestHeaders: {
-          Origin: "orbiwork://app",
-          "Sec-Fetch-Site": "cross-site",
-        },
-      });
-      assert.isUndefined(headers);
-    }
+  it("has no hosted-account exemption: a former sign-in host gets stripped headers", () => {
+    const headers = stripDesktopOriginHeaders(packagedPolicy, {
+      url: "https://clerk.orbiwork.invalid/v1/client",
+      webContentsId: 42,
+      frame: { parent: null },
+      requestHeaders: {
+        Origin: "orbiwork://app",
+        "Sec-Fetch-Site": "cross-site",
+      },
+    });
+    assert.deepEqual(headers, {});
   });
 
   it("preserves headers for dev loopback and exact devServerOrigin, while stripping other ports and remote hosts", () => {

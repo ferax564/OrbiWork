@@ -7,10 +7,14 @@ import {
 
 import { macosProfile, windowsAdmx } from "./policyTemplates.ts";
 
+// Still read from older deployments so their files load, but they no longer restrict anything.
+const RETIRED_VALUES = new Set(["Connect", "Telemetry"]);
+
 it("gives every registry value the Windows reader accepts a Group Policy control", () => {
   const admx = windowsAdmx();
   for (const name of Object.keys(WINDOWS_POLICY_VALUES)) {
-    assert.include(admx, `valueName="${name}"`);
+    if (RETIRED_VALUES.has(name)) assert.notInclude(admx, `valueName="${name}"`);
+    else assert.include(admx, `valueName="${name}"`);
   }
   for (const key of Object.keys(WINDOWS_POLICY_LISTS)) {
     assert.include(admx, `key="SOFTWARE\\Policies\\OrbiWork\\OrbiWork\\${key}"`);

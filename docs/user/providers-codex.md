@@ -124,14 +124,14 @@ supports async questions.
 ## Approve app access
 
 Codex tools can request access to another app. Respond to the named app's request
-in the thread on web, desktop, or mobile. Some tools offer access for one request,
+in the thread on web or desktop. Some tools offer access for one request,
 the current session, or permanently. See [Permission modes](./permission-modes.md)
 for command and file approvals.
 
 ## Sign in to an MCP server
 
 When an MCP server you added to Codex needs you to sign in, the thread shows a notice with
-**Sign in**; on mobile, tap the notice. Approve access on the page it opens. Your browser then goes
+**Sign in**. Approve access on the page it opens. Your browser then goes
 to a page that may not load, especially when Codex runs on another machine: copy that page's
 address, paste it into OrbiWork, and choose **Finish sign-in**. Codex reconnects the server in that
 thread and keeps the sign-in for other threads on the same Codex instance; an instance with its own
@@ -150,8 +150,8 @@ For a task that requested Chrome, follow [OpenAI's setup guide](https://learn.ch
 then select Chrome in a Codex chat in the ChatGPT desktop app.
 If the task runs on a remote environment, `localhost` in the desktop browser
 refers to your computer. Forward the remote page's port or use a URL reachable
-from your computer before repeating the task. Connecting to OrbiWork through a
-relay or tunnel does not by itself expose that page. OrbiWork's built-in browser
+from your computer before repeating the task. Connecting to OrbiWork remotely,
+such as over Tailscale or SSH, does not by itself expose that page. OrbiWork's built-in browser
 preview uses its own browser session.
 
 ## Use Daybreak

@@ -42,7 +42,7 @@ without expanding shell expressions.
 ## Where agents run
 
 Registry agents always run on the machine that hosts your OrbiWork server. That stays true when you
-connect through `app.orbiwork.invalid`, Orbi Connect, or a relay.
+connect to it from another device.
 
 Agents install under `tools/<agent-id>/<version>/` inside Orbi home. OrbiWork verifies SHA-256 when the Registry entry
 provides one; entries without a checksum retain the Registry's HTTPS distribution guarantee.
@@ -54,13 +54,11 @@ but keeps package installs. To use an existing local binary, set **Executable ov
 ## Signing in
 
 Open the agent's account section in **Settings → Providers** on web or desktop. Choose
-**Sign in** and, if the agent offers several methods, select one. For an installed, configured
-provider, mobile also offers **Settings → Providers**.
+**Sign in** and, if the agent offers several methods, select one.
 
 Browser sign-in shows the agent's URL and waits for you to open or copy it before telling the
 agent to proceed. The page opens on your device, while the agent runs on the environment.
-Terminal methods run in an in-app terminal on that environment. On mobile, send responses
-through the terminal response field. OrbiWork reconnects after terminal login and waits for the
+Terminal methods run in an in-app terminal on that environment. OrbiWork reconnects after terminal login and waits for the
 agent to confirm sign-in before reporting success. You can cancel or retry an expired attempt.
 
 Browser and terminal sign-in leave credentials in the agent's own store. Agents that use API keys

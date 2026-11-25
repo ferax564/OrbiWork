@@ -14,13 +14,7 @@ const TEST_EXCLUDE = [
 
 // Directories whose tests belong to a package's own test config. desktop also
 // owns the kde-snap-shot tests through its `include`.
-const TEST_CONFIG_PACKAGES = [
-  "apps/desktop",
-  "apps/mobile",
-  "apps/server",
-  "apps/web",
-  "packages/client-runtime",
-];
+const TEST_CONFIG_PACKAGES = ["apps/desktop", "apps/server", "apps/web", "packages/client-runtime"];
 
 // `vp test run <file>` from the repo root hands each file to its package's
 // config. Packages that borrow this config (`--config ../../vite.config.ts`) run
@@ -28,12 +22,6 @@ const TEST_CONFIG_PACKAGES = [
 const isRepoRootTestRun = process.cwd() === import.meta.dirname;
 
 const RESTRICTED_IMPORT_PATHS = [
-  {
-    name: "react-native",
-    importNames: ["FlatList"],
-    message:
-      "Use LegendList from @legendapp/list/react-native, with renderScrollComponent={NativeScrollView} in a screen. Pass whatever renderItem reads through extraData: rows only re-render when their item or extraData changes.",
-  },
   {
     name: "@orbiwork/client-runtime",
     message:
@@ -43,18 +31,6 @@ const RESTRICTED_IMPORT_PATHS = [
     name: "@pierre/diffs/react",
     importNames: ["CodeView"],
     message: "Use StyledDiffCodeView so web diff surfaces share styling and virtualized geometry.",
-  },
-  {
-    name: "react-native-screens",
-    importNames: ["ScrollViewMarker"],
-    message:
-      "Use NativeScrollViewMarker or NativeScrollView (src/native/NativeScrollViewMarker.tsx): they carry the header's scroll-edge blur under the Duo's vertical bar.",
-  },
-  {
-    name: "react-native",
-    importNames: ["RefreshControl"],
-    message:
-      "Use RefreshControl from src/components/ui/RefreshControl: Android bottom sheets own the pull at the top, so it steps aside there.",
   },
 ];
 
@@ -182,13 +158,6 @@ export default defineConfig({
       "**/*.graphql.ts",
       "packages/source-control-github/schema/**",
       "apps/server/schema/**",
-      "apps/mobile/android/**",
-      "apps/mobile/ios/**",
-      "apps/mobile/uniwind-types.d.ts",
-      // Vendored and generated C.
-      "apps/mobile/modules/orbi-highlights/Vendor/**",
-      "apps/mobile/modules/orbi-highlights/cpp/generated/**",
-      "apps/mobile/modules/orbi-highlights/nitrogen/generated/**",
       "*.icon/**",
     ],
     sortPackageJson: {},
@@ -214,9 +183,6 @@ export default defineConfig({
       "**/*.graphql.ts",
       "packages/source-control-github/schema/**",
       "apps/server/schema/**",
-      "apps/mobile/android/**",
-      "apps/mobile/ios/**",
-      "apps/mobile/uniwind-types.d.ts",
     ],
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
     jsPlugins: ["./oxlint-plugin-orbiwork/index.ts", "@shadcn/lint"],
@@ -321,7 +287,7 @@ export default defineConfig({
         rules: { "orbiwork/prefer-effect-fn": "off" },
       },
       {
-        files: ["apps/web/src/**", "apps/mobile/src/**", "apps/desktop/src/**"],
+        files: ["apps/web/src/**", "apps/desktop/src/**"],
         // Users still pick their own project icon from the full Lucide set.
         excludeFiles: ["apps/web/src/projectIconOptions.ts"],
         rules: { "orbiwork/no-sparkles-icon": "error" },
@@ -339,7 +305,7 @@ export default defineConfig({
         rules: { "orbiwork/no-dom-test-environment": "error" },
       },
       {
-        files: ["packages/client-runtime/src/state/**", "apps/{web,mobile,desktop}/src/**"],
+        files: ["packages/client-runtime/src/state/**", "apps/{web,desktop}/src/**"],
         rules: { "orbiwork/no-rpc-permission-bypass": ["error", { allowRawClientAccess: false }] },
       },
       {
@@ -357,7 +323,6 @@ export default defineConfig({
       {
         files: [
           "apps/web/src/components/settings/AuthorizedClientsSettings.tsx",
-          "apps/mobile/src/features/updates/app-updates.ts",
           "apps/web/src/components/device/DevicePhoneViewport.tsx",
           "apps/web/src/components/device/DeviceDuoViewport.tsx",
         ],
@@ -422,8 +387,6 @@ export default defineConfig({
                     "react",
                     "react/*",
                     "react-*",
-                    "expo",
-                    "expo-*",
                     "lucide-react",
                     "@orbiwork/client-runtime",
                     "@orbiwork/client-runtime/*",
@@ -466,27 +429,6 @@ export default defineConfig({
             },
           ],
         },
-      },
-      {
-        files: ["apps/mobile/src/**"],
-        rules: {
-          "orbiwork/no-mobile-uniwind-theme-escape-hatches": "error",
-          "orbiwork/require-registered-list-scroll": "error",
-        },
-      },
-      {
-        files: ["apps/mobile/src/**"],
-        excludeFiles: [
-          "apps/mobile/src/components/ui/AppSymbol.tsx",
-          "apps/mobile/src/components/ui/AppSymbol.android.tsx",
-          "apps/mobile/src/features/pull-requests/pullRequestGlyphs.ts",
-        ],
-        rules: { "orbiwork/no-mobile-pull-request-glyph-literals": "error" },
-      },
-      {
-        files: ["apps/mobile/src/**"],
-        excludeFiles: ["**/*.test.{ts,tsx}"],
-        rules: { "orbiwork/no-ambiguous-detail-navigation": "error" },
       },
       {
         // Raw ResizeObserver state commits miss the paint; observeResize flushes derived layout together.
@@ -573,13 +515,12 @@ export default defineConfig({
       // Registered always so a disable comment for intentional English counts as used.
       // `vp run i18n:untranslated` counts what it flags.
       {
-        files: ["apps/web/src/**", "apps/mobile/src/**", "packages/client-runtime/src/**"],
+        files: ["apps/web/src/**", "packages/client-runtime/src/**"],
         excludeFiles: [
           "**/*.{test,spec,bench}.{ts,tsx}",
           "**/{test,testkit,testing,fixtures}/**",
           "**/*.test-fixtures.ts",
           "**/{test-fixtures,*TestFixtures}.ts",
-          "apps/mobile/src/features/development/**",
           "packages/client-runtime/src/rpc/**",
         ],
         rules: { "orbiwork/no-untranslated-copy": "error" },
@@ -609,60 +550,14 @@ export default defineConfig({
         },
       },
       {
-        // ESNext types allow APIs absent from Hermes; restrict shared client code, exempting Node tests.
-        files: [
-          "apps/mobile/src/**",
-          "packages/client-runtime/src/**",
-          "packages/contracts/src/**",
-          "packages/shared/src/**",
-        ],
-        excludeFiles: ["**/*.test.ts", "**/*.test.tsx"],
-        rules: { "orbiwork/no-hermes-unsupported-apis": "error" },
-      },
-      {
-        // Directives hide bailouts from mobile's compiler-coverage check; retain hooks until its allowlist is empty.
-        files: ["apps/mobile/src/**/*.{ts,tsx}"],
-        rules: { "orbiwork/no-manual-memo": ["error", { allowMemoHooks: true }] },
-      },
-      {
-        files: ["apps/web/src/**", "apps/mobile/src/**", "packages/*/src/**"],
+        files: ["apps/web/src/**", "packages/*/src/**"],
         rules: { "orbiwork/no-unreasoned-state-sync": "error" },
       },
       {
         // React Compiler caches use* functions only if they call a hook.
-        files: ["apps/web/src/**/*.{ts,tsx}", "apps/mobile/src/**/*.{ts,tsx}"],
+        files: ["apps/web/src/**/*.{ts,tsx}"],
         excludeFiles: ["**/*.test.ts", "**/*.test.tsx"],
         rules: { "orbiwork/no-hookless-use-function": "error" },
-      },
-      {
-        files: [
-          "apps/mobile/src/features/archive/ArchivedThreadsScreen.tsx",
-          "apps/mobile/src/features/connection/ConnectionsNewRouteScreen.tsx",
-          "apps/mobile/src/features/files/FileMarkdownPreview.tsx",
-          "apps/mobile/src/features/files/SourceFileSurface.tsx",
-          "apps/mobile/src/features/files/AttachmentFileScreen.tsx",
-          "apps/mobile/src/features/files/ThreadFilesRouteScreen.tsx",
-          "apps/mobile/src/features/files/thread-file-navigator-pane.tsx",
-          "apps/mobile/src/features/layout/nested-stacks.tsx",
-          "apps/mobile/src/features/review/ReviewSheet.tsx",
-          "apps/mobile/src/features/review/useNativeReviewDiffBridge.ts",
-          "apps/mobile/src/features/settings/SettingsEnvironmentsRouteScreen.tsx",
-          "apps/mobile/src/features/threads/ThreadComposer.tsx",
-          "apps/mobile/src/components/ComposerSurface.tsx",
-          "apps/mobile/src/features/threads/ThreadFeed.tsx",
-          "apps/mobile/src/features/threads/ThreadQueueControl.tsx",
-          "apps/mobile/src/features/review/ReviewCommentCard.tsx",
-          "apps/mobile/src/features/threads/thread-list-v2-items.tsx",
-          "apps/mobile/src/components/ui/SecretTextInput.android.tsx",
-          "apps/mobile/src/lib/useMobileNavigationTheme.ts",
-          "apps/mobile/src/native/OrbiComposerEditor.ios.tsx",
-          "apps/mobile/src/native/OrbiComposerEditor.native.tsx",
-          "apps/mobile/src/native/SelectableMarkdownText.tsx",
-          "apps/mobile/src/native/useEnrichedLinkVariants.ts",
-        ],
-        rules: {
-          "orbiwork/no-mobile-uniwind-theme-escape-hatches": ["error", { allowUniwindTheme: true }],
-        },
       },
     ],
     options: {

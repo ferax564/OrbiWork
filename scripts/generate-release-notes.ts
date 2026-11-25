@@ -13,14 +13,14 @@ import { Command, Flag } from "effect/cli";
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
-// Release notes cover web, desktop, and server. Mobile ships its own store notes.
+// Release notes cover web, desktop, and server. Commits for the removed mobile app stay out.
 const MOBILE_SCOPES = new Set(["mobile", "android", "ios"]);
 const COMMIT_SCOPES = /^[a-z]+\(([^)]*)\)!?:/i;
 const PULL_REQUEST_NUMBER = /\(#(\d+)\)$/;
 const PULL_REQUEST_BODY_LIMIT = 300;
 const SUMMARY_MODEL = "gpt-6.1-terra";
 
-const SUMMARY_INSTRUCTIONS = `Write up to 7 bullet points for the OrbiWork update popover. Cover web, desktop, and server. Mobile has its own release notes.
+const SUMMARY_INSTRUCTIONS = `Write up to 7 bullet points for the OrbiWork update popover. Cover web, desktop, and server.
 
 Give a feature a bullet only when it lets users do something they could not do before, removes a real limitation they hit in normal use, or cuts meaningful steps or wait time from a common task. Judge the outcome, regardless of the commit prefix. A new setting, a large diff, or support for one more edge case is not enough.
 

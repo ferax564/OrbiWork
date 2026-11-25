@@ -74,7 +74,6 @@ const contextInput = {
     logsDir: "/home/u/.orbi/userdata/logs",
     serviceLogPath: "/home/u/.orbi/userdata/logs/boot-service.log",
     desktopBackendLogGlob: "/home/u/.orbi/userdata/logs/server-child*.log*",
-    relayClientLogPath: "/home/u/.orbi/userdata/logs/relay-client.ndjson",
     serverTracePath: "/home/u/.orbi/userdata/logs/server.trace.ndjson",
     providerEventLogPath: "/home/u/.orbi/userdata/logs/provider/events.log",
     terminalLogsDir: "/home/u/.orbi/userdata/logs/terminals",

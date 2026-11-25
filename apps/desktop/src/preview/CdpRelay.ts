@@ -95,50 +95,42 @@ const DENIED_CDP_METHODS: ReadonlySet<string> = new Set([
   "WebAuthn.getCredentials",
 ]);
 
+/** Whole domains whose output can carry request headers or cookies in forms no walk can scrub. */
+const DENIED_CDP_DOMAINS = /^(?:Tracing|Audits)\./;
+
 const COOKIE_HEADER = /^(?:cookie|set-cookie)$/i;
-const COOKIE_LISTS = ["associatedCookies", "blockedCookies", "exemptedCookies"] as const;
+const COOKIE_LIST = /cookies$/i;
+const HEADERS_TEXT = /headerstext$/i;
 const COOKIE_HEADERS_TEXT = /^(?:cookie|set-cookie):.*$/gim;
+const MAX_REDACTION_DEPTH = 32;
 
-const withoutCookieHeaders = (headers: unknown): unknown => {
-  if (Array.isArray(headers)) {
-    // Fetch domain: [{ name, value }].
-    return headers.filter(
-      (header) => !COOKIE_HEADER.test(String((header as { name?: unknown })?.name ?? "")),
-    );
+/**
+ * Removes cookie values from anything the relay hands to the agent, whatever the event or command.
+ * It drops every `cookie`/`set-cookie` header (object keys and `{ name, value }` entries), every
+ * `...Cookies` list and raw cookie line, and cookie lines inside raw header text. Walking the
+ * whole value keeps new CDP fields covered without listing them one by one.
+ */
+const redactCookies = (value: unknown, depth = 0): unknown => {
+  if (typeof value !== "object" || value === null || depth > MAX_REDACTION_DEPTH) return value;
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item) =>
+          !(
+            typeof item === "object" &&
+            item !== null &&
+            COOKIE_HEADER.test(String((item as { name?: unknown }).name ?? ""))
+          ),
+      )
+      .map((item) => redactCookies(item, depth + 1));
   }
-  if (typeof headers !== "object" || headers === null) return headers;
-  return Object.fromEntries(Object.entries(headers).filter(([name]) => !COOKIE_HEADER.test(name)));
-};
-
-/** Drops cookie values from Network and Fetch events, which carry each request's Cookie header. */
-const redactCookieEvent = (method: string, params: unknown): unknown => {
-  if (!/^(?:Network|Fetch)\./.test(method) || typeof params !== "object" || params === null) {
-    return params;
-  }
-  const redacted: Record<string, unknown> = { ...(params as Record<string, unknown>) };
-  for (const key of COOKIE_LISTS) delete redacted[key];
-  for (const key of ["headers", "requestHeaders", "responseHeaders"]) {
-    if (key in redacted) redacted[key] = withoutCookieHeaders(redacted[key]);
-  }
-  for (const key of ["headersText", "requestHeadersText"]) {
-    if (typeof redacted[key] === "string") {
-      redacted[key] = (redacted[key] as string).replace(COOKIE_HEADERS_TEXT, "");
-    }
-  }
-  for (const key of ["request", "response", "redirectResponse"]) {
-    const nested = redacted[key];
-    if (typeof nested !== "object" || nested === null) continue;
-    const copy: Record<string, unknown> = { ...(nested as Record<string, unknown>) };
-    for (const header of ["headers", "requestHeaders"]) {
-      if (header in copy) copy[header] = withoutCookieHeaders(copy[header]);
-    }
-    if (typeof copy["requestHeadersText"] === "string") {
-      copy["requestHeadersText"] = (copy["requestHeadersText"] as string).replace(
-        COOKIE_HEADERS_TEXT,
-        "",
-      );
-    }
-    redacted[key] = copy;
+  const redacted: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (COOKIE_HEADER.test(key) || COOKIE_LIST.test(key) || key === "rawCookieLine") continue;
+    redacted[key] =
+      typeof entry === "string" && HEADERS_TEXT.test(key)
+        ? entry.replace(COOKIE_HEADERS_TEXT, "")
+        : redactCookies(entry, depth + 1);
   }
   return redacted;
 };
@@ -281,7 +273,7 @@ export function createCdpRelayConnection(
   let runtimeReset: Promise<unknown> | undefined;
 
   const pageCommand = (command: CdpCommand): Promise<unknown> => {
-    if (DENIED_CDP_METHODS.has(command.method)) {
+    if (DENIED_CDP_METHODS.has(command.method) || DENIED_CDP_DOMAINS.test(command.method)) {
       return Promise.reject(
         new Error(
           `Not allowed for a desktop preview tab: ${command.method} reads stored credentials`,
@@ -351,7 +343,7 @@ export function createCdpRelayConnection(
             typeof value === "object" && value !== null && ANNOUNCE in value
               ? (value as { [ANNOUNCE]: Record<string, unknown> })[ANNOUNCE]
               : undefined;
-          send({ id: command.id, result: announce ? {} : (value ?? {}), ...route });
+          send({ id: command.id, result: announce ? {} : redactCookies(value ?? {}), ...route });
           if (announce) send(announce);
         },
         (cause: unknown) =>
@@ -367,7 +359,7 @@ export function createCdpRelayConnection(
     },
     event: (method, rawParams, sessionId) => {
       if (!attached) return;
-      const params = redactCookieEvent(method, rawParams);
+      const params = redactCookies(rawParams);
       if (method.startsWith("Page.download")) method = method.replace("Page.", "Browser.");
       // Download events are the browser's; Playwright listens on its root session.
       if (method.startsWith("Browser.download")) {

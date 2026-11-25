@@ -1,14 +1,13 @@
 ---
 name: test-orbi-app
-description: Test OrbiWork's web and desktop UI through its built-in Browser panel against isolated development state. Use for browser verification, browser pairing recovery, and test fixtures. Use test-orbi-mobile for native mobile verification.
+description: Test OrbiWork's web and desktop UI through its built-in Browser panel against isolated development state. Use for browser verification, browser pairing recovery, and test fixtures.
 ---
 
 # Test Orbi web and desktop
 
 Use Orbi's built-in Browser panel for verification. Follow the recovery steps
 below before declaring it unavailable. Do not install or switch to another
-automation system. For native mobile testing, use
-[test-orbi-mobile](../test-orbi-mobile/SKILL.md).
+automation system.
 
 ## Start the app
 

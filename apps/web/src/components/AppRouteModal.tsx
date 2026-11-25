@@ -56,7 +56,7 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
   return (
     <DialogPrimitive.Root
       open={open}
-      // Portaled layers outside this tree (toasts, Clerk, confirm dialogs) are not backdrop presses.
+      // Portaled layers outside this tree (toasts, confirm dialogs) are not backdrop presses.
       disablePointerDismissal
       onOpenChange={(nextOpen, eventDetails) => {
         if (nextOpen) return;
@@ -64,7 +64,7 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
         if (eventDetails.reason === "escape-key" && eventDetails.event.repeat) {
           return eventDetails.cancel();
         }
-        // Esc from a layer outside Base UI (Clerk's modals) is that layer's to handle.
+        // Esc from a layer outside Base UI is that layer's to handle.
         const target = eventDetails.event.target;
         if (
           eventDetails.reason === "escape-key" &&

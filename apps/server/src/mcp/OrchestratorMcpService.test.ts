@@ -31,7 +31,7 @@ import {
   type ServerProvider,
 } from "@orbiwork/contracts";
 import { checkpointWorkspace } from "@orbiwork/provider-testing/replayWorkspace";
-import { formatThreadLink, hostedThreadLink } from "@orbiwork/shared/threadLinks";
+import { formatThreadLink, threadAppLink } from "@orbiwork/shared/threadLinks";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
@@ -4015,7 +4015,6 @@ describe("OrchestratorMcpService provider resolution", () => {
       runCount: 0,
       webhook: {
         path: "/hooks/scheduled-task/secret",
-        url: "https://orbi.example/hooks/secret",
         hasSecret: false,
       },
       ...overrides,
@@ -4096,7 +4095,7 @@ describe("OrchestratorMcpService provider resolution", () => {
         ),
       );
 
-    it.effect("lists a webhook task without its URL to a caller that may run it", () =>
+    it.effect("lists a webhook task with its signature state", () =>
       Effect.gen(function* () {
         const upserted = yield* Ref.make(0);
         const listed = yield* OrchestratorMcpService.OrchestratorMcpService.pipe(
@@ -4104,8 +4103,8 @@ describe("OrchestratorMcpService provider resolution", () => {
           Effect.provide(service([task({})], null, upserted)),
         );
         assert.deepEqual(
-          listed.tasks.map((summary) => [summary.webhookUrl, summary.webhookSignature]),
-          [[undefined, "none"]],
+          listed.tasks.map((summary) => summary.webhookSignature),
+          ["none"],
         );
       }),
     );
@@ -4131,38 +4130,6 @@ describe("OrchestratorMcpService provider resolution", () => {
       }),
     );
 
-    it.effect("returns a webhook URL when creating a task, not when updating it", () =>
-      Effect.gen(function* () {
-        const upserted = yield* Ref.make(0);
-        const hook = task({});
-        const timer = task({
-          schedule: { type: "interval", everyMs: 3_600_000 },
-          webhook: undefined,
-        });
-        const created = yield* OrchestratorMcpService.OrchestratorMcpService.pipe(
-          Effect.flatMap((mcp) =>
-            mcp.scheduleTask(supervisedClient, {
-              projectId,
-              prompt: hook.prompt,
-              schedule: { type: "webhook" },
-            }),
-          ),
-          Effect.provide(service([hook], null, upserted)),
-        );
-        assert.equal(created.webhookUrl, "https://orbi.example/hooks/secret");
-        const converted = yield* OrchestratorMcpService.OrchestratorMcpService.pipe(
-          Effect.flatMap((mcp) =>
-            mcp.updateScheduledTask(supervisedClient, {
-              scheduledTaskId: timer.id,
-              schedule: { type: "webhook" },
-            }),
-          ),
-          Effect.provide(service([timer], null, upserted, hook)),
-        );
-        assert.equal(converted.webhookUrl, undefined);
-      }),
-    );
-
     it.effect("checks a bound task against its thread's current modes", () =>
       Effect.gen(function* () {
         const upserted = yield* Ref.make(0);
@@ -4176,7 +4143,7 @@ describe("OrchestratorMcpService provider resolution", () => {
           Effect.provide(layer),
         );
         const listed = yield* mcp.listScheduledTasks(supervisedClient, { projectId });
-        assert.equal(listed.tasks[0]?.webhookUrl, undefined);
+        assert.equal(listed.tasks[0]?.scheduledTaskId, bound.id);
         const error = yield* mcp
           .updateScheduledTask(supervisedClient, {
             scheduledTaskId: bound.id,
@@ -4271,7 +4238,6 @@ describe("OrchestratorMcpService provider resolution", () => {
         });
         assert.equal(yield* Ref.get(upserted), 1);
         assert.equal(updated.scheduledTaskId, bound.id);
-        assert.equal(updated.webhookUrl, undefined);
       }),
     );
   });
@@ -5239,7 +5205,7 @@ describe("OrchestratorMcpService thread lookup", () => {
         for (const link of [
           `orbi-thread://v2/${ref.environmentId}/${ref.threadId}`,
           formatThreadLink(ref, "Delegated task"),
-          hostedThreadLink(ref),
+          threadAppLink(ref),
         ]) {
           const read = yield* mcp
             .readThread(client, { threadId: ThreadId.make(link) })

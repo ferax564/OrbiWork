@@ -134,14 +134,12 @@ export class Workflows extends Context.Service<
     readonly hooks: Effect.Effect<ReadonlyArray<WorkflowHook>, WorkflowInputError>;
     /**
      * Start the run a request to a hook asks for. Nothing, for a hook or token that is not known.
-     * `deliveryId` names the delivery when its carrier vouches for one, so its retry is one run.
      * A hook starts a bounded number of new runs a minute and is busy past that.
      */
     readonly deliver: (delivery: {
       readonly hookId: string;
       readonly token: string;
       readonly request: WebhookRequest;
-      readonly deliveryId?: string;
     }) => Effect.Effect<Option.Option<{ readonly runId: string }>, WorkflowError>;
     /** What workflows keep in the store under keys starting with `prefix`, for a person to see. */
     readonly stored: (

@@ -22,8 +22,7 @@ clients read declared capabilities, never provider names.
 - **Package boundaries.** Providers live in `packages/provider-<name>` (see
   [Pi](../../packages/provider-pi) as reference). Server code imports only
   `@orbiwork/provider-core/server/*`, contracts, and shared, reaching host capabilities through
-  `ProviderHost` rather than `apps/server`. Client definitions (`./client`) must stay browser- and
-  React Native-safe.
+  `ProviderHost` rather than `apps/server`. Client definitions (`./client`) must stay browser-safe.
 
 ## Honest capabilities and permissions
 

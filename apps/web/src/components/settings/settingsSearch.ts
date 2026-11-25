@@ -1,4 +1,3 @@
-import { HOSTED_APP_CHANNEL } from "~/branding";
 import { isElectron } from "~/env";
 import { isMacPlatform, isWindowsPlatform, normalizeSearchText } from "~/lib/utils";
 import { STATIC_KEYBINDING_COMMANDS, type KeybindingCommand } from "@orbiwork/contracts";
@@ -62,17 +61,14 @@ export interface SettingsSearchItem {
   readonly windowsOnly?: boolean;
   readonly releaseChannelOnly?: boolean;
   readonly secretProvidersOnly?: boolean;
-  readonly cloudOnly?: boolean;
   readonly environmentOnly?: boolean;
   readonly providerSettingsOnly?: boolean;
   readonly localBackendManagementOnly?: boolean;
   readonly localEnvironmentOnly?: boolean;
   readonly primaryEnvironmentOnly?: boolean;
   readonly wslAvailableOnly?: boolean;
-  readonly managedTunnelOnly?: boolean;
   readonly peerLinksOnly?: boolean;
   readonly fastWorktreeCheckoutOnly?: boolean;
-  readonly agentFeedbackOnly?: boolean;
   readonly textGeneratorsOnly?: boolean;
   readonly secondary?: boolean;
   readonly requiresThreadAutoSettlement?: boolean;
@@ -80,16 +76,13 @@ export interface SettingsSearchItem {
 
 export interface SettingsSearchAvailability {
   readonly localEnvironmentDisabled?: boolean;
-  readonly hasCloudPublicConfig: boolean;
   readonly hasEnvironment: boolean;
   readonly hasProviderSettingsEnvironment: boolean;
   readonly canManageLocalBackend: boolean;
   readonly isWslSettingsRowVisible: boolean;
   readonly hasThreadAutoSettlement: boolean;
-  readonly managedTunnelActive?: boolean;
   readonly hasPeerLinkHost?: boolean;
   readonly hasFastWorktreeCheckoutEnvironment?: boolean;
-  readonly hasAgentFeedbackEnvironment?: boolean;
   /** An environment without a provider allow-list, which hides text generators. */
   readonly hasTextGeneratorsEnvironment?: boolean;
   readonly hasPrimaryEnvironment?: boolean;
@@ -552,13 +545,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     ],
   },
   {
-    id: "guest-links",
-    title: msg("Guest links"),
-    to: "/settings/labs",
-    scope: "environment",
-    searchTerms: [msg("beta share guest invite link teammate watch orbi connect tunnel")],
-  },
-  {
     id: "linked-environments-beta",
     title: msg("Linked environments"),
     to: "/settings/labs",
@@ -995,12 +981,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     desktopOnly: true,
   },
   {
-    id: "mobile-app",
-    title: msg("Mobile app"),
-    to: "/settings/about",
-    searchTerms: [msg("phone tablet iPhone iPad iOS Android App Store Google Play QR")],
-  },
-  {
     id: "welcome-page",
     title: msg("Welcome page"),
     to: "/settings/about",
@@ -1026,16 +1006,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: msg("Diagnostics"),
     to: "/settings/maintenance",
     searchTerms: [msg("logs traces processes resource history failures spans cpu memory")],
-  },
-  {
-    id: "agent-feedback",
-    title: msg("Agent feedback"),
-    to: "/settings/labs",
-    scope: "environment-defaults",
-    agentFeedbackOnly: true,
-    searchTerms: [
-      msg("report bug problem orbi team send feedback agents tools automatic when i ask"),
-    ],
   },
   {
     id: "open-source-licenses",
@@ -1419,46 +1389,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     wslAvailableOnly: true,
   },
   {
-    id: "orbi-connect",
-    localEnvironmentOnly: true,
-    title: msg("Orbi Connect"),
-    to: "/settings/access",
-    targetId: "connections-environment",
-    searchTerms: [msg("managed tunnel cloud other devices remote tunnels limit orbi chat")],
-    desktopOnly: true,
-    cloudOnly: true,
-  },
-  {
-    id: "connect-device-approval",
-    title: msg("Require approval for new devices"),
-    to: "/settings/access",
-    targetId: "connections-environment",
-    searchTerms: [
-      msg("orbi connect devices approve deny trust revoke pairing code security account"),
-    ],
-    cloudOnly: true,
-    managedTunnelOnly: true,
-  },
-  {
-    id: "hold-webhooks-while-offline",
-    localEnvironmentOnly: true,
-    title: msg("Hold webhooks while offline"),
-    to: "/settings/access",
-    targetId: "connections-environment",
-    searchTerms: [msg("webhook automations offline queue mailbox orbi connect")],
-    cloudOnly: true,
-    managedTunnelOnly: true,
-  },
-  {
-    id: "publish-agent-activity",
-    localEnvironmentOnly: true,
-    title: msg("Publish agent activity"),
-    to: "/settings/access",
-    targetId: "connections-environment",
-    searchTerms: [msg("mobile push notifications live activities cloud tunnel")],
-    cloudOnly: true,
-  },
-  {
     id: "preview-tunnel",
     title: msg("Preview tunnel"),
     to: "/settings/access",
@@ -1489,7 +1419,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "remote-environments",
     title: msg("Environments"),
     to: "/settings/connections",
-    searchTerms: [msg("add pair backend host code ssh config agent tunnel saved orbi connect")],
+    searchTerms: [msg("add pair backend host code ssh config agent tunnel saved")],
   },
   {
     id: "load-balancing",
@@ -1596,7 +1526,6 @@ export function getSettingsSearchTargetScope(targetId: string) {
         title: item.title,
         scope: item.scope ?? SETTINGS_CATEGORY_SCOPES[item.to],
         ...(item.requiresThreadAutoSettlement ? { requiresThreadAutoSettlement: true } : {}),
-        ...(item.agentFeedbackOnly ? { agentFeedbackOnly: true } : {}),
       }
     : null;
 }
@@ -1677,7 +1606,6 @@ export function filterAvailableSettingsSearchItems(
   const items: ReadonlyArray<SettingsSearchItem> = SETTINGS_SEARCH_ITEMS;
   return items.filter(
     (item) =>
-      (!item.cloudOnly || availability.hasCloudPublicConfig) &&
       (!item.environmentOnly || availability.hasEnvironment) &&
       (!item.providerSettingsOnly || availability.hasProviderSettingsEnvironment) &&
       (!item.localBackendManagementOnly || availability.canManageLocalBackend) &&
@@ -1685,11 +1613,9 @@ export function filterAvailableSettingsSearchItems(
       (!item.primaryEnvironmentOnly || availability.hasPrimaryEnvironment === true) &&
       (!item.wslAvailableOnly || availability.isWslSettingsRowVisible) &&
       (!item.requiresThreadAutoSettlement || availability.hasThreadAutoSettlement) &&
-      (!item.managedTunnelOnly || availability.managedTunnelActive === true) &&
       (!item.peerLinksOnly || availability.hasPeerLinkHost === true) &&
       (!item.fastWorktreeCheckoutOnly ||
         availability.hasFastWorktreeCheckoutEnvironment === true) &&
-      (!item.agentFeedbackOnly || availability.hasAgentFeedbackEnvironment === true) &&
       (!item.textGeneratorsOnly || availability.hasTextGeneratorsEnvironment === true) &&
       (!item.secretProvidersOnly || availability.hasSecretProvidersEnvironment === true),
   );
@@ -1703,7 +1629,7 @@ export function settingsForThisPlatform(
   return items.filter(
     (item) =>
       (isElectron || item.desktopOnly !== true) &&
-      (!item.releaseChannelOnly || isElectron || HOSTED_APP_CHANNEL !== null) &&
+      (!item.releaseChannelOnly || isElectron) &&
       (!item.macOnly || isMacPlatform(platform)) &&
       (!item.windowsOnly || isWindowsPlatform(platform)),
   );

@@ -82,8 +82,6 @@ import {
   ProjectMutationError,
   ProviderUploadFeedbackError,
   ProviderSetupError,
-  RelayClientInstallFailedError,
-  type RelayClientInstallProgressEvent,
   type ServerConfig as ClientServerConfig,
   type ServerConfigStreamEvent,
   type ServerLifecycleStreamEvent,
@@ -131,8 +129,6 @@ import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
 import * as Workflows from "./workflows/Workflows.ts";
 import * as WorkflowRuntime from "./workflows/WorkflowRuntime.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
-import * as FeedbackStore from "./feedback/FeedbackStore.ts";
-import * as GuestShareService from "./guest/GuestShareService.ts";
 import {
   bufferShellLiveStream,
   coalesceShellApplicationEvents,
@@ -280,7 +276,6 @@ import * as SessionStore from "./auth/SessionStore.ts";
 import { failEnvironmentAuthInvalid, failEnvironmentInternal } from "./auth/http.ts";
 import * as SourceControlRateLimit from "@orbiwork/source-control-core/server/SourceControlRateLimit";
 import { isNetworkPath } from "@orbiwork/shared/path";
-import * as RelayClient from "@orbiwork/shared/relayClient";
 import {
   SOCKET_FRAME_PARTS_QUERY_PARAM,
   splitLargeSocketFrames,
@@ -746,10 +741,7 @@ const serverWsRpcs = Array.from(ServerWsRpcGroup.requests.values());
 const SplitWsRpcGroup = RpcGroup.make(...serverWsRpcs.filter(isSplitWsRpc));
 const OtherWsRpcGroup = RpcGroup.make(...serverWsRpcs.filter(isOtherWsRpc));
 function toAuthAccessStreamEvent(
-  change: Exclude<
-    PairingGrantStore.BootstrapCredentialChange | SessionStore.SessionCredentialChange,
-    { readonly type: "connectDevicesChanged" }
-  >,
+  change: PairingGrantStore.BootstrapCredentialChange | SessionStore.SessionCredentialChange,
   revision: number,
   currentSessionId: AuthSessionId,
 ): AuthAccessStreamEvent {
@@ -1393,8 +1385,6 @@ export const layerWsRpc = (
       const toWorkflowRequestError = (error: Workflows.WorkflowError) =>
         new WorkflowRequestError({ message: error.message });
       const secretRequests = yield* SecretRequests.SecretRequests;
-      const feedbackStore = yield* FeedbackStore.FeedbackStore;
-      const guestShares = yield* GuestShareService.GuestShareService;
       const pullRequests = yield* PullRequestService.PullRequestService;
       const issues = yield* IssueService.IssueService;
       const threadIssues = yield* ThreadIssueService.ThreadIssueService;
@@ -1512,7 +1502,6 @@ export const layerWsRpc = (
       const hostResources = yield* HostResources.HostResources;
       const processResourceMonitor = yield* ProcessResourceMonitor.ProcessResourceMonitor;
       const resourceTelemetry = yield* ResourceTelemetry.ResourceTelemetry;
-      const relayClient = yield* RelayClient.RelayClient;
       // Webhook URLs start agents; expose them only to operate-scoped sessions while keeping tasks readable.
       const withVisibleWebhookUrls = (result: ScheduledTaskListResult): ScheduledTaskListResult =>
         currentSession.scopes.includes(AuthOrchestrationOperateScope)
@@ -1736,7 +1725,6 @@ export const layerWsRpc = (
         Effect.all({
           pairingLinks: serverAuth.listPairingLinks(),
           clientSessions: serverAuth.listClientSessions(currentSessionId),
-          connectDevices: serverAuth.listConnectDevices(),
         }).pipe(
           Effect.mapError(
             (error) =>
@@ -2291,15 +2279,10 @@ export const layerWsRpc = (
           Effect.annotateCurrentSpan({ "scheduled_task.id": input.id }).pipe(
             Effect.andThen(scheduledTasks.rotateWebhookToken(input)),
           ),
-        [WS_METHODS.guestShareCreate]: (input) =>
-          Effect.annotateCurrentSpan({ "orchestration_v2.thread_id": input.threadId }).pipe(
-            Effect.andThen(guestShares.create(input)),
-          ),
         [WS_METHODS.secretsAnswerRequest]: (input) =>
           Effect.annotateCurrentSpan({ "orchestration_v2.thread_id": input.threadId }).pipe(
             Effect.andThen(secretRequests.answer(input)),
           ),
-        [WS_METHODS.agentFeedbackAnswerRequest]: (input) => feedbackStore.answer(input),
         [WS_METHODS.scheduledTasksListWebhookDeliveries]: (input) =>
           Effect.annotateCurrentSpan({ "scheduled_task.id": input.id }).pipe(
             Effect.andThen(scheduledTasks.listWebhookDeliveries(input)),
@@ -2726,32 +2709,6 @@ export const layerWsRpc = (
                 input,
               ),
             ),
-          ),
-        [WS_METHODS.cloudGetRelayClientStatus]: (_input) => relayClient.resolve,
-        [WS_METHODS.cloudInstallRelayClient]: (_input) =>
-          Stream.callback<RelayClientInstallProgressEvent, RelayClientInstallFailedError>((queue) =>
-            relayClient
-              .installWithProgress((event) => Queue.offer(queue, event).pipe(Effect.asVoid))
-              .pipe(
-                Effect.flatMap((status) =>
-                  Queue.offer(queue, {
-                    type: "complete",
-                    status,
-                  }),
-                ),
-                Effect.catchTags({
-                  RelayClientInstallError: (error) =>
-                    Queue.fail(
-                      queue,
-                      new RelayClientInstallFailedError({
-                        reason: error.reason,
-                        message: error.message,
-                      }),
-                    ),
-                }),
-                Effect.andThen(Queue.end(queue)),
-                Effect.forkScoped,
-              ),
           ),
         [WS_METHODS.pullRequestsList]: (input) => pullRequests.list(input),
         [WS_METHODS.pullRequestsListStats]: (input) => pullRequests.listStats(input),
@@ -3564,20 +3521,8 @@ export const layerWsRpc = (
                 Stream.fromQueue(liveBuffer).pipe(
                   Stream.mapEffect((change) =>
                     Ref.updateAndGet(revisionRef, (revision) => revision + 1).pipe(
-                      Effect.flatMap((revision) =>
-                        // Device trust has no incremental event older clients could decode.
-                        change.type === "connectDevicesChanged"
-                          ? loadAuthAccessSnapshot().pipe(
-                              Effect.map((payload): AuthAccessStreamEvent => ({
-                                version: 1,
-                                revision,
-                                type: "snapshot",
-                                payload,
-                              })),
-                            )
-                          : Effect.succeed(
-                              toAuthAccessStreamEvent(change, revision, currentSessionId),
-                            ),
+                      Effect.map((revision) =>
+                        toAuthAccessStreamEvent(change, revision, currentSessionId),
                       ),
                     ),
                   ),

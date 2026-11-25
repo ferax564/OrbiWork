@@ -55,7 +55,7 @@ describe("importPastedComposerText", () => {
   });
 
   it("keeps the link when the composer cannot take the thread", () => {
-    const pasted = "https://app.orbiwork.invalid/threads/env-1/thread-1";
+    const pasted = "orbiwork://threads/env-1/thread-1";
     expect(importPastedComposerText(clipboard({ "text/plain": pasted }), () => new Map())).toBe(
       pasted,
     );

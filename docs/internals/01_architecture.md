@@ -1,6 +1,6 @@
 # Architecture
 
-OrbiWork keeps execution in the environment that owns the workspace. Web, desktop, and mobile
+OrbiWork keeps execution in the environment that owns the workspace. Web and desktop
 clients control it over authenticated RPC. A remote client must never substitute its own filesystem,
 provider credentials, or machine state for the environment's. The desktop app bundles a server,
 but its renderer follows the same boundary.
@@ -10,7 +10,7 @@ but its renderer follows the same boundary.
 - **Server (`apps/server`).** Owns provider processes, terminals, Git, checkpoints, durable state,
   and project files.
 - **Client runtime (`packages/client-runtime`).** Owns shared connection management and domain
-  state across web, desktop, and mobile so reconnect and multi-environment behavior do not diverge.
+  state across web and desktop so reconnect and multi-environment behavior do not diverge.
   Clients supply platform services and UI. See [connection runtime](./09_connection-runtime.md) and
   [remote environments](./05_remote.md).
 - **Contracts (`packages/contracts`).** The typed wire boundary between independently versioned

@@ -1,5 +1,4 @@
 import {
-  OrchestrationV2TurnItemJson,
   type OrchestrationV2ProjectedTurnItem,
   OrchestrationV2SearchThreadInput,
   type OrchestrationV2SearchThreadResult,
@@ -19,6 +18,7 @@ import * as Stream from "effect/Stream";
 import * as NodeSqliteClient from "@orbiwork/shared/nodeSqliteClient";
 import * as SqlClient from "effect/sql/SqlClient";
 import {
+  decodeTurnItemPayload as decodeItem,
   ProjectionStoreReadError,
   ProjectionStoreThreadNotFoundError,
   type ProjectionStoreV2Error,
@@ -219,7 +219,6 @@ export const makeThreadFind = Effect.fn("makeThreadFind")(function* (
   const encodeSources = Schema.encodeEffect(
     Schema.fromJsonString(Schema.Array(Schema.Struct({ threadId: ThreadId, id: TurnItemId }))),
   );
-  const decodeItem = Schema.decodeUnknownEffect(Schema.fromJsonString(OrchestrationV2TurnItemJson));
   const isSnapshotError = Schema.is(
     Schema.Union([ProjectionStoreReadError, ProjectionStoreThreadNotFoundError]),
   );

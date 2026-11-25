@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off globalTimers:off - Native loopback helper uses a bounded Node listener with AbortController cleanup.
 import * as Schema from "effect/Schema";
 import * as NodeHttp from "node:http";
-import { codexAuthorizationRequest, codexCallbackUrl } from "@orbiwork/shared/codexAuthHandoff";
+import { codexAuthorizationRequest, codexCallbackUrl } from "./codexAuthRequest.ts";
 
 export class CodexAuthCallbackError extends Schema.TaggedError<CodexAuthCallbackError>()(
   "CodexAuthCallbackError",
@@ -19,11 +19,13 @@ export function cancelCodexAuthCallback(authorizationUrl: string) {
   listeners.get(state)?.abort();
 }
 
-/** Receive an authorization code locally. Credentials and PKCE stay on the target environment. */
+/**
+ * Receive an authorization code on this computer for a sign-in the app itself started, and hand it
+ * back to the caller only. The browser is never redirected onward, so no web page sees the code.
+ */
 export async function receiveCodexAuthCallback(
   authorizationUrl: string,
   openBrowser: (url: string) => Promise<boolean>,
-  destination?: (callbackUrl: string) => string,
   signal?: AbortSignal,
 ) {
   const request = codexAuthorizationRequest(authorizationUrl);
@@ -44,23 +46,18 @@ export async function receiveCodexAuthCallback(
         request.redirectUri,
         request.state,
       ).toString();
-      const returnUrl = destination?.(url);
       response.setHeader("cache-control", "no-store");
       response.setHeader("referrer-policy", "no-referrer");
       response.setHeader("x-content-type-options", "nosniff");
-      if (returnUrl) {
-        response.writeHead(303, { location: returnUrl }).end();
-      } else {
-        response.setHeader(
-          "content-security-policy",
-          "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+      response.setHeader(
+        "content-security-policy",
+        "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+      );
+      response
+        .writeHead(200, { "content-type": "text/html; charset=utf-8" })
+        .end(
+          '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>OrbiWork</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:90vh;margin:0}main{max-width:360px;padding:32px}h1{font-size:24px}p{line-height:1.6;opacity:.7}</style></head><body><main><h1>Return to OrbiWork</h1><p>Your sign-in response has been received. OrbiWork is finishing the connection. You can close this tab.</p></main></body></html>',
         );
-        response
-          .writeHead(200, { "content-type": "text/html; charset=utf-8" })
-          .end(
-            '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>OrbiWork</title><style>body{font-family:system-ui;display:grid;place-items:center;min-height:90vh;margin:0}main{max-width:360px;padding:32px}h1{font-size:24px}p{line-height:1.6;opacity:.7}</style></head><body><main><h1>Return to OrbiWork</h1><p>Your sign-in response has been received. OrbiWork is finishing the connection. You can close this tab.</p></main></body></html>',
-          );
-      }
       callback.resolve(url);
     } catch {
       response.writeHead(400).end("This response does not belong to the active sign-in.");

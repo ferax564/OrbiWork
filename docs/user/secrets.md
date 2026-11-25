@@ -52,7 +52,7 @@ from it. Removing it clears those fields, so set them again before you need them
 
 An agent that needs a token or password shows a secret request card in the thread instead of asking
 you to paste it into the chat. Type or paste the value and select **Save securely**, or select
-**Decline**. You can answer from web, desktop, or mobile.
+**Decline**. You can answer from web or desktop.
 
 If the environment has a secret provider, the card also lets you pick it and enter a reference
 instead of the value. Answering with a reference needs permission to manage providers, as saving a

@@ -36,11 +36,10 @@ import { createModelSelection, pickModelSelection } from "@orbiwork/shared/model
 import { resolvePastedPath } from "@orbiwork/shared/path";
 import * as Equal from "effect/Equal";
 import * as Schema from "effect/Schema";
-import { APP_VERSION, HOSTED_APP_CHANNEL, HOSTED_APP_CHANNEL_LABEL } from "../../branding";
+import { APP_VERSION } from "../../branding";
 import { AboutVersionTitle } from "./AboutVersionTitle";
 import { CliCommandSettingsRow } from "./CliCommandSettingsRow";
 import { UpdatePreferencesSettingsRows } from "./UpdatePreferencesSettingsRows";
-import { MobileAppSettingsRow } from "./MobileAppSettingsRow";
 import {
   canCheckForUpdate,
   getDesktopUpdateActionError,
@@ -54,7 +53,6 @@ import {
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
 import { TraitsPicker } from "../chat/TraitsPicker";
 import { isElectron } from "../../env";
-import { buildHostedChannelSelectionUrl, type HostedAppChannel } from "../../hostedPairing";
 import {
   readAppearanceModePreference,
   readThemeHalves,
@@ -198,7 +196,6 @@ function AboutVersionSection() {
     hasDesktopBridge && primaryPolicy?.limits?.updates?.allowNightly === false
       ? primaryPolicy.organization
       : undefined;
-  const selectedHostedAppChannel = hasDesktopBridge ? null : HOSTED_APP_CHANNEL;
   // A switch that failed part way leaves this app or a server on the other track.
   // With its updater off, a switch cannot move this app, so it is not counted.
   const appOffTrack =
@@ -435,34 +432,6 @@ function AboutVersionSection() {
                   value="nightly"
                   disabled={nightlyDeniedBy !== undefined && selectedUpdateChannel !== "nightly"}
                 >
-                  <T>Nightly</T>
-                </SelectItem>
-              </SelectPopup>
-            </Select>
-          }
-        />
-      ) : selectedHostedAppChannel ? (
-        <SettingsRow
-          {...setting("update-track")}
-          description={gt("Switches the hosted app release channel.")}
-          control={
-            <Select
-              value={selectedHostedAppChannel}
-              onValueChange={(value) => {
-                if (value === selectedHostedAppChannel) return;
-                window.location.assign(
-                  buildHostedChannelSelectionUrl({ channel: value as HostedAppChannel }),
-                );
-              }}
-            >
-              <SelectTrigger size="sm" className="w-full sm:w-40" aria-label={gt("Update track")}>
-                <SelectValue>{HOSTED_APP_CHANNEL_LABEL}</SelectValue>
-              </SelectTrigger>
-              <SelectPopup align="end" alignItemWithTrigger={false}>
-                <SelectItem hideIndicator value="latest">
-                  <T>Latest</T>
-                </SelectItem>
-                <SelectItem hideIndicator value="nightly">
                   <T>Nightly</T>
                 </SelectItem>
               </SelectPopup>
@@ -2556,7 +2525,7 @@ export function AboutSettingsPanel() {
             }
           />
         ) : null}
-        {isElectron || HOSTED_APP_CHANNEL ? (
+        {isElectron ? (
           <AboutVersionSection />
         ) : (
           <>
@@ -2567,7 +2536,6 @@ export function AboutSettingsPanel() {
             />
           </>
         )}
-        <MobileAppSettingsRow />
         {primaryEnvironmentId === null ? null : (
           <SettingsRow
             {...setting("welcome-page")}

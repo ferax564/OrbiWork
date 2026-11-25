@@ -50,7 +50,6 @@ import {
   syncDocumentElectronPlatformClasses,
   syncDocumentWindowControlsOverlayClass,
 } from "./lib/windowControlsOverlay";
-import { startProviderAuthDelivery } from "./providerAuthDelivery";
 import { getRouter, type AppRouter } from "./router";
 import { appAtomRegistry } from "./rpc/atomRegistry";
 import { environmentProjects } from "./state/projects";
@@ -149,12 +148,8 @@ function windowTitleThreadStatus(
  * Screen readers read it on Alt+Tab, so it can lead with the thread and what it's doing.
  */
 function startDocumentTitle(router: AppRouter): void {
-  const readOnGuestPage = () => router.state.matches.some((match) => match.routeId === "/guest");
   let openThreadRef = readOpenThreadRef(router);
-  let onGuestPage = readOnGuestPage();
   const write = () => {
-    // GuestPage titles the tab after the shared thread.
-    if (onGuestPage) return;
     const thread =
       openThreadRef === null
         ? null
@@ -202,15 +197,10 @@ function startDocumentTitle(router: AppRouter): void {
   // The draft store changes on every keystroke; only a new open thread matters here.
   const updateOpenThread = () => {
     const next = readOpenThreadRef(router);
-    const nextOnGuestPage = readOnGuestPage();
-    if (
-      nextOnGuestPage === onGuestPage &&
-      (next && scopedThreadKey(next)) === (openThreadRef && scopedThreadKey(openThreadRef))
-    ) {
+    if ((next && scopedThreadKey(next)) === (openThreadRef && scopedThreadKey(openThreadRef))) {
       return;
     }
     openThreadRef = next;
-    onGuestPage = nextOnGuestPage;
     watchOpenThread();
     write();
   };
@@ -257,9 +247,6 @@ function startThreadOverlayRetention(router: AppRouter): void {
  * They run for the life of the page, so their disposers are dropped here.
  */
 export function startAppServices(): AppRouter {
-  // Ahead of the history: the provider auth code must leave the address before anything reads it.
-  startProviderAuthDelivery();
-
   // Electron loads the app from a file-backed shell, so hash history avoids path resolution issues.
   const router = getRouter(isElectron ? createHashHistory() : createBrowserHistory());
 

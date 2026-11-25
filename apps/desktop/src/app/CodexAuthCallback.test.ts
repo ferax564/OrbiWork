@@ -1,8 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off globalFetch:off - Tests exercise the real native loopback listener without an OpenAI account.
 import * as NodeHttp from "node:http";
 import { describe, expect, it } from "vite-plus/test";
-import { codexAuthDeliveryUrl, readCodexAuthDelivery } from "@orbiwork/shared/codexAuthHandoff";
-import { EnvironmentId, ProviderInstanceId } from "@orbiwork/contracts";
 import { receiveCodexAuthCallback, cancelCodexAuthCallback } from "./CodexAuthCallback.ts";
 
 // Holds every probe socket until all ports are read, so one call never returns the same port twice.
@@ -72,33 +70,21 @@ describe("desktop Codex callback helper", () => {
     await responseChecked;
     expect(received).toBe(expected);
   });
-  it("returns a loopback web client to the exact instance and environment without putting the code in its query", async () => {
+  it("never redirects the browser onward, so the code reaches only this app", async () => {
     const authorizationUrl = request(await freePort());
     const expected = callback(authorizationUrl);
-    const input = {
-      authorizationUrl,
-      returnUrl:
-        "http://localhost:5733/settings/providers?environmentId=remote-one&instanceId=work",
-      environmentId: EnvironmentId.make("remote-one"),
-      instanceId: ProviderInstanceId.make("work"),
-      flowId: "flow-one",
-    };
-    const openBrowser = async () => {
-      const response = await fetch(expected, { redirect: "manual" });
-      expect(response.status).toBe(303);
-      const delivery = response.headers.get("location")!;
-      expect(new URL(delivery).searchParams.has("code")).toBe(false);
-      expect(readCodexAuthDelivery(delivery)?.callbackUrl).toBe(expected);
-      expect(readCodexAuthDelivery(delivery)?.returnUrl).toBe(input.returnUrl);
-      return true;
-    };
     let opening!: Promise<boolean>;
-    await receiveCodexAuthCallback(
+    const received = await receiveCodexAuthCallback(
       authorizationUrl,
-      () => (opening = openBrowser()),
-      (url) => codexAuthDeliveryUrl(input, url),
+      () =>
+        (opening = fetch(expected, { redirect: "manual" }).then((response) => {
+          expect(response.status).toBe(200);
+          expect(response.headers.get("location")).toBeNull();
+          return true;
+        })),
     );
     await opening;
+    expect(received).toBe(expected);
   });
   it("cancels and releases its listener so exact-port reauthorization can run again", async ({
     onTestFinished,
@@ -117,7 +103,6 @@ describe("desktop Codex callback helper", () => {
             else cancelCodexAuthCallback(authorizationUrl);
             return opening.promise;
           },
-          undefined,
           abort.signal,
         ),
       ).rejects.toThrow("cancelled");

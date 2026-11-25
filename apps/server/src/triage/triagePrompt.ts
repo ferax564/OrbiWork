@@ -41,7 +41,7 @@ instead of this one. The user may be on an old release with an old copy.
 ## 4. Get the source
 
 Before cloning, ask the user which version, device, and surface the bug happened
-on. The bug may have happened on another machine, a remote server, the mobile app,
+on. The bug may have happened on another machine, a remote server, a phone browser,
 or an older build they have since updated. Check their answer against local facts
 where they apply: the server version in the context file, or \`serverVersion\` from
 \`<origin>/.well-known/orbi/environment\` when a local server is running. If neither
@@ -71,9 +71,9 @@ different code depending on it:
 
 - How is OrbiWork running on this machine: \`orbi serve\` in a terminal, the
   background service, or the desktop app?
-- Which surface is the user connecting from: the website (app.orbiwork.invalid), the
+- Which surface is the user connecting from: a web browser, the
   desktop app against a local server, the desktop app against a remote server,
-  or the mobile app?
+  or a phone browser?
 
 Then work from evidence, not assumption. In rough order of value:
 
@@ -228,7 +228,6 @@ export interface TriageContextInput {
     readonly logsDir: string;
     readonly serviceLogPath: string;
     readonly desktopBackendLogGlob: string;
-    readonly relayClientLogPath: string;
     readonly serverTracePath: string;
     readonly providerEventLogPath: string;
     readonly terminalLogsDir: string;
@@ -314,7 +313,6 @@ ${input.entry.kind === "app" ? IN_APP_SECTION : ""}${input.sourceClone === undef
 - Logs dir: ${input.paths.logsDir}
 - Service log (systemd/launchd service installs only): ${input.paths.serviceLogPath}
 - Desktop backend logs (glob; one file per backend plus rotated copies; written only when a backend crashes or fails to start): ${input.paths.desktopBackendLogGlob}
-- Orbi Connect tunnel log (ndjson; what the server logged about its cloudflared connector, with rotated copies \`.1\` and \`.2\`): ${input.paths.relayClientLogPath}
 - Server trace (ndjson): ${input.paths.serverTracePath}
 - Provider event log: ${input.paths.providerEventLogPath}
 - Terminal logs: ${input.paths.terminalLogsDir}

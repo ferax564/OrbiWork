@@ -8,11 +8,6 @@ import * as SchemaGetter from "effect/SchemaGetter";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 
 import {
-  AgentFeedbackPreview,
-  AgentFeedbackRequestStatus,
-  AgentFeedbackTrace,
-} from "./agentFeedback.ts";
-import {
   GitRefName,
   CheckpointId,
   CheckpointRef,
@@ -21,8 +16,6 @@ import {
   ContextHandoffId,
   ContextTransferId,
   EventId,
-  GuestMessageId,
-  GuestShareId,
   IsoDateTime,
   MessageId,
   EnvironmentId,
@@ -49,7 +42,6 @@ import {
 } from "./baseSchemas.ts";
 import { AuthMcpClientAccess } from "./auth.ts";
 import { ChatAttachment } from "./chatAttachment.ts";
-import { ThreadGuestShare } from "./guestShare.ts";
 import { StoredThreadTags, ThreadTag } from "./threadTags.ts";
 import { ThreadTitleRegenerationOutcome } from "./threadTitle.ts";
 import {
@@ -544,7 +536,6 @@ export const OrchestrationV2AppThread = Schema.Struct({
   snoozedAt: Schema.optional(Schema.NullOr(Schema.DateTimeUtc)),
   lastSnoozeWakeAt: Schema.optional(Schema.NullOr(Schema.DateTimeUtc)),
   limitRecovery: Schema.optional(Schema.NullOr(OrchestrationV2LimitRecovery)),
-  guestShare: Schema.optional(Schema.NullOr(ThreadGuestShare)),
   pinnedAt: Schema.optional(Schema.NullOr(Schema.DateTimeUtc)),
   autoSettleDisabledAt: Schema.optional(Schema.NullOr(Schema.DateTimeUtc)),
   pinOrderKey: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
@@ -1883,19 +1874,6 @@ const OrchestrationV2LinkRequestFields = {
   failure: Schema.optional(Schema.String),
 } as const;
 
-/**
- * A report the user asked the agent to send to the Orbi team, shown for approval. Send stores and
- * sends exactly `preview`, with `conversationTrace` as its trace if the user included the
- * conversation. Once answered, the card keeps only what was sent.
- */
-const OrchestrationV2FeedbackRequestFields = {
-  type: Schema.Literal("feedback_request"),
-  preview: AgentFeedbackPreview,
-  /** The preview's trace with message text, sent instead if the user includes the conversation. */
-  conversationTrace: Schema.optionalKey(AgentFeedbackTrace),
-  feedbackStatus: AgentFeedbackRequestStatus,
-} as const;
-
 export const OrchestrationV2TurnItem = Schema.Union([
   Schema.Struct({
     ...OrchestrationV2TurnItemBaseFields,
@@ -2104,10 +2082,6 @@ export const OrchestrationV2TurnItem = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2TurnItemBaseFields,
-    ...OrchestrationV2FeedbackRequestFields,
-  }),
-  Schema.Struct({
-    ...OrchestrationV2TurnItemBaseFields,
     type: Schema.Literal("subagent"),
     subagentId: NodeId,
     origin: Schema.Literals(["provider_native", "app_owned"]),
@@ -2209,7 +2183,6 @@ export const OrchestrationV2DomainEvent = Schema.Union([
       "thread.interaction-mode-updated",
       "thread.model-selection-updated",
       "thread.provider-switched",
-      "thread.guest-share-updated",
     ]),
     payload: OrchestrationV2AppThread,
   }),
@@ -2441,8 +2414,6 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   lastErrorCode: Schema.optional(Schema.NullOr(Schema.String)),
   usageLimitResetAt: Schema.optional(Schema.NullOr(IsoDateTime)),
   pendingRuntimeRequest: Schema.NullOr(OrchestrationV2PendingRuntimeRequestSummary),
-  /** Guest messages waiting for the owner to send or dismiss. Absent from older servers. */
-  pendingGuestMessageCount: Schema.optional(NonNegativeInt),
   latestVisibleMessage: Schema.NullOr(OrchestrationV2LatestVisibleMessageSummary),
   latestUserMessageAt: Schema.NullOr(Schema.DateTimeUtc),
   /** Excludes wakes and agent messages that advance latestUserMessageAt through the user role. */
@@ -3001,10 +2972,6 @@ export const OrchestrationV2TurnItemJson = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2TurnItemJsonBaseFields,
-    ...OrchestrationV2FeedbackRequestFields,
-  }),
-  Schema.Struct({
-    ...OrchestrationV2TurnItemJsonBaseFields,
     type: Schema.Literal("subagent"),
     subagentId: NodeId,
     origin: Schema.Literals(["provider_native", "app_owned"]),
@@ -3169,7 +3136,6 @@ export const OrchestrationV2DomainEventJson = Schema.Union([
       "thread.interaction-mode-updated",
       "thread.model-selection-updated",
       "thread.provider-switched",
-      "thread.guest-share-updated",
     ]),
     payload: OrchestrationV2AppThreadJson,
   }),
@@ -3359,17 +3325,6 @@ export const OrchestrationV2Command = Schema.Union([
     type: Schema.Literal("thread.archive"),
     commandId: CommandId,
     threadId: ThreadId,
-  }),
-  Schema.Struct({
-    type: Schema.Literal("thread.guest-share.close"),
-    commandId: CommandId,
-    threadId: ThreadId,
-  }),
-  Schema.Struct({
-    type: Schema.Literal("thread.guest-message.dismiss"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    guestMessageId: GuestMessageId,
   }),
   Schema.Struct({
     type: Schema.Literal("thread.unarchive"),
@@ -3597,8 +3552,6 @@ export const OrchestrationV2Command = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("message.dispatch"),
     notification: Schema.optional(OrchestrationV2Notification),
-    /** Sends this pending guest message; the server uses the guest's text, not `text`. */
-    guestMessageId: Schema.optional(GuestMessageId),
     ...OrchestrationV2CreationFields,
     scheduledTaskId: Schema.optional(ScheduledTaskId),
     senderThreadId: Schema.optional(ThreadId),
@@ -3841,31 +3794,6 @@ const OrchestrationV2InternalCommand = Schema.Union([
     runId: RunId,
     value: Schema.Json,
   }),
-  // Guest share commands the server issues after checking Orbi Connect and the guest token.
-  Schema.Struct({
-    type: Schema.Literal("thread.guest-share.open"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    shareId: GuestShareId,
-    host: TrimmedNonEmptyString,
-    expiresAt: IsoDateTime,
-  }),
-  Schema.Struct({
-    type: Schema.Literal("thread.guest-share.redeem"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    shareId: GuestShareId,
-    guestName: TrimmedNonEmptyString,
-  }),
-  Schema.Struct({
-    type: Schema.Literal("thread.guest-message.submit"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    shareId: GuestShareId,
-    guestMessageId: GuestMessageId,
-    text: Schema.String,
-    attachments: Schema.optional(Schema.Array(ChatAttachment)),
-  }),
   /** Moves a thread to a project rooted at the folder it already works in, so its cwd never changes. */
   Schema.Struct({
     type: Schema.Literal("thread.project.adopt-folder"),
@@ -4035,18 +3963,6 @@ const OrchestrationV2InternalCommand = Schema.Union([
     delivery: Schema.optional(OrchestrationV2SecretRequestDelivery),
     fields: Schema.optional(Schema.Array(OrchestrationV2SecretRequestField)),
     secretStatus: OrchestrationV2SecretRequestStatus,
-  }),
-  /** Internal so no client can mark a report sent without it being stored and sent. */
-  Schema.Struct({
-    type: Schema.Literal("feedback_request.record"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    runId: RunId,
-    nodeId: NodeId,
-    turnItemId: TurnItemId,
-    preview: AgentFeedbackPreview,
-    conversationTrace: Schema.optionalKey(AgentFeedbackTrace),
-    feedbackStatus: AgentFeedbackRequestStatus,
   }),
   /**
    * Records or updates a link an agent asked the user to make. Internal so no

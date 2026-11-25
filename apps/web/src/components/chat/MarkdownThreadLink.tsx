@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useGT, useMessages } from "gt-react";
 import { MessagesSquareIcon } from "lucide-react";
 import {
-  formatHostedThreadLink,
+  formatThreadAppLink,
   guessThreadLinkRef,
   threadLinkCandidates,
   type ThreadLink,
@@ -11,7 +11,6 @@ import {
 import { unknownThreadLinkLabel } from "@orbiwork/shared/threadLinksCopy";
 import { resolveLinkedThreadOpen } from "@orbiwork/client-runtime/linked-thread";
 
-import { configuredHostedAppUrl } from "../../hostedPairing";
 import { useThreadRefs, useThreadShell } from "../../state/entities";
 import { useConnectedEnvironmentIds, useEnvironmentIdentities } from "../../state/environments";
 import { useSideThreadTrigger } from "../../hooks/useSideThreadTrigger";
@@ -138,7 +137,7 @@ export function MarkdownThreadLink(props: {
     <ThreadContextChip
       record={{ ...ref, title }}
       projectId={resolved?.metadata.projectId ?? null}
-      copyMarkdown={formatHostedThreadLink(ref, title, configuredHostedAppUrl())}
+      copyMarkdown={formatThreadAppLink(ref, title)}
     />
   );
 }

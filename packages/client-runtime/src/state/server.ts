@@ -1992,24 +1992,11 @@ export function createServerEnvironmentAtoms<R, E>(
       scheduler: workflowDefinitionScheduler,
       concurrency: workflowDefinitionConcurrency,
     }),
-    createGuestShare: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:server:guest-share:create",
-      tag: WS_METHODS.guestShareCreate,
-    }),
     // Off the config lane: answering a card must not queue behind settings
     // edits. One answer per card at a time.
     answerSecretRequest: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:secrets:answer-request",
       tag: WS_METHODS.secretsAnswerRequest,
-      concurrency: {
-        mode: "singleFlight",
-        key: ({ environmentId, input }) =>
-          JSON.stringify([environmentId, input.threadId, input.turnItemId]),
-      },
-    }),
-    answerFeedbackRequest: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:server:agent-feedback:answer-request",
-      tag: WS_METHODS.agentFeedbackAnswerRequest,
       concurrency: {
         mode: "singleFlight",
         key: ({ environmentId, input }) =>

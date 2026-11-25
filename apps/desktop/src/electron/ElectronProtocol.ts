@@ -14,7 +14,7 @@ import * as Electron from "electron";
 // @effect-diagnostics-next-line nodeBuiltinImport:off - the protocol handler hashes inline scripts synchronously.
 import * as NodeCrypto from "node:crypto";
 
-export const DESKTOP_HOST = "app";
+const DESKTOP_HOST = "app";
 const DESKTOP_PRODUCTION_SCHEME = "orbiwork";
 const DESKTOP_DEVELOPMENT_SCHEME = "orbiwork-dev";
 

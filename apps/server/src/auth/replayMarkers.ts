@@ -7,16 +7,22 @@ import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Schedule from "effect/Schedule";
 
-import { CLOUD_REPLAY_MARKER_PREFIXES } from "../cloud/CloudLink.ts";
 import * as ServerConfig from "../config.ts";
 import { forkParked } from "../serverActivation.ts";
 import { DPOP_REPLAY_MARKER_PREFIX } from "./dpop.ts";
 
-const REPLAY_MARKER_PREFIXES = [DPOP_REPLAY_MARKER_PREFIX, ...CLOUD_REPLAY_MARKER_PREFIXES];
+// The cloud-* prefixes are markers the removed hosted relay left behind; pruning clears them.
+const REPLAY_MARKER_PREFIXES = [
+  DPOP_REPLAY_MARKER_PREFIX,
+  "cloud-mint-nonce-",
+  "cloud-mint-jti-",
+  "cloud-health-nonce-",
+  "cloud-health-jti-",
+];
 
 /**
  * A marker only matters while its proof can pass the time check (about 10 minutes
- * for DPoP, 7 for cloud proofs). After that, the time check rejects a replay by
+ * for DPoP). After that, the time check rejects a replay by
  * itself.
  */
 export const REPLAY_MARKER_MAX_AGE = Duration.days(1);

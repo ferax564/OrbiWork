@@ -10,19 +10,19 @@ import {
   buildNewThreadLink,
   parsePromptLinkRepository,
   PROMPT_LINK_MAX_PROMPT_LENGTH,
+  promptLinkDeepLink,
   type PromptLinkRepository,
 } from "@orbiwork/shared/promptLinks";
 
 import { type ComposerThreadTarget, useComposerDraftStore } from "~/composerDraftStore";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
-import { configuredHostedAppUrl } from "~/hostedPairing";
 import { draftModelSelectionApplies } from "~/lib/chatThreadActions";
 
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { msg } from "gt-react";
 import { m } from "~/i18n/messages";
 
-/** A shareable link to a prompt on the hosted app, or null when the prompt cannot fit in one. */
+/** A shareable `orbiwork://new` link to a prompt, or null when the prompt cannot fit in one. */
 export function promptLinkFor(
   prompt: string,
   context?: {
@@ -33,7 +33,11 @@ export function promptLinkFor(
 ): string | null {
   const trimmed = isAttachmentOnlyBootstrapPrompt(prompt) ? "" : prompt.trim();
   if (trimmed.length === 0 || trimmed.length > PROMPT_LINK_MAX_PROMPT_LENGTH) return null;
-  return buildNewThreadLink({ prompt: trimmed, ...context, origin: configuredHostedAppUrl() });
+  // The origin is a placeholder: only the `/new` query goes into the app link.
+  const query = new URL(
+    buildNewThreadLink({ prompt: trimmed, ...context, origin: "https://app.invalid" }),
+  ).search;
+  return promptLinkDeepLink(`/new${query}`);
 }
 
 export function promptLinkRepositoryOf(

@@ -4,43 +4,20 @@ import * as Layer from "effect/Layer";
 import * as Socket from "effect/socket/Socket";
 
 import { layerRemoteHttpClient } from "@orbiwork/client-runtime/rpc";
-import * as RelayTracing from "@orbiwork/shared/relayTracing";
 import * as PrimaryEnvironmentHttpClient from "../environments/primary/httpClient";
 import * as PrimaryEnvironmentHttpLayer from "../environments/primary/httpLayer";
 
-import * as Dpop from "../cloud/dpop";
-import * as ManagedRelayLayer from "../cloud/managedRelayLayer";
-import {
-  relayTelemetryEnabled,
-  resolveCloudPublicConfig,
-  resolveRelayTracingConfig,
-} from "../cloud/publicConfig";
+import * as Dpop from "../connection/dpop";
 import * as ClientTracer from "../observability/clientTracer";
 
-function configuredRelayUrl(): string {
-  return resolveCloudPublicConfig().relayUrl ?? "http://relay.invalid";
-}
-
 const layerHttpClient = layerRemoteHttpClient((input, init) => globalThis.fetch(input, init));
-const layerRelayTracing = RelayTracing.layer(
-  resolveRelayTracingConfig(),
-  {
-    serviceName: "orbiwork-web",
-    serviceVersion: import.meta.env.APP_VERSION,
-    runtime: "browser",
-    serviceInstanceId: ClientTracer.serviceInstanceId,
-    client: typeof window !== "undefined" && window.desktopBridge ? "desktop" : "web",
-  },
-  { isEnabled: () => relayTelemetryEnabled() === true },
-).pipe(Layer.provide(layerHttpClient));
 
 type RuntimeLayerSource =
   | typeof layerHttpClient
   | typeof Dpop.layer
   | typeof Socket.layerWebSocketConstructorGlobal
-  | typeof layerRelayTracing
   | typeof ClientTracer.layer
-  | ReturnType<typeof ManagedRelayLayer.layer>;
+  | typeof Dpop.layerDpopSigner;
 
 const primaryHttpRuntime = ManagedRuntime.make(
   PrimaryEnvironmentHttpClient.layer.pipe(Layer.provide(PrimaryEnvironmentHttpLayer.layer)),
@@ -68,13 +45,10 @@ const layerRuntime = Layer.mergeAll(
   Dpop.layer,
   Socket.layerWebSocketConstructorGlobal,
   ClientTracer.layer,
-  layerRelayTracing,
-  ManagedRelayLayer.layer(configuredRelayUrl()).pipe(
-    Layer.provide(Layer.mergeAll(layerHttpClient, Dpop.layer)),
-  ),
+  Dpop.layerDpopSigner.pipe(Layer.provide(Dpop.layer)),
 );
 
-export const runtime: ManagedRuntime.ManagedRuntime<
+const runtime: ManagedRuntime.ManagedRuntime<
   Layer.Success<RuntimeLayerSource>,
   Layer.Error<RuntimeLayerSource>
 > = ManagedRuntime.make(layerRuntime);

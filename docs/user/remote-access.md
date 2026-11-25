@@ -1,92 +1,10 @@
 # Remote access
 
-Connect a phone, browser, or another desktop app to OrbiWork running on a different
+Connect a browser or another desktop app to OrbiWork running on a different
 machine. That machine must stay running and reachable while you work.
 
-## Orbi Connect
-
-Orbi Connect makes an environment available to your other devices without setting
-up router forwarding. In the desktop app on the host, open **Settings →
-Sharing & access**, sign in, and enable **Orbi Connect** for that environment.
-
-For a command-line host, run:
-
-```bash
-orbi up
-```
-
-It asks how your other devices reach the machine: Orbi Connect, the local network,
-or both. Choose Orbi Connect and follow the sign-in instructions. It then runs
-OrbiWork as a [background service](./background-service.md).
-`orbi connect` is the same as `orbi up --connect`. Run `orbi up` again to change your
-choice, and `orbi status` to see it.
-
-Instead of the background service, you can keep the desktop app running with
-its local environment enabled. Closing the desktop app's last window stops its
-local server. Saving your sign-in alone does not start a server or make the
-machine reachable.
-
-On your other device, sign in to the same Orbi Connect account and choose the
-environment. On the app.orbiwork.invalid home page with no computer added yet, signing
-in adds compatible computers linked to your account. Over SSH, the CLI prints a
-browser link and a short code. Open the link on any device, confirm the code
-matches, and approve. The CLI continues on its own, so you do not need to forward
-an OAuth callback port.
-
-Orbi Connect renews access credentials when needed without disconnecting a healthy
-connection. Pull request diffs and provider settings keep working after the
-previous credential expires. A failed renewal affects that request; it does not
-disconnect an otherwise healthy conversation.
-
-### Approve new devices
-
-By default, any device signed in to your Orbi Connect account can open a linked
-machine. To require approval instead, turn on **Require approval for new
-devices** with the Orbi Connect settings in **Settings → Sharing & access** on the
-host, or when you first set up Orbi Connect. Then someone who takes over your Orbi
-Connect account cannot reach the machine from a new device without your
-approval. Review the devices that are already approved, described below.
-
-A new device waits and shows a code such as `K7QM-2XFD`. Approve it from a
-device that is already connected, using the prompt or **Settings → Sharing &
-access**. Check that the code matches the one on the waiting device. On a
-headless host, run `orbi auth connect-device list` and then
-`orbi auth connect-device approve K7QM-2XFD`. A request expires after 10 minutes,
-and the device asks again when it retries. Deny keeps that device out until its
-request expires.
-
-Each device is approved once. Revoke it from **Orbi Connect devices** in the same
-settings page, or with `orbi auth connect-device revoke <code>`. With approval on,
-it has to ask again. With approval off, it can connect again on its own, so
-revoking in the app offers to turn approval on first. Devices that connected through Orbi Connect while approval was off stay
-approved and appear in that list for you to review. A device that has not
-connected since you updated OrbiWork asks for approval like a new one. Older apps
-cannot show the code, so update them before you turn approval on.
-
-### Scripts and agents
-
-`orbi up` asks nothing when you name a choice: `--connect`, `--lan`, or their
-`--no-` forms. Choices you do not name keep their settings, and `--yes` takes
-the defaults. Without a terminal:
-
-- Orbi Connect sign-in prints a URL and a code. Approve it on any device.
-- A needed restart runs without asking, and stops running agent turns.
-- With nothing set up and no choice named, `orbi up` stops and names the flags.
-
-`orbi status --json` prints the settings. `orbi up --help` lists every flag with
-examples.
-
-### More machines with T3 Chat
-
-Each Orbi Connect account can link up to 3 machines. Phones and browsers do not
-count. A paid T3 Chat plan raises the limit to 10 machines with Pro, or 100 with
-Premier.
-
-To link T3 Chat, open your account menu on the web or desktop app, go to
-**T3 Chat**, and select **Link T3 Chat**. Sign in to T3 Chat in the window that
-opens and approve. The new limit applies the next time you add a machine. If you
-cancel or downgrade T3 Chat, machines you already linked stay linked, but you
-cannot add more until you are under the limit again.
+OrbiWork runs no hosted service. Remote access goes over your own network, your
+Tailscale tailnet, or SSH, and every client talks to the host directly.
 
 ## Pair over a LAN or private network
 
@@ -96,15 +14,18 @@ On a desktop host, open **Settings → Sharing & access**, enable **Network acce
 then create a pairing link using an address the other device can reach. Changing
 network access restarts the desktop app. You can turn it off in the same place.
 
-For a command-line host, choose the local network in `orbi up`, or run:
+For a command-line host, run:
 
 ```bash
 orbi up --lan
 ```
 
-For a server in a terminal, run `orbi serve --lan`. Either way, OrbiWork then
-accepts connections from your local network and tailnet, so a pairing code is
-all that keeps other devices on them out.
+It runs OrbiWork as a [background service](./background-service.md) that accepts
+connections from your local network and tailnet. `orbi up --no-lan` turns that
+off, and `orbi status` shows the current setting. `orbi up --help` lists every
+flag. For a server in a terminal, run `orbi serve --lan`. Either way, anyone on
+those networks can reach the port, so a pairing code is all that keeps other
+devices out.
 
 If a server is already running, generate a fresh link without restarting it:
 
@@ -112,24 +33,22 @@ If a server is already running, generate a fresh link without restarting it:
 orbi pair
 ```
 
-Scan the QR code on your phone or paste the pairing URL into **Add environment**
-in the receiving app. Connection settings are under **Settings → Environments**
-on web and desktop and **Settings → Environments** on mobile. A loopback address
-such as `127.0.0.1` reaches only the device opening the link.
+It prints a QR code, the pairing URL, an `orbiwork://pair` app link, and the
+token with its expiry. A token lasts 5 minutes unless you pass `--ttl`, such as
+`--ttl 1h`. `--label` sets the name shown in the host's list of clients. If the
+printed URL is a loopback address such as `127.0.0.1`, it reaches only the host
+itself; run `orbi up --lan` or use [Tailscale HTTPS](#tailscale-https).
 
-On a computer with the desktop app, you can open the printed `orbiwork://pair`
-app link instead. The desktop app asks you to confirm the server address, then
-adds it.
-
-If your HTTPS endpoint uses a certificate from your own certificate authority,
-install that CA on Android as a **CA certificate** in its security settings; the
-Android app then trusts it.
+Scan the QR code or paste the pairing URL into **Add environment** in the
+receiving app. Connection settings are under **Settings → Environments**. On a
+computer with the desktop app, you can open the printed `orbiwork://pair` app
+link instead. The desktop app asks you to confirm the server address, then adds
+it.
 
 Pairing authorizes that device for future connections. Use a fresh one-time link
 for each new device; you do not need the original token to reconnect. A device
 stays signed in while you keep using it, until you revoke it in **Settings →
-Sharing & access** on the host. One unused for 30 days, or paired with a host
-older than this release, has to pair again. Links
+Sharing & access** on the host. One unused for 30 days has to pair again. Links
 created in Settings can only be copied from the client that created them while
 its Sharing & access page stays open. If you leave or reload that page, create
 another link to share.
@@ -137,25 +56,23 @@ another link to share.
 ### Reach one machine several ways
 
 A machine can have more than one route: LAN, Tailscale, another VPN, a public
-URL, SSH, or Orbi Connect. Tailscale shares its `100.64.0.0/10` address range with
-other VPNs such as Cloudflare WARP, so an address in that range shows as VPN
-unless the machine confirms it is on Tailscale. To add a route, choose **Add
-route** in the machine's route list, or next to it in the Orbi Connect list.
-A pairing link for a saved machine is refused when it comes from an address
-that machine does not have yet; add that address with **Add route** instead.
-Pairing again over an address the machine already has still works. A new route
-is placed by speed, in that order, and you can reorder routes at any time.
+URL, or SSH. Tailscale shares its `100.64.0.0/10` address range with other VPNs
+such as Cloudflare WARP, so an address in that range shows as VPN unless the
+machine confirms it is on Tailscale. To add a route, choose **Add route** in the
+machine's route list. A pairing link for a saved machine is refused when it
+comes from an address that machine does not have yet; add that address with
+**Add route** instead. Pairing again over an address the machine already has
+still works. A new route is placed by speed, and you can reorder routes at any
+time.
 
-While connected through Orbi Connect or a paired address, OrbiWork also learns the
-machine's current LAN and Tailscale addresses and adds them as routes, so
-pairing once through Orbi Connect is enough to use the LAN at home. When the
-machine's LAN address changes, for example after it joins another Wi-Fi network,
-the learned route follows it. The machine must allow network access for its LAN
-address to be learned: **Network access** in the desktop app, or the
+While connected, OrbiWork also learns the machine's current LAN and Tailscale
+addresses and adds them as routes. When the machine's LAN address changes, for
+example after it joins another Wi-Fi network, the learned route follows it. The
+machine must allow network access for its LAN address to be learned: **Network
+access** in the desktop app, or the
 [local network](./background-service.md#local-network-access) choice in `orbi up`.
-You can reorder a learned route, but not remove it; it
-goes away with the route it was learned through, or when the machine stops
-reporting that address.
+You can reorder a learned route, but not remove it; it goes away with the route
+it was learned through, or when the machine stops reporting that address.
 
 OrbiWork connects over the first route that answers. Away from home, a LAN
 address that does not answer is checked briefly and skipped. It is only tried
@@ -165,18 +82,14 @@ return to the app, and every minute, and moves back as soon as one works. A
 route whose machine refused this device's sign-in is marked **Sign-in
 refused**; pair that address again with **Add route** to use it.
 
-On web and desktop, select the route count under the machine's name in
-**Settings → Environments** to see its routes. Drag a route to change the order,
-or remove it. On mobile, open the machine under **Settings → Environments** and
-choose **Edit**. Signing out of Orbi Connect removes only that route; a machine
-you can still reach another way stays saved.
+Select the route count under the machine's name in **Settings → Environments**
+to see its routes. Drag a route to change the order, or remove it. The route
+marked **In use** carries the connection.
 
-Open **Permissions** next to **Routes** in web or desktop, or **Your permissions**
-in the mobile route details, to see what your current connection can do on that
-environment. For a remote environment, this is in its route details. Permissions
-shown there apply only to the route marked **In use**; other routes are not
-checked. Direct pairing and Orbi Connect have separate sessions and may grant
-different permissions.
+Open **Permissions** in the environment's section of **Settings → Sharing &
+access** to see what your current connection can do on that environment.
+Permissions shown there apply only to the route in use; other routes are not
+checked.
 
 ### Balance new threads across machines
 
@@ -194,12 +107,13 @@ that choice stable. Choose **Auto balance** again to check current resources, or
 a specific machine to override it. Choosing a branch or worktree also keeps the draft
 on that machine. Existing threads stay where they started. If resource checks are
 unavailable or all eligible machines are full, choose a machine manually to continue.
-Mobile keeps its manual environment selection.
 
-### Tailscale HTTPS
+## Tailscale HTTPS
 
 Join both devices to the same tailnet. In the desktop app, enable **Tailscale
-HTTPS** in **Settings → Sharing & access**. Turn it off there to remove that route.
+HTTPS** in **Settings → Sharing & access**. OrbiWork uses Tailscale Serve to
+publish the server at a MagicDNS HTTPS address. Turn it off there to remove that
+route.
 
 Your tailnet needs MagicDNS and HTTPS certificates enabled; see
 [Tailscale's HTTPS setup](https://tailscale.com/docs/how-to/set-up-https-certificates).
@@ -221,6 +135,7 @@ orbi pair --tailscale
 ```
 
 The pairing link uses an address such as `https://machine.tailnet.ts.net/`.
+The first request can take a moment while Tailscale provisions the certificate.
 The mapping created by `pair --tailscale` persists across restarts. Remove its
 default-port mapping with:
 
@@ -229,18 +144,9 @@ tailscale serve --https=443 --set-path=/ off
 ```
 
 If that port is already in use, choose another with
-`--tailscale-serve-port`. See `orbi pair --help` for other pairing options.
-
-### Hosted web app
-
-[app.orbiwork.invalid](https://app.orbiwork.invalid) needs an HTTPS endpoint. It connects directly
-to your server; a hosted pairing link does not make an unreachable backend
-reachable or convert HTTP to HTTPS. Opening a hosted pairing link shows the
-server address and asks you to confirm before adding it.
-
-For a plain HTTP LAN endpoint, use the direct pairing URL in a browser that can
-open it, or pair from the desktop app. On mobile, an IP address entered without a
-scheme uses HTTP, so include `https://` when your server uses HTTPS.
+`--tailscale-serve-port`. A [managed policy](./managed-policy.md) that does not
+allow remote clients stops `pair --tailscale` from turning Serve on. See
+`orbi pair --help` for other pairing options.
 
 ## Desktop-managed SSH
 
@@ -293,15 +199,24 @@ directly. Every other device, and the desktop app for other environments,
 streams them from the host. Agents keep using them while no device is
 connected, and `localhost` addresses reach servers on the host.
 
-A tab you open yourself in the desktop app for another environment loads on
-your computer instead, so the element picker, screenshots, and annotations work
-as they do locally. Its `localhost` addresses still reach servers on the host,
-over the connection the app already has, whichever way you connected. If the
-host cannot be reached, the tab shows a connection error; a `localhost`,
-`127.0.0.1`, or `[::1]` address never opens a server on your own computer.
-Other names that point at your computer, such as `/etc/hosts` entries, still
-do. These tabs ignore your system proxy settings, so they can't reach a host
-you connect to only through a proxy or over HTTPS with a privately issued
+The host's preview tunnel lets other devices open its `localhost` pages
+themselves instead of streaming them. It is off by default. Turn on **Settings →
+Sharing & access → Preview tunnel** on the host to allow it. A client uses it
+only with the `terminal:operate` permission, because it reaches any port on the
+host's loopback. Turning it off closes open tunnels; tabs keep working by
+streaming from the host, so anyone who can use the host's browser tabs can still
+view its `localhost` pages there. An administrator can also turn it off with a
+[managed policy](./managed-policy.md#other-capabilities).
+
+With the preview tunnel on, a tab you open yourself in the desktop app for
+another environment loads on your computer, so the element picker, screenshots,
+and annotations work as they do locally. Its `localhost` addresses still reach
+servers on the host, over the connection the app already has, whichever way you
+connected. If the host cannot be reached, the tab shows a connection error; a
+`localhost`, `127.0.0.1`, or `[::1]` address never opens a server on your own
+computer. Other names that point at your computer, such as `/etc/hosts` entries,
+still do. These tabs ignore your system proxy settings, so they can't reach a
+host you connect to only through a proxy or over HTTPS with a privately issued
 certificate. The web app keeps streaming.
 
 The desktop app can also forward a port on the host to your computer, so any
@@ -321,23 +236,10 @@ listen only on your computer's loopback, never on your network. On Linux they
 accept only apps running as your user; on macOS and Windows, other users signed
 in to the same computer can reach them too.
 
-On iPhone, iPad, and Android, a tab showing one of the host's `localhost` pages
-has **Open on this device** in its menu. So does a long press on a `localhost`
-link in a chat. It opens the page in the phone's own browser view, at the same
-`localhost` address, so it scrolls and responds to touch natively. Like the
-desktop app, it never opens a server on the phone itself. The streamed tab
-stays where it was, and agents keep using it. Each host keeps its own cookies
-and site data on the phone. On iPhone and iPad the page runs under a stand-in
-address while the address bar shows `localhost`, so browser features that need
-a secure page, such as the clipboard or service workers, aren't available there.
-
-All of this rides the host's preview tunnel. Turn off **Settings → Sharing &
-access → Preview tunnel** on the host to stop other devices from loading its
-`localhost` pages themselves: port forwarding and **Open on this device** go
-away, and open tunnels close. Tabs keep working by streaming from the host, so
-anyone who can use the host's browser tabs can still view its `localhost` pages
-there. An administrator can also turn it off with a
-[managed policy](./managed-policy.md#other-capabilities).
+On a phone, **Open on this device** also rides the preview tunnel: it opens one
+of the host's `localhost` pages in the phone's own browser view, at the same
+`localhost` address. It never opens a server on the phone itself, and the
+streamed tab stays where it was.
 
 The first tab downloads a headless Chrome, about 120 MB, into the Orbi home. It
 is the same browser [HTML renders](html-renders.md) use, so a host downloads it
@@ -419,26 +321,30 @@ threads on an environment through its MCP server. See
 
 Link two machines, such as your laptop and a VPS, and agents on one can work on
 the other: launch, message, wait on and stop its threads, answer their
-questions, and manage its queues, projects and scheduled tasks.
+questions, and manage its queues, projects and scheduled tasks. The link goes
+directly between the two machines, so each must be able to reach the other's
+address.
 
 Linked environments is a beta. Turn it on for both machines in **Settings →
-Labs**; on mobile, **Settings → Labs** lists each connected machine. On a
-headless server, open its address in a browser and pair to reach its **Settings
-→ Labs**, or add `"linkedEnvironmentsEnabled": true` to `settings.json` in its
-`userdata` directory, such as `~/.orbi/userdata/settings.json`; a running server
-picks it up. While it is
+Labs**. On a headless server, open its address in a browser and pair to reach
+its **Settings → Labs**, or add `"linkedEnvironmentsEnabled": true` to
+`settings.json` in its `userdata` directory, such as
+`~/.orbi/userdata/settings.json`; a running server picks it up. While it is
 off on either machine, agents start nothing over a link between them. A task
 already running on the other machine still finishes, and if that machine has it
 off, its result arrives once it is back on.
 
 On the machine you will work from, open **Settings → Environments → Linked environments**,
 choose **Link**, and pick the other machine or enter its address. The list
-holds the machines this app knows and those on your Orbi Connect account. If this
-app has an address for that machine and is connected to it with a session that
-manages access there, it makes the pairing code itself; otherwise paste one
-from that machine's **Settings → Sharing & access**. An address you type always
-needs a pasted code. From a terminal, use
-`orbi environment link <address> --pairing-code <code> --access <mode>`.
+holds the machines this app knows. If this app has an address for that machine
+and is connected to it with a session that manages access there, it makes the
+pairing code itself; otherwise paste one from that machine's **Settings →
+Sharing & access**. An address you type always needs a pasted code. From a
+terminal, use
+`orbi environment link <address> --pairing-code <code> --access <mode>`, where
+`<mode>` is `read-only`, `approval-required` (the default), `auto-accept-edits`,
+`auto`, or `full-access`. `--url` adds another address for the same machine,
+tried after the first.
 
 To link many machines at once, choose **Link several…** (it appears once this
 app has two other machines saved). Tick the machines, pick one access level for
@@ -453,7 +359,8 @@ line in a file (make each code with `orbi pair` on that machine) and run
 `orbi environment link --from <file> --access <mode>`, or `--from -` to read
 standard input. It prints a result per line, leaves machines already linked as
 they are, and exits non-zero if any line failed, so the same file can be run
-again with fresh codes for the failures.
+again with fresh codes for the failures. `orbi environment list` shows the
+links, and `orbi environment unlink <environment-id>` removes one.
 
 You can also ask an agent to link a machine by name, such as "delegate this to
 my vps". It shows a card in the thread where you pick the machine the same way
@@ -538,9 +445,7 @@ are connected to over its link. It follows the thread live. On web and desktop
 it opens as a tab in the right panel, beside the thread you are in, or in the
 main view with ⌘/Ctrl-click, like
 [subagents and side chats](thread-sidebar.md#open-a-thread-beside-the-one-you-are-in).
-On mobile it opens in the inspector on layouts that have one, where Maximize
-fills the screen, and as its own screen elsewhere. It shows the same timeline as
-any other thread on web and desktop, and a shorter read-only list on mobile.
+It shows the same timeline as any other thread.
 
 - The view is marked **Read-only** with both machines' names. To reply, approve
   or stop the thread, choose **Connect to interact**. When the link has full
@@ -564,13 +469,25 @@ any other thread on web and desktop, and a shorter read-only list on mobile.
 ## Manage or revoke access
 
 On the host, **Settings → Sharing & access** lets authorized administrators create
-pairing links and revoke client sessions. Revoking an unused link prevents new
-pairings; revoke a device's session to remove its existing access. Command-line
-management is available through `orbi auth --help`.
+pairing links and revoke client sessions under **Authorized clients**. **Create
+link** sets an optional client label and the permissions. When the machine has
+more than one address, choose the one the QR code and URL use under **Reach this
+machine via**. Revoking an unused link prevents new pairings; revoke a device's session to
+remove its existing access. **Revoke others** ends every session except the one
+you are using.
+
+On a headless host, use `orbi auth`:
+
+- `orbi auth pairing create`, `orbi auth pairing list`, and
+  `orbi auth pairing revoke <id>` manage one-time pairing tokens.
+- `orbi auth session issue`, `orbi auth session list`, and
+  `orbi auth session revoke <id>` manage bearer sessions.
+
+Each command's `--help` lists its options.
 
 When the app connects to more than one environment, choose one at the top of the
 page. A desktop app with **Local environment** off can manage a background
-service on the same machine this way, including its Orbi Connect link.
+service on the same machine this way.
 
 A session with an open connection stays listed after its access credential
 expires.
@@ -578,23 +495,22 @@ expires.
 To choose a token's permissions, pass `--scope` once for each scope you want:
 
 ```sh
-orbi pair --scope orchestration:read --scope relay:read
+orbi pair --scope orchestration:read --scope filesystem:read
 ```
 
 The selected scopes replace the default permissions. The same option works with
 `orbi auth pairing create` and `orbi auth session issue`; each command's
 `--help` lists the available scopes. Without `--scope`, pairing tokens and issued
-bearer sessions get the standard client permissions, including managing access.
-Setting up or replacing a Orbi Connect link requires the separate `relay:configure` permission.
-A terminal or a full-access agent on the host can reach those as well, so a
-client that should not manage access also needs to go without `terminal:operate`
-and `orchestration:operate`.
+bearer sessions get the standard client permissions, including managing access
+(`access:write`). A terminal or a full-access agent on the host can reach that as
+well, so a client that should not manage access also needs to go without
+`terminal:operate` and `orchestration:operate`.
 
 To change an existing client's permissions, create a fresh pairing link with the
 scopes it needs. In a browser opened directly on the environment, open that link
-to replace the browser's current grant. For mobile or a saved remote environment
-in web or desktop, use **Add Environment** with the fresh link or code; pairing
-the same environment replaces its saved grant. Reconnecting alone does not change
+to replace the browser's current grant. For a saved remote environment in web or
+desktop, use **Add environment** with the fresh link or code; pairing the same
+environment replaces its saved grant. Reconnecting alone does not change
 permissions.
 
 Grouping checkouts does not combine their permissions. Shared project settings
@@ -611,15 +527,13 @@ runs that command on the host, so creating a worktree there from the client also
 needs `orchestration:operate` or `terminal:operate`; without one of them,
 removing a worktree skips the project's `remove` command.
 
-Settings changes, provider management, environment maintenance, access
-management, and Orbi Connect preferences can each be granted separately. Setting
-up or replacing a Orbi Connect link requires the administrative
-`relay:configure` permission. `relay:write` covers preferences and unlinking.
-New pairings without `--scope` include the standard client permissions. Existing clients keep the
-permissions they paired with and can stay connected after an update, but newly
-separated features may require pairing again with the permissions they need.
-Older clients may show controls that the server denies. Create a fresh pairing
-link to change a client's permissions.
+Settings changes (`settings:write`), provider management (`providers:manage`),
+environment maintenance (`environment:maintain`), and access management
+(`access:read`, `access:write`) can each be granted separately. Existing clients
+keep the permissions they paired with and can stay connected after an update,
+but newly separated features may require pairing again with the permissions they
+need. Older clients may show controls that the server denies. Create a fresh
+pairing link to change a client's permissions.
 
 `filesystem:read` allows browsing host files, opening workspace files, and viewing
 local changes. Add `filesystem:write` to allow editing files or saving plans to
@@ -627,52 +541,12 @@ the workspace. These scopes control direct file access from the client.
 
 Some permissions also give a client indirect access. With `terminal:operate`,
 a client can run commands that read or change any files the server’s OS account
-can access, even when the pairing link omits file permissions. With
-`relay:configure`, a client can replace the trusted issuer of pairing
-credentials. Grant these permissions only to clients you trust with those
-capabilities.
-
-To remove an environment from Orbi Connect, open your account menu's **Orbi Connect**
-page, or **Settings → Orbi Connect** on mobile, and choose **Deregister**. This
-revokes its cloud access and frees its host space even when the environment is
-offline or has been wiped. When Orbi Connect rejects a host's link, the host
-shows that it was removed from Orbi Connect. To link it again, turn on
-**Orbi Connect** in **Settings → Sharing & access** on web or desktop, or turn on
-**Live Activity Updates** in **Settings → Notifications** on mobile; if it is
-already on, turn it off and on again. Either needs a client paired with
-`relay:read`, `relay:write`, and `relay:configure`. The desktop app's own session
-and the startup pairing link include all three; a pairing link created in
-**Settings → Sharing & access** needs `relay:configure` selected. You can also
-run `orbi connect link` on the host and then restart OrbiWork there. A
-command-line host that released its tunnel when it last stopped may link itself
-again on its next start; run `orbi connect unlink` on that host to keep it off.
-Removing an environment from a device's connection settings only forgets it on
-that device and doesn't change your Orbi Connect account. A device keeps a saved
-environment after it's deregistered until you remove it from that device.
-
-When idle tunnel cleanup is enabled, Orbi Connect removes a linked environment's
-tunnel after it stays offline for several minutes. The environment stays linked
-and keeps the same address. When the host starts again or wakes, Orbi Connect
-creates a replacement tunnel on its own. You do not need to pair again. Cleanup
-usually runs five to ten minutes after the tunnel goes down.
-
-Orbi Connect also removes the tunnel of an environment running an older version of
-OrbiWork once it has been offline for seven days. That environment shows a message
-asking you to update. Start OrbiWork on that computer and update it to the latest
-version; it reconnects at the same address without pairing again.
-
-On a command-line host, `orbi connect unlink` disables exposure while retaining
-your login; `orbi connect logout` also clears that login. Background-service
-[removal](./background-service.md#manage-the-service) is separate.
+can access, even when the pairing link omits file permissions. It also lets the
+client use the [preview tunnel](#browser-on-a-remote-environment) when that is on.
+Grant it only to clients you trust with those capabilities.
 
 Treat pairing URLs and authorization codes as passwords. Do not include them in
 screenshots, logs, or bug reports.
-
-## Orbi Connect troubleshooting
-
-When a Orbi Connect connection fails, see
-[Orbi Connect troubleshooting](./orbi-connect-troubleshooting.md). It explains each
-error, where the problem is, and how to fix it.
 
 ## Using the Desktop App as a Remote Only
 
@@ -680,7 +554,7 @@ If a computer should only drive work running elsewhere, turn off its local envir
 desktop app, open **Settings → Environments** and switch off **Local
 environment**. OrbiWork restarts without a local server: no local agents or terminals run, WSL
 backends stay off, and other devices can no longer connect to this computer. Your projects,
-history, and saved connections are kept, and you keep working through pairing, Orbi Connect, or SSH.
+history, and saved connections are kept, and you keep working through pairing, Tailscale, or SSH.
 If a [background service](./background-service.md) on this computer uses the same Orbi home, the
 app still treats it as this computer: **Open in** and file reveal for its projects run here,
 whichever connection you reach it through.

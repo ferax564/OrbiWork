@@ -1,7 +1,6 @@
 import {
   BearerConnectionTarget,
   PrimaryConnectionTarget,
-  RelayConnectionTarget,
   type PreparedConnection,
 } from "@orbiwork/client-runtime/connection";
 import type * as Effect from "effect/Effect";
@@ -31,25 +30,27 @@ import { VoiceSettingsPanel } from "./VoiceSettingsPanel";
 vi.mock(import("../../speech/useEnvironmentSpeechInput"), { spy: true });
 vi.mock(import("../../state/session"), { spy: true });
 
-// The real connection runtime authorizes relay requests with a signed-in cloud session.
+// The real connection runtime renews a direct DPoP session with a key stored in IndexedDB.
 vi.mock("../../connection/runtime", async () => {
-  const [{ ManagedRelay }, rpc, { Atom }, Context, Effect, Layer] = await Promise.all([
-    import("@orbiwork/client-runtime/relay"),
+  const [Dpop, rpc, { Atom }, Context, Effect, Layer] = await Promise.all([
+    import("@orbiwork/client-runtime/dpop"),
     import("@orbiwork/client-runtime/rpc"),
     import("effect/reactivity"),
     import("effect/Context"),
     import("effect/Effect"),
     import("effect/Layer"),
   ]);
-  type AuthorizedHttp =
-    import("@orbiwork/client-runtime/authorization").AuthorizedRemoteHttpEnvironment;
+  type DirectConnection = import("@orbiwork/client-runtime/connection").DirectDpopConnection;
   // Services resolve by key, and client-runtime does not export this one.
   class RemoteEnvironmentAuthorization extends Context.Service<
     RemoteEnvironmentAuthorization,
     {
-      readonly authorizeDpopHttp: (input: {
-        readonly expectedEnvironmentId: AuthorizedHttp["environmentId"];
-      }) => Effect.Effect<AuthorizedHttp>;
+      readonly authorizeDirectDpopHttp: (connection: DirectConnection) => Effect.Effect<{
+        readonly _tag: "Dpop";
+        readonly accessToken: string;
+        readonly expiresAtEpochMs: number;
+        readonly directConnection: DirectConnection;
+      }>;
     }
     // @effect-diagnostics-next-line deterministicKeys:off
   >()("@orbiwork/client-runtime/authorization/service/RemoteEnvironmentAuthorization") {}
@@ -57,21 +58,17 @@ vi.mock("../../connection/runtime", async () => {
     connectionAtomRuntime: Atom.runtime(
       Layer.mergeAll(
         rpc.layerRemoteHttpClient((input, init) => globalThis.fetch(input, init)),
-        Layer.succeed(ManagedRelay.ManagedRelayDpopSigner, {
+        Layer.succeed(Dpop.DpopSigner, {
           thumbprint: Effect.succeed("thumbprint"),
           createProof: () => Effect.succeed("proof"),
         }),
         Layer.succeed(RemoteEnvironmentAuthorization, {
-          authorizeDpopHttp: ({ expectedEnvironmentId }) =>
+          authorizeDirectDpopHttp: (directConnection) =>
             Effect.succeed({
-              environmentId: expectedEnvironmentId,
-              label: "MacBook Pro",
-              httpBaseUrl: window.location.origin,
-              httpAuthorization: {
-                _tag: "Dpop",
-                accessToken: "relay-access-token",
-                expiresAtEpochMs: 4_102_444_800_000,
-              },
+              _tag: "Dpop",
+              accessToken: "renewed-access-token",
+              expiresAtEpochMs: 4_102_444_800_000,
+              directConnection,
             }),
         }),
       ),
@@ -398,11 +395,12 @@ it.each([
   { tier: "accelerated", legacy: false },
   { tier: "cpu", legacy: true },
 ] as const)(
-  "loads relay models using the server tier $tier (legacy: $legacy)",
+  "loads a direct DPoP host's models using the server tier $tier (legacy: $legacy)",
   async ({ tier, legacy }) => {
-    const target = new RelayConnectionTarget({
-      environmentId: EnvironmentId.make("voice-relay"),
+    const target = new BearerConnectionTarget({
+      environmentId: EnvironmentId.make("voice-remote"),
       label: "MacBook Pro",
+      connectionId: "voice-remote-route",
     });
     const prepared = {
       environmentId: target.environmentId,
@@ -413,6 +411,10 @@ it.each([
         _tag: "Dpop" as const,
         accessToken: "stale-access-token",
         expiresAtEpochMs: 4_102_444_800_000,
+        directConnection: {
+          connectionId: "voice-remote-route",
+          httpBaseUrl: window.location.origin,
+        },
       },
       target,
     };
@@ -500,7 +502,7 @@ it.each([
     );
     await vi.waitFor(() => expect(authorizations.length + notify.mock.calls.length).not.toBe(0));
     expect(notify).not.toHaveBeenCalled();
-    expect(authorizations).toEqual(["DPoP relay-access-token"]);
+    expect(authorizations).toEqual(["DPoP renewed-access-token"]);
     const region = screen.getByRole("region", { name: "Transcription models" });
     await vi.waitFor(() => expect(region.element().textContent).toContain("CPU pick"));
     if (legacy) {

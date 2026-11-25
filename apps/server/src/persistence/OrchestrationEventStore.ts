@@ -27,6 +27,7 @@ import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 
 import { replayAndBufferProjectedLiveEvents } from "../orchestration-v2/LiveStreamBudget.ts";
+import { keptEventType, keptTurnItem } from "./retiredRecords.ts";
 
 import {
   toPersistenceDecodeError,
@@ -219,9 +220,9 @@ const rowToV2StoredEvent = Effect.fnUntraced(function* (row: ApplicationEventRow
   const event = yield* decodeV2EventJson({
     id: row.event_id,
     threadId: row.stream_id,
-    type: row.event_type,
+    type: keptEventType(row.event_type),
     occurredAt: row.occurred_at,
-    payload,
+    payload: row.event_type === "turn-item.updated" ? keptTurnItem(payload) : payload,
     ...(values.runId === undefined ? {} : { runId: values.runId }),
     ...(values.nodeId === undefined ? {} : { nodeId: values.nodeId }),
     ...(values.driver === undefined ? {} : { driver: values.driver }),
@@ -265,7 +266,7 @@ const keepKnownEventTypeRow = (row: ApplicationEventRow) =>
   (
     row.aggregate_kind === "project"
       ? isKnownProjectEventType(row.event_type)
-      : isKnownOrchestrationV2EventType(row.event_type)
+      : isKnownOrchestrationV2EventType(keptEventType(row.event_type))
   )
     ? Effect.succeed(true)
     : Effect.logWarning("Skipping an application event row with an unknown event type", {

@@ -38,7 +38,7 @@ With `origin` on the mirror, use `src` instead of `gh`. PRs into `main` still me
 
 ## Running dev servers
 
-- `vp run dev` (server + web), `vp run dev:desktop` (Electron), `vp run dev:server`, `vp run dev:web`. See [apps/mobile/README.md](../../apps/mobile/README.md) for mobile.
+- `vp run dev` (server + web), `vp run dev:desktop` (Electron), `vp run dev:server`, `vp run dev:web`.
 - Pass flags directly after the task name (e.g. `vp run dev --home-dir /tmp/orbiwork-dev`, `--browser`).
 - **State and ports:** Linked worktrees default to `<worktree>/.orbi/userdata` (outranking `ORBIWORK_HOME`) and seed on first start from a read-only snapshot of `~/.orbi/userdata/statev2.sqlite` when it is at most 500 MiB (`--no-seed` or `ORBIWORK_DEV_SEED=0` skips; `vp run migrate-dev-db` refreshes manually). Plain clones and the main checkout default to `~/.orbi/dev`. Never point a dev server at `~/.orbi/userdata`. Read actual ports from `[dev-runner]` output (`ORBIWORK_PORT_OFFSET` / `ORBIWORK_DEV_INSTANCE` override).
 - **Resource monitor:** First start builds `native/resource-monitor` via Cargo when missing; without Rust, dev starts without process telemetry.
@@ -63,7 +63,7 @@ Restart `vp run dev --share` and open its printed pairing URL once per browser p
 ## Checks
 
 - `vp run check:changed` — CI's fast checks for your branch (format, lint, knip, affected typechecks, nearby tests, and React Compiler coverage).
-- Focused iteration: `vp test run <files>`, `vp lint <files>`, `vp run --filter <pkg> typecheck`, `vp run knip:check`, `vp run lint:mobile`.
+- Focused iteration: `vp test run <files>`, `vp lint <files>`, `vp run --filter <pkg> typecheck`, `vp run knip:check`.
 - `apps/web` uses real Chromium (`*.browser.test.{ts,tsx}`) for DOM/React tests (no jsdom) and Node for `*.test.ts`.
 - Typechecking uses `effect-tsgo tsrs --noEmit` (`@effect/tsgo`), not `typescript` (except `apps/marketing` for Astro). On Windows, open the workspace through WSL for VS Code's `.vscode/tsdk/tsgo`.
 
@@ -111,4 +111,4 @@ Install Rust, Python 3, and Visual Studio Build Tools (**Desktop development wit
 rustup target add x86_64-pc-windows-msvc   # or aarch64-pc-windows-msvc
 ```
 
-WSL support also requires passing the Linux CLI archive via `--wsl-runtime`; see [release runbook](./03_release.md#windows-payload-topology-and-update-validation). For signing and macOS passkeys, see [release](./03_release.md) and [Connect setup](./02_connect-setup.md#desktop-passkeys).
+WSL support also requires passing the Linux CLI archive via `--wsl-runtime`; see [release runbook](./03_release.md#windows-payload-topology-and-update-validation). For signing and macOS passkeys, see [release](./03_release.md#apple-signing-and-notarization-macos).

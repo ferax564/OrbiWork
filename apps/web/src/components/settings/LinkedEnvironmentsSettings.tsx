@@ -270,7 +270,6 @@ export function LinkEnvironmentDialog({
         label: route.label,
         machine: "server" as const,
         connected: false,
-        connectOnly: false,
         linked: false,
         urls: route.urls,
       })),

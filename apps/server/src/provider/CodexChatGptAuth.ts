@@ -6,7 +6,7 @@ import {
   type ChatGptTransferredProfile,
   type ProviderInstanceId,
 } from "@orbiwork/contracts";
-import { codexCallbackUrl } from "@orbiwork/shared/codexAuthHandoff";
+import { codexCallbackUrl } from "@orbiwork/shared/codexAuthRequest";
 import * as Clock from "effect/Clock";
 import * as Digest from "effect/crypto/Digest";
 import * as SecureRandom from "effect/crypto/SecureRandom";

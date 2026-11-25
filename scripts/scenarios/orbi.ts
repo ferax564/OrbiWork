@@ -1,5 +1,5 @@
 // `test` for web scenarios: e2e's web test plus `orbi`, which seeds state and opens the signed-in
-// app. `orbi-mobile.ts` is the same for the iOS app.
+// app.
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeWS from "@effect/platform-node/NodeWS";

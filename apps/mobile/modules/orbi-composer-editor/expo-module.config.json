@@ -1,9 +1,0 @@
-{
-  "platforms": ["apple", "android"],
-  "apple": {
-    "modules": ["OrbiComposerEditorModule"]
-  },
-  "android": {
-    "modules": ["expo.modules.orbicomposereditor.OrbiComposerEditorModule"]
-  }
-}

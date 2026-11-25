@@ -203,7 +203,7 @@ clones over HTTPS with Git's credentials for that host instead, and the project'
 HTTPS URL.
 
 To lay clones out like [ghq](https://github.com/x-motemen/ghq), turn on **Clone into host folders**
-under **Settings → Threads** (or **Source control** on mobile). Clones then default to
+under **Settings → Threads**. Clones then default to
 `<host>/<owner>/<repo>` under **Add project starts in**, so set that to `~/ghq` to share ghq's
 folders. You can still change the destination before cloning.
 
@@ -230,8 +230,7 @@ instructions to commits and pull requests.
 
 Open **Pull requests** to review changes and comments, request reviewers, check out a branch,
 or merge. You can edit review titles and descriptions and your own comments where the host allows it.
-Where you can edit a description, you can also tick its checkboxes from the Summary tab
-(the Overview tab on mobile).
+Where you can edit a description, you can also tick its checkboxes from the Summary tab.
 GitLab calls these merge requests.
 
 A merge or review applies to the commits you opened the pull request on. When someone pushes
@@ -240,7 +239,7 @@ review draft is kept. Merging from a thread's pull request row, or from the list
 row had when you confirmed.
 
 Save a filter setup with **Views → Save current view** on the Pull Requests page. For example, choose
-**Reviewing** (**Your review** on mobile) and save it as "PRs Requesting My Review". Choose a saved view to restore its search,
+**Reviewing** and save it as "PRs Requesting My Review". Choose a saved view to restore its search,
 filters, sort order, and server/project scope. After changing filters, use **Update saved view** to
 keep the changes, or save another view. You can also rename or delete views from the same menu.
 Saved views stay in the browser or app where you created them and do not sync across devices.
@@ -248,15 +247,6 @@ Saved views stay in the browser or app where you created them and do not sync ac
 A link to part of a pull request opens that part: a comment or review is marked in the activity, a
 changed-line link opens the file at those lines, a checks link opens the checks, and a commit link
 opens that commit's changes. On web and desktop, hovering a comment or commit link previews it.
-
-On mobile, **Pull requests** lists reviews across your connected environments. Open a review
-to read its description, activity, commits, and changed files. Line comments stay as drafts
-until you submit the review. **Work on PR** opens a chat with the review attached; sending
-the first message prepares a worktree from the review's branch.
-
-Previously loaded lists, review details, guides, and diff pages remain readable on mobile
-without a connection, including after restarting the app. Saved content refreshes when the
-environment reconnects; submitting changes requires a connection.
 
 Enable **Remove agent credits when merging** in Settings → Source control & issues to remove recognized
 agent co-author and generated-by lines from GitHub merge and squash commit messages. Human
@@ -271,8 +261,7 @@ Press **Escape** before releasing to cancel. Failed closes stay in the list so y
 GitHub, GitLab, and Azure DevOps support auto-merge while checks are outstanding. GitHub also
 supports approving waiting fork workflows and opening a revert pull request for a merged change.
 
-Pull request sharing is off by default. In Settings → Environments → Pull request sharing (Pull
-request routing under Environments on mobile), choose **Read PRs** or **Read and act** for each
+Pull request sharing is off by default. In Settings → Environments → Pull request sharing, choose **Read PRs** or **Read and act** for each
 environment you trust to share its source control access.
 Enable both the original environment and the environment answering its requests on this client.
 **Read and act** can use broader permissions than the original environment's credential;
@@ -282,7 +271,7 @@ environment clears its permission.
 Review details, linked PR status, and permitted review actions can then use another connected
 environment signed in to the same account on the same host. Each needs a project on that host.
 A connected local environment is preferred for actions and can answer slow or failed reads.
-Browsers and mobile clients need a paired environment to use its GitHub credentials.
+Browsers need a paired environment to use its GitHub credentials.
 Credentials stay on their machines. Previously verified credentials remain usable for routing
 for ten minutes during a GitHub outage; new credentials must be verified first. An action with
 an uncertain result is never automatically retried elsewhere. Listings, diffs, and checkout or
@@ -294,8 +283,7 @@ declined pull request.
 ### Review guides
 
 Review guides are in beta. Turn on **Review guides** in Settings → Source control & issues to add the
-**Guide** tab to pull requests on that server. On mobile, move between stops with **Next**
-and the back button; a stale guide offers a rewrite and hides excerpts that no longer match
+**Guide** tab to pull requests on that server. A stale guide offers a rewrite and hides excerpts that no longer match
 the current change.
 
 The **Guide** tab gives you a tour of a pull request without reading it line by line: stops
@@ -308,8 +296,7 @@ covers that layer only, and may point out what a lower layer introduced or what 
 Choose **Write guide** to have the review guide model from Settings → Source control & issues read the
 change in a temporary checkout; without one set, the source control writer model is used. Nothing
 in the checkout is changed, and a large pull request takes a few minutes; you can go elsewhere in
-the app. On web, you are told when the guide is ready; on mobile, return to the guide to check
-its progress. Claude and Codex can write guides. Claude writes them with your user settings, but
+the app. You are told when the guide is ready. Claude and Codex can write guides. Claude writes them with your user settings, but
 tool approvals in those settings do not apply: it reads files and runs `git diff`, `git log` and
 `git show`, nothing else. The guide is
 kept for everyone using this server. To write it again, for example after a push or after changing
@@ -337,9 +324,6 @@ On GitHub these are GitHub's own viewed marks, so a review carries between OrbiW
 in either direction. Forgejo, GitLab, Bitbucket, Azure DevOps, and Cursor Origin expose no record
 OrbiWork can read, so the server you are connected to keeps them instead: they follow you across the
 apps connected to that server, but the host's own site will not show them, and the count reads **viewed in OrbiWork**.
-
-On mobile, open a changed file and mark it viewed from its header. Viewed files collapse,
-and their marks follow the same rules as on web and desktop.
 
 ## Troubleshooting
 
@@ -370,7 +354,7 @@ on the Pull requests page, **Link to thread** lets you search for an active thre
 also lists the threads that link to it, including archived threads, so you can return to their context.
 
 Thread badges show a stack's layer count or the current review number with a count of additional
-links. Clicking a badge with more than one review opens the **Linked items** panel. On mobile, the Git overview lists linked reviews and their stacks; tap a review to open it.
+links. Clicking a badge with more than one review opens the **Linked items** panel.
 Linking and unlinking are available in the web and desktop clients.
 
 The **Linked items** panel lists every review and groups stacks. Unlink a review from its

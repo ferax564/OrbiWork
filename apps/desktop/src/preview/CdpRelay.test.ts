@@ -223,6 +223,48 @@ describe("CDP relay credential guard", () => {
       },
     ]);
   });
+
+  it("strips cookies from any event or result, however deeply nested, and refuses tracing", async () => {
+    const written: Array<Record<string, unknown>> = [];
+    const send = vi.fn(async () => ({
+      entries: [{ response: { headers: { "Set-Cookie": "sid=secret", etag: "1" } } }],
+    }));
+    const relay = makeRelay(makeTarget(send), (raw) => written.push(JSON.parse(raw)));
+    relay.receive(JSON.stringify({ id: 1, method: "Target.setAutoAttach", params: {} }));
+    await settle();
+    relay.event(
+      "SomeNewDomain.somethingHappened",
+      {
+        deep: {
+          list: [{ request: { headers: [{ name: "cookie", value: "sid=secret" }] } }],
+          responseHeadersText: "HTTP/1.1 200 OK\r\nset-cookie: sid=secret\r\n",
+          rawCookieLine: "sid=secret",
+          partitionedCookies: [{ value: "secret" }],
+        },
+      },
+      "",
+    );
+    relay.receive(
+      JSON.stringify({
+        id: 2,
+        method: "Network.getSomething",
+        params: {},
+        sessionId: "orbi-preview-page",
+      }),
+    );
+    relay.receive(
+      JSON.stringify({
+        id: 3,
+        method: "Tracing.start",
+        params: {},
+        sessionId: "orbi-preview-page",
+      }),
+    );
+    await settle();
+    expect(JSON.stringify(written)).not.toContain("secret");
+    expect(written).toContainEqual(expect.objectContaining({ id: 3, error: expect.anything() }));
+    expect(send).not.toHaveBeenCalledWith("Tracing.start", expect.anything(), expect.anything());
+  });
 });
 
 describe("CDP relay extra sessions", () => {

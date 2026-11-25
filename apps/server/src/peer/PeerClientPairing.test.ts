@@ -6,7 +6,6 @@ import {
   type AuthMcpClientAccess,
   AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
-  AuthRelayConfigureScope,
   AuthStandardClientScopes,
   AuthTerminalOperateScope,
   type ExecutionEnvironmentDescriptor,
@@ -114,8 +113,9 @@ it.effect(
           AuthOrchestrationReadScope,
           AuthOrchestrationOperateScope,
           AuthAccessWriteScope,
-          AuthRelayConfigureScope,
-        ];
+          // Legacy review credentials still decode, but no pairing code grants them.
+          "review:write",
+        ] satisfies ReadonlyArray<AuthEnvironmentScope>;
         const phone = yield* a.client(held);
 
         const result = yield* a.pairing.request({ environmentId: box.environmentId }, phone);

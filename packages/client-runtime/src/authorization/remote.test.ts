@@ -11,7 +11,6 @@ import {
   resolveRemoteDpopWebSocketConnectionUrl,
   resolveRemoteWebSocketConnectionUrl,
 } from "./remote.ts";
-import * as ClientCapabilities from "../platform/capabilities.ts";
 import * as RpcHttp from "../rpc/http.ts";
 
 const isEnvironmentAuthInvalidError = Schema.is(EnvironmentAuthInvalidError);
@@ -313,7 +312,7 @@ describe("remote environment authorization", () => {
     }),
   );
 
-  it.effect("sends no Connect account or device identifier, even when signed in", () =>
+  it.effect("sends no account or device identifier", () =>
     Effect.gen(function* () {
       const fetch = recordedFetch(
         Response.json({ ticket: "ws-ticket", expiresAt: "2026-05-01T12:05:00.000Z" }),
@@ -324,16 +323,7 @@ describe("remote environment authorization", () => {
           wsBaseUrl: "wss://remote.example.com/",
           httpBaseUrl: "https://remote.example.com/",
           bearerToken: "bearer-token",
-        }).pipe(
-          provideRemoteHttp(fetch.fetchFn),
-          Effect.provideService(
-            ClientCapabilities.CloudSession,
-            ClientCapabilities.CloudSession.of({
-              identity: Effect.succeedSome({ accountId: "user_connect" }),
-              clerkToken: Effect.succeed("clerk-token"),
-            }),
-          ),
-        ),
+        }).pipe(provideRemoteHttp(fetch.fetchFn)),
       );
 
       expect(url.searchParams.has("clientOwner")).toBe(false);

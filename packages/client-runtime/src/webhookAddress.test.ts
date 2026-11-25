@@ -4,26 +4,15 @@ import { webhookAddress } from "./webhookAddress.ts";
 
 const endpoint = {
   path: "/hooks/abc",
-  url: null,
   hasSecret: true,
 };
 
 describe("webhookAddress", () => {
-  it("returns the public endpoint URL copyable with no note", () => {
-    const result = webhookAddress(
-      { ...endpoint, url: "https://connect.example.com/hooks/abc" },
-      null,
-    );
-    expect(result.address).toBe("https://connect.example.com/hooks/abc");
-    expect(result.copyable).toBe(true);
-    expect(result.note).toBeNull();
-  });
-
-  it("is not copyable and points at Orbi Connect when no base URL exists", () => {
+  it("is not copyable and asks for a network address when no base URL exists", () => {
     const result = webhookAddress(endpoint, null);
     expect(result.address).toBe("/hooks/abc");
     expect(result.copyable).toBe(false);
-    expect(result.note).toContain("Orbi Connect");
+    expect(result.note).toContain("network address");
   });
 
   it("warns that loopback addresses only work on this computer", () => {

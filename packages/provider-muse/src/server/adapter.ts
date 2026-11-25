@@ -356,7 +356,6 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
       let relaunchable = false;
       let nativeSessionId: string | undefined;
       let thread: OrchestrationV2ProviderThread | undefined;
-      let hasOrbiMcp = false;
       let active: ActiveTurn | undefined;
       let lastProviderTurn: OrchestrationV2ProviderTurn | undefined;
       let latestSubscriptionUsage: MuseSubscriptionUsage | undefined;
@@ -2032,7 +2031,6 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
                 createdAt,
                 updatedAt: createdAt,
               };
-          hasOrbiMcp = mcpSession !== undefined;
           session = {
             ...session,
             model: result.session.modelId ?? args.modelSelection.model,
@@ -2211,7 +2209,6 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
                   {
                     type: "text",
                     text: buildRuntimeInstructions({
-                      agentFeedback: hasOrbiMcp ? (turnInput.agentFeedback ?? "off") : "off",
                       harness: "Muse Code",
                       model: session.model ?? undefined,
                       reasoningEffort: effort,

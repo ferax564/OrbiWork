@@ -1,16 +1,7 @@
-import type { ClientConnectionMethod, EnvironmentId } from "@orbiwork/contracts";
-import type { RelayProtectedError } from "@orbiwork/contracts/relay";
-import type { ManagedRelayClientError } from "../relay/managedRelay.ts";
+import type { DpopFailureReason, EnvironmentId } from "@orbiwork/contracts";
 import { msg } from "gt-i18n";
-import { dpopFailureText, relayProtectedErrorText } from "../relay/errorPresentation.ts";
 import type { RemoteEnvironmentAuthError } from "../authorization/remote.ts";
-import { NETWORK_BLOCKING_HINT } from "../errors/network.ts";
-import {
-  detailFromError,
-  errorI18nMessage,
-  markedTextEnglish,
-  translatableDetail,
-} from "../errors/translatable.ts";
+import { detailFromError, type MarkedText, translatableDetail } from "../errors/translatable.ts";
 import {
   ConnectionBlockedError,
   type ConnectionAttemptError,
@@ -47,6 +38,28 @@ export function isHostCredentialRefusal(error: ConnectionAttemptError): boolean 
   );
 }
 
+const DPOP_CLOCK_HINT = msg(
+  "Hint: Check that automatic date and time is enabled on both devices, then try again.",
+);
+
+/** Older servers omit the DPoP category, but newer servers can also omit it for
+ * a credential failure that happens after proof verification. */
+export const DPOP_UNKNOWN_HINT = msg(
+  "Hint: Try again. If it still fails, clock skew may be the cause; check that automatic date and time is enabled on both devices.",
+);
+
+const DPOP_RETRY_HINT = msg("Hint: Try again. If the problem continues, copy the trace ID.");
+
+function dpopFailureText(message: string, reason: DpopFailureReason | undefined): MarkedText {
+  const hint =
+    reason === "time_window"
+      ? DPOP_CLOCK_HINT
+      : reason === undefined
+        ? DPOP_UNKNOWN_HINT
+        : DPOP_RETRY_HINT;
+  return [message, hint];
+}
+
 export function environmentMismatchError(input: {
   readonly expected: EnvironmentId;
   readonly actual: EnvironmentId;
@@ -62,180 +75,9 @@ export function environmentMismatchError(input: {
   });
 }
 
-function relayProtectedError(error: RelayProtectedError): ConnectionAttemptError {
-  const text = relayProtectedErrorText(error);
-  const detail = markedTextEnglish(text);
-  const i18nMessage = text;
-  const traceId = error.traceId;
-  switch (error._tag) {
-    case "RelayAuthInvalidError":
-      return new ConnectionBlockedError({
-        reason: "authentication",
-        detail,
-        i18nMessage,
-        traceId,
-        hop: "relay",
-        ...(error.dpopFailureReason === "time_window" ? { failureCause: "clock_skew" } : {}),
-      });
-    case "RelayEnvironmentLinkProofExpiredError":
-    case "RelayAgentActivityPublishProofExpiredError":
-    case "RelayAgentActivityPublishProofInvalidError":
-      return new ConnectionBlockedError({
-        reason: "authentication",
-        detail,
-        i18nMessage,
-        traceId,
-        hop: "relay",
-      });
-    case "RelayEnvironmentConnectNotAuthorizedError":
-      // A host swapping in a new tunnel leaves its allocation unready until
-      // the tunnel is up, and nothing on the client changes when it is.
-      if (error.reason === "managed_endpoint_allocation_not_ready") {
-        return new ConnectionTransientError({
-          reason: "endpoint-unavailable",
-          detail,
-          i18nMessage,
-          traceId,
-          hop: "tunnel",
-          failureCause: "tunnel_pending",
-        });
-      }
-      if (error.reason === "endpoint_provider_not_managed") {
-        return new ConnectionBlockedError({
-          reason: "permission",
-          detail,
-          i18nMessage,
-          traceId,
-          hop: "tunnel",
-          failureCause: "tunnel_not_enabled",
-        });
-      }
-      return new ConnectionBlockedError({
-        reason: "permission",
-        detail,
-        i18nMessage,
-        traceId,
-        hop: "relay",
-        ...(error.reason === "environment_link_not_found" ? { failureCause: "not_linked" } : {}),
-      });
-    case "RelayEnvironmentLinkProofInvalidError":
-    case "RelayEnvironmentLinkLimitExceededError":
-      return new ConnectionBlockedError({
-        reason: "permission",
-        detail,
-        i18nMessage,
-        traceId,
-        hop: "relay",
-      });
-    case "RelayEnvironmentEndpointTimedOutError":
-      return new ConnectionTransientError({
-        reason: "timeout",
-        detail,
-        i18nMessage,
-        traceId,
-        hop: "tunnel",
-        failureCause: "timeout",
-      });
-    case "RelayEnvironmentEndpointUnavailableError": {
-      const endpointFailure =
-        error.endpointFailure ??
-        (error.reason === "endpoint_response_invalid" ? "invalid_response" : undefined);
-      return new ConnectionTransientError({
-        reason: "endpoint-unavailable",
-        detail,
-        i18nMessage,
-        traceId,
-        // The tunnel carried the request when OrbiWork is what failed to answer.
-        hop:
-          endpointFailure === "origin_unreachable" || endpointFailure === "invalid_response"
-            ? "server"
-            : "tunnel",
-        via: "relay",
-        ...(endpointFailure ? { failureCause: endpointFailure } : {}),
-        ...(error.endpointStatus ? { httpStatus: error.endpointStatus } : {}),
-      });
-    }
-    case "RelayEnvironmentLinkUnavailableError":
-      return new ConnectionTransientError({
-        reason: "endpoint-unavailable",
-        detail,
-        i18nMessage,
-        traceId,
-        hop: "tunnel",
-      });
-    case "RelayEnvironmentLinkFailedError":
-    case "RelayInternalError":
-      return new ConnectionTransientError({
-        reason: "relay-unavailable",
-        detail,
-        i18nMessage,
-        traceId,
-        hop: "relay",
-        failureCause: "relay_error",
-      });
-  }
-}
-
-export function mapManagedRelayError(error: ManagedRelayClientError): ConnectionAttemptError {
-  switch (error._tag) {
-    case "ManagedRelayRequestFailedError":
-      if (error.relayError) {
-        return relayProtectedError(error.relayError);
-      }
-      return new ConnectionTransientError({
-        reason: "relay-unavailable",
-        ...detailFromError(error),
-        hop: "relay",
-        // A status means the relay answered, so this device did reach it.
-        ...(error.status !== undefined
-          ? { httpStatus: error.status, failureCause: "relay_error" }
-          : {}),
-        ...(error.traceId ? { traceId: error.traceId } : {}),
-      });
-    case "ManagedRelayRequestTimeoutError":
-      return new ConnectionTransientError({
-        reason: "timeout",
-        ...detailFromError(error),
-        hop: "relay",
-      });
-    case "ManagedRelayUrlInvalidError":
-      return new ConnectionBlockedError({
-        reason: "configuration",
-        ...detailFromError(error),
-        hop: "relay",
-      });
-    case "ManagedRelayAccessTokenScopesUnexpectedError":
-      return new ConnectionBlockedError({
-        reason: "permission",
-        ...detailFromError(error),
-        hop: "relay",
-      });
-    case "ManagedRelayDpopKeyLoadError":
-    case "ManagedRelayTokenProofCreationError":
-    case "ManagedRelayRequestProofCreationError":
-      return new ConnectionBlockedError({
-        reason: "authentication",
-        ...detailFromError(error),
-        hop: "device",
-      });
-  }
-}
-
 export function mapRemoteEnvironmentError(
   error: RemoteEnvironmentAuthError,
-  connectionMethod: ClientConnectionMethod = "direct",
 ): ConnectionAttemptError {
-  const withNetworkHint = (cause: { readonly message: string }) => {
-    if (connectionMethod !== "relay") return detailFromError(cause);
-    const text = errorI18nMessage(cause);
-    return text === undefined
-      ? { detail: `${cause.message} ${NETWORK_BLOCKING_HINT}` }
-      : translatableDetail(...text, NETWORK_BLOCKING_HINT);
-  };
-  // Over Orbi Connect the relay already reached the host, so a request that never
-  // arrives was blocked between this device and the tunnel.
-  const unreachableHop = connectionMethod === "relay" ? "tunnel" : "server";
-  const via = connectionMethod === "relay" ? "relay" : "direct";
   switch (error._tag) {
     case "EnvironmentAuthInvalidError":
       return new ConnectionBlockedError({
@@ -243,7 +85,6 @@ export function mapRemoteEnvironmentError(
         ...translatableDetail(msg("The environment credential is invalid.")),
         traceId: error.traceId,
         hop: "server",
-        via,
       });
     case "EnvironmentScopeRequiredError":
     case "EnvironmentOperationForbiddenError":
@@ -254,7 +95,6 @@ export function mapRemoteEnvironmentError(
         ),
         traceId: error.traceId,
         hop: "server",
-        via,
       });
     case "EnvironmentRequestInvalidError":
       return new ConnectionBlockedError({
@@ -262,7 +102,6 @@ export function mapRemoteEnvironmentError(
         ...translatableDetail(msg("The environment rejected the authentication request.")),
         traceId: error.traceId,
         hop: "server",
-        via,
       });
     case "EnvironmentResourceNotFoundError":
       return new ConnectionBlockedError({
@@ -270,30 +109,18 @@ export function mapRemoteEnvironmentError(
         ...translatableDetail(msg("The environment endpoint could not be found.")),
         traceId: error.traceId,
         hop: "server",
-        via,
       });
     case "RemoteEnvironmentAuthTimeoutError":
       return new ConnectionTransientError({
         reason: "timeout",
-        ...withNetworkHint(error),
-        hop: unreachableHop,
-        via,
+        ...detailFromError(error),
+        hop: "server",
       });
     case "RemoteEnvironmentAuthFetchError":
       return new ConnectionTransientError({
         reason: "network",
-        ...withNetworkHint(error),
-        hop: unreachableHop,
-        via,
-      });
-    case "EnvironmentConnectApprovalPendingError":
-      return new ConnectionTransientError({
-        reason: "approval-pending",
-        ...translatableDetail(msg("This device is waiting for approval on the host.")),
-        traceId: error.traceId,
+        ...detailFromError(error),
         hop: "server",
-        via,
-        failureCause: "approval_pending",
       });
     case "EnvironmentInternalError":
       return new ConnectionTransientError({
@@ -301,7 +128,6 @@ export function mapRemoteEnvironmentError(
         ...translatableDetail(msg("The environment could not authorize the connection.")),
         traceId: error.traceId,
         hop: "server",
-        via,
       });
     case "RemoteEnvironmentAuthInvalidJsonError":
     case "RemoteEnvironmentAuthUndeclaredStatusError":
@@ -309,7 +135,6 @@ export function mapRemoteEnvironmentError(
         reason: "remote-unavailable",
         ...detailFromError(error),
         hop: "server",
-        via,
       });
   }
 }
@@ -321,7 +146,6 @@ export function mapRemoteEnvironmentError(
  */
 export function mapRemoteDpopEnvironmentError(
   error: RemoteEnvironmentAuthError,
-  connectionMethod: "relay" | "direct" = "relay",
 ): ConnectionAttemptError {
   if (error._tag === "EnvironmentAuthInvalidError" && error.reason === "invalid_credential") {
     return new ConnectionBlockedError({
@@ -331,9 +155,8 @@ export function mapRemoteDpopEnvironmentError(
       ),
       traceId: error.traceId,
       hop: "server",
-      via: connectionMethod,
       ...(error.dpopFailureReason === "time_window" ? { failureCause: "clock_skew" } : {}),
     });
   }
-  return mapRemoteEnvironmentError(error, connectionMethod);
+  return mapRemoteEnvironmentError(error);
 }

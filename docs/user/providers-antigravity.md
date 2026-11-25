@@ -9,8 +9,7 @@ which models and account access are available through this agent.
 On web or desktop, open **Settings > Providers**, choose the environment that runs
 your project, and enable Antigravity. Install its runtime there, then choose
 **Sign in** and complete the browser sign-in. Wait for OrbiWork to confirm
-account access and load models before starting a thread. Once the runtime is installed,
-you can also sign in from **Settings > Providers** in the mobile app.
+account access and load models before starting a thread.
 
 Installation continues if you leave settings or reconnect. Setup requires
 permission to operate the environment; update an older server if it does not offer
@@ -114,7 +113,7 @@ the agent to inspect with its tools.
 ### Subagents
 
 Antigravity groups subagent activity into batches. Open a batch and select
-**Subagent work** (**Work** on mobile) to read each child's role, prompt, and recent steps. This view
+**Subagent work** to read each child's role, prompt, and recent steps. This view
 is read only: you cannot message or control individual subagents, and an idle
 batch does not confirm that every child succeeded. If Antigravity did not record
 which children a batch started, the view says so. See
@@ -161,9 +160,9 @@ times. Limits refresh with provider status and include usage outside OrbiWork.
 A server restart keeps your Google sign-in. The provider shows the saved account
 until a session, a refresh, or a sign-out reports something new.
 
-To check access and reload models, use **Refresh provider status** in web or desktop
-provider settings, or **Refresh models** in mobile thread settings. If asked to
-sign in again, use provider settings on web or desktop, or **Settings > Providers** on mobile.
+To check access and reload models, use **Refresh provider status** in
+provider settings. If asked to
+sign in again, use provider settings.
 
 If Google reports `SUBSCRIPTION_REQUIRED`, an account restriction, or a usage limit,
 follow the provider's message and any retry time. See [Google's account plans][plans]

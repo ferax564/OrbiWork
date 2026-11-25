@@ -71,10 +71,7 @@ back from the device after a change.
 When an agent opens a device, it floats over the chat in web and desktop clients
 connected to the thread, the same way an agent-driven browser does. Turn off
 **Auto-show floating preview** in **Settings → Browser** to open a
-right-panel tab instead. In the mobile app, open the agent's thread and tap the
-device button above the composer to watch the live screen and control it.
-On iOS layouts with an inspector, the device opens beside the thread. Maximize
-it to fill the screen; closing the full-screen view returns to the inspector.
+right-panel tab instead. Maximize it to fill the screen; closing the full-screen view returns to the thread.
 If the thread has several devices open, choose one in the viewer. Closing the
 viewer stops streaming and leaves the device available to the agent. Device
 activity also appears in the thread timeline.
@@ -92,9 +89,9 @@ started from then on; your own Device panel is unaffected.
 ## Remote connections
 
 The device stream goes through the environment server, so it works over the
-local network, Tailscale, and Orbi Connect. Live video needs a secure page
+local network and Tailscale. Live video needs a secure page
 (HTTPS or localhost); on a plain-HTTP remote origin iOS falls back to a slower
-still-image stream and Android cannot show video, except on Expo Simulators.
+still-image stream and Android cannot show video.
 
 ## SSH device hosts
 
@@ -168,4 +165,4 @@ localhost; use an address its worker can reach.
 
 The connected Orbi server manages the device hub and agent tools on its own machine and configured SSH hosts. Required versions install automatically the next time those tools are used. In Settings → Devices, select a version and choose **Check versions** to read installed versions without installing tools or starting devices.
 
-To receive newer tool versions on a remote environment, update that environment's Orbi server. Updating only the browser or mobile app does not update the remote server. An offline host keeps its installed files, but an update needs network access before device support can start; Orbi does not fall back to an older version. Reconnect the host and use Retry if installation fails. Existing device and agent-access settings are preserved.
+To receive newer tool versions on a remote environment, update that environment's Orbi server. Updating only the browser does not update the remote server. An offline host keeps its installed files, but an update needs network access before device support can start; Orbi does not fall back to an older version. Reconnect the host and use Retry if installation fails. Existing device and agent-access settings are preserved.

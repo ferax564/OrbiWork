@@ -13,7 +13,7 @@
 
 ## Out of scope
 
-- Windowed Electron development and mobile native builds (Xcode / Android SDK) are host-only; headless desktop bundles and static checks run in the container.
+- Windowed Electron development is host-only; headless desktop bundles and static checks run in the container.
 - `vp run dev --share` requires Tailscale, which is not provisioned here.
 
 ## Prebuilds

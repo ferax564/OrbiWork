@@ -78,17 +78,16 @@ it.layer(NodeServices.layer)("ManagedPolicy.load", (it) => {
         JSON.stringify({
           schemaVersion: 1,
           organization: "Example Corp",
-          limits: { webhookTasks: false, telemetry: true, previewTunnel: false },
+          // Retired keys still load, but restrict nothing and stay out of the summary.
+          limits: { webhookTasks: false, telemetry: false, connect: false, previewTunnel: false },
         }),
       );
       assert.deepEqual(policy.summary?.limits, {
         webhookTasks: false,
-        telemetry: true,
         previewTunnel: false,
       });
       assert.equal(ManagedPolicy.deniedBy(policy, "webhookTasks"), "Example Corp");
       assert.equal(ManagedPolicy.deniedBy(policy, "previewTunnel"), "Example Corp");
-      assert.isUndefined(ManagedPolicy.deniedBy(policy, "telemetry"));
     }),
   );
 
@@ -99,7 +98,7 @@ it.layer(NodeServices.layer)("ManagedPolicy.load", (it) => {
         [
           "{ not json",
           // An unknown key may be a restriction from a newer release.
-          JSON.stringify({ ...base, limits: { connect: false, futureLimit: true } }),
+          JSON.stringify({ ...base, limits: { webhookTasks: false, futureLimit: true } }),
           JSON.stringify({ ...base, settings: { notASetting: { value: 1, locked: true } } }),
           JSON.stringify({
             ...base,

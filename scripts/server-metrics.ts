@@ -1160,7 +1160,7 @@ const openThreads = Effect.fn("serverMetrics.openThreads")(function* (
   return ids.filter((id) => id !== undefined);
 });
 
-/** The shell snapshot the web and mobile clients load first, timed to its last byte. */
+/** The shell snapshot web clients load first, timed to its last byte. */
 const loadShell = Effect.fn("serverMetrics.loadShell")(function* (server: Server, times: number) {
   const http = yield* HttpClient.HttpClient;
   const token = yield* server.issueToken;

@@ -44,14 +44,12 @@ under Orbi home. Pass `--yes` from a script.
 
 ## Local network access
 
-A new service answers only on this machine. Other devices reach it through
-Orbi Connect, or directly once you choose the local network in `orbi up` (or run
-`orbi up --lan`, which sets `ORBIWORK_LAN=true` in `service.env`). It then listens on
-your local network and Tailscale addresses, so the desktop and mobile apps on
-the same network connect directly instead of through Orbi Connect. It still does
-not answer on public addresses. Anyone on the same network can reach the port,
-so a pairing code is all that keeps them out. The hosted web app at app.orbiwork.invalid
-stays on Orbi Connect, because browsers block plain HTTP from an HTTPS page.
+A new service answers only on this machine. Other devices reach it once you
+choose the local network in `orbi up` (or run `orbi up --lan`, which sets
+`ORBIWORK_LAN=true` in `service.env`). It then listens on your local network and
+Tailscale addresses, so the desktop app and browsers on the same network connect
+to it directly. It still does not answer on public addresses. Anyone on the same
+network can reach the port, so a pairing code is all that keeps them out.
 
 A service installed before `ORBIWORK_LAN` existed keeps listening on the local
 network. `orbi status` says so, and `orbi up --no-lan` turns it off. Any
@@ -99,9 +97,6 @@ of signing out, and keep the PC awake, for unattended remote access. Installing
 over SSH while nobody is signed in at the PC can fail at the final start step;
 the service is still installed and will start at the next sign-in.
 
-`orbi up` installs the service when you set up Orbi Connect, but the two are managed
-separately. Signing out of Orbi Connect does not stop or uninstall the service.
-
 ## Keep the server responsive when agents use all memory
 
 On Linux, agents already run with lower priority than the server. When they
@@ -140,8 +135,8 @@ ssh -t your-server 'sudo loginctl enable-linger "$(id -un)"'
 ```
 
 Then retry service setup as your normal user. Run only the `loginctl` command
-with sudo; running OrbiWork as root creates a separate installation and Connect
-identity. Without administrator access, run `orbi serve` in a terminal and keep
+with sudo; running OrbiWork as root creates a separate installation.
+Without administrator access, run `orbi serve` in a terminal and keep
 that session open.
 
 | Status problem                          | Next step                                                                                                                      |
@@ -157,16 +152,15 @@ Downloads, it may need Full Disk Access for the `orbi` executable listed in
 `ProgramArguments` in
 `~/Library/LaunchAgents/com.orbiwork.orbiwork.service.plist`.
 
-For failures after signing in to Orbi Connect, see
-[connection troubleshooting](./orbi-connect-troubleshooting.md).
+For problems reaching the service from another device, see
+[Remote access](./remote-access.md).
 
 ## Reclaim database space
 
 OrbiWork removes internal history older than a day on its own while it runs;
 your conversations are kept. Databases created before this shrank automatically
 still hold the freed space on disk until a one-time offline repair returns it
-and turns on automatic shrinking. Settings > Maintenance (web and desktop) or
-Settings > Maintenance (mobile) suggests the repair when at least 1 GiB can be
+and turns on automatic shrinking. Settings > Maintenance suggests the repair when at least 1 GiB can be
 reclaimed.
 
 When the desktop app or the background service runs OrbiWork on that machine,

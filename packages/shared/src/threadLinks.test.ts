@@ -4,10 +4,10 @@ import { mFallback } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 
 import {
-  formatHostedThreadLink,
+  formatThreadAppLink,
   formatThreadLink,
   guessThreadLinkRef,
-  hostedThreadLink,
+  threadAppLink,
   parseThreadLinkHref,
   threadLinkCandidates,
   threadLinkRefs,
@@ -78,7 +78,7 @@ describe("thread links", () => {
   });
 
   it("rejects other links and an empty id", () => {
-    expect(parseThreadLinkHref("https://orbiwork.invalid")).toBeNull();
+    expect(parseThreadLinkHref("https://example.test")).toBeNull();
     expect(parseThreadLinkHref("orbi-thread://v1/")).toBeNull();
     expect(parseThreadLinkHref("orbi-thread://v1/ ")).toBeNull();
     expect(parseThreadLinkHref("orbi-thread://v2/env-1")).toBeNull();
@@ -213,53 +213,42 @@ describe("thread links", () => {
   });
 });
 
-describe("hosted thread links", () => {
+describe("thread app links", () => {
   it("escapes every id character a sentence or path could claim, and reads it back", () => {
     const thread = ref("env.1", "thread:delegated/mcp%3A1.");
-    const link = hostedThreadLink(thread);
-    expect(link).toBe(
-      "https://app.orbiwork.invalid/threads/env%2E1/thread%3Adelegated%2Fmcp%253A1%2E",
-    );
+    const link = threadAppLink(thread);
+    expect(link).toBe("orbiwork://threads/env%2E1/thread%3Adelegated%2Fmcp%253A1%2E");
     expect(parseThreadLinkHref(link)).toEqual(thread);
-    expect(hostedThreadLink(thread, "https://preview.orbiwork.invalid/")).toMatch(
-      /^https:\/\/preview\.orbiwork\.invalid\/threads\//,
-    );
   });
 
-  it("reads only a bare thread path on the hosted app", () => {
-    expect(parseThreadLinkHref("https://app.orbiwork.invalid/threads/env-1/thread-1")).toEqual(
+  it("reads only a bare thread path in an app link", () => {
+    expect(parseThreadLinkHref("orbiwork://threads/env-1/thread-1")).toEqual(
       ref("env-1", "thread-1"),
     );
-    expect(
-      parseThreadLinkHref("https://app.orbiwork.invalid/threads/env-1/thread-1?prompt=go"),
-    ).toBeNull();
-    expect(
-      parseThreadLinkHref("https://app.orbiwork.invalid/threads/env-1/thread-1/extra"),
-    ).toBeNull();
-    expect(parseThreadLinkHref("https://app.orbiwork.invalid/threads/env-1")).toBeNull();
-    expect(parseThreadLinkHref("https://app.orbiwork.invalid/env-1/thread-1")).toBeNull();
+    expect(parseThreadLinkHref("orbiwork://threads/env-1/thread-1?prompt=go")).toBeNull();
+    expect(parseThreadLinkHref("orbiwork://threads/env-1/thread-1/extra")).toBeNull();
+    expect(parseThreadLinkHref("orbiwork://threads/env-1")).toBeNull();
+    expect(parseThreadLinkHref("orbiwork://env-1/thread-1")).toBeNull();
     expect(parseThreadLinkHref("https://evil.test/threads/env-1/thread-1")).toBeNull();
   });
 
   it("writes a copied link a reader can follow, labeled when it has a title", () => {
-    expect(formatHostedThreadLink(ref("e", "t1"), "Fix [ci]")).toBe(
-      "[Fix ci](https://app.orbiwork.invalid/threads/e/t1)",
+    expect(formatThreadAppLink(ref("e", "t1"), "Fix [ci]")).toBe(
+      "[Fix ci](orbiwork://threads/e/t1)",
     );
-    expect(formatHostedThreadLink(ref("e", "t1"), " ")).toBe(
-      "https://app.orbiwork.invalid/threads/e/t1",
-    );
+    expect(formatThreadAppLink(ref("e", "t1"), " ")).toBe("orbiwork://threads/e/t1");
   });
 
-  it("titles hosted links in every Markdown form and writes them as v2 links", () => {
+  it("titles app links in every Markdown form and writes them as v2 links", () => {
     const title = titlesIn({ there: { t1: "There" } });
     expect(
       relabelThreadLinks(
         [
-          "See https://app.orbiwork.invalid/threads/there/t1.",
-          "[old](https://app.orbiwork.invalid/threads/there/t1)",
-          "<https://app.orbiwork.invalid/threads/there/t1>",
-          "`https://app.orbiwork.invalid/threads/there/t1`",
-          "https://app.orbiwork.invalid/threads/there/t1?prompt=go",
+          "See orbiwork://threads/there/t1.",
+          "[old](orbiwork://threads/there/t1)",
+          "<orbiwork://threads/there/t1>",
+          "`orbiwork://threads/there/t1`",
+          "orbiwork://threads/there/t1?prompt=go",
         ].join("\n"),
         local,
         title,
@@ -269,34 +258,34 @@ describe("hosted thread links", () => {
         "See [There](orbi-thread://v2/there/t1).",
         "[There](orbi-thread://v2/there/t1)",
         "[There](orbi-thread://v2/there/t1)",
-        "`https://app.orbiwork.invalid/threads/there/t1`",
-        "https://app.orbiwork.invalid/threads/there/t1?prompt=go",
+        "`orbiwork://threads/there/t1`",
+        "orbiwork://threads/there/t1?prompt=go",
       ].join("\n"),
     );
-    expect(
-      relabelThreadLinks("https://app.orbiwork.invalid/threads/there/t1", local, () => undefined),
-    ).toBe("Thread on another machine");
-    expect(threadLinkRefs("Open https://app.orbiwork.invalid/threads/there/t%3A1", local)).toEqual([
+    expect(relabelThreadLinks("orbiwork://threads/there/t1", local, () => undefined)).toBe(
+      "Thread on another machine",
+    );
+    expect(threadLinkRefs("Open orbiwork://threads/there/t%3A1", local)).toEqual([
       ref("there", "t:1"),
     ]);
   });
 
-  it("leaves a hosted link that is part of another link as written", () => {
-    const hosted = "https://app.orbiwork.invalid/threads/there/t1";
+  it("leaves an app link that is part of another link as written", () => {
+    const appLink = "orbiwork://threads/there/t1";
     const relabeled = "[There](orbi-thread://v2/there/t1)";
     const title = titlesIn({ there: { t1: "There" } });
     for (const [markdown, expected] of [
-      [`https://example.com/?next=${hosted}`],
-      [`[Example](https://example.com/?next=${hosted})`],
-      [`[ ${hosted} ](https://example.com)`],
-      [`[${hosted}](<https://example.com/a b> "Title")`],
-      [`[a](https://example.com/x_(y)) ${hosted}`, `[a](https://example.com/x_(y)) ${relabeled}`],
-      [`(${hosted}) **${hosted}**`, `(${relabeled}) **${relabeled}**`],
-      [`[[[ [old](${hosted})`, `[[[ ${relabeled}`],
-      [`\\\\[old](${hosted})`, `\\\\${relabeled}`],
-      [`\\\\\\\\[old](${hosted})`, `\\\\\\\\${relabeled}`],
-      [`\\[old](${hosted})`, `\\[old](${relabeled})`],
-      [`\\[ ${hosted} ](https://example.com)`, `\\[ ${relabeled} ](https://example.com)`],
+      [`https://example.com/?next=${appLink}`],
+      [`[Example](https://example.com/?next=${appLink})`],
+      [`[ ${appLink} ](https://example.com)`],
+      [`[${appLink}](<https://example.com/a b> "Title")`],
+      [`[a](https://example.com/x_(y)) ${appLink}`, `[a](https://example.com/x_(y)) ${relabeled}`],
+      [`(${appLink}) **${appLink}**`, `(${relabeled}) **${relabeled}**`],
+      [`[[[ [old](${appLink})`, `[[[ ${relabeled}`],
+      [`\\\\[old](${appLink})`, `\\\\${relabeled}`],
+      [`\\\\\\\\[old](${appLink})`, `\\\\\\\\${relabeled}`],
+      [`\\[old](${appLink})`, `\\[old](${relabeled})`],
+      [`\\[ ${appLink} ](https://example.com)`, `\\[ ${relabeled} ](https://example.com)`],
       ["\\[old](orbi-thread://v2/there/t1) \\<orbi-thread://v2/there/t1>"],
     ] as const) {
       expect(relabelThreadLinks(markdown, local, title)).toBe(expected ?? markdown);

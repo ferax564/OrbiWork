@@ -1,6 +1,6 @@
 # OrbiWork
 
-OrbiWork is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro, Pi, Muse Code, fx) and serves web, desktop, and mobile clients.
+OrbiWork is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro, Pi, Muse Code, fx) and serves web and desktop clients. Phones use the web UI in a browser.
 
 You can think of OrbiWork as an open source "bring-your-own-subscription" alternative to apps like Claude Desktop, Codex App, Cursor Glass and Conductor.
 
@@ -18,17 +18,15 @@ Lots of apps have gotten bogged down with bad tech decisions and "slop". We have
 
 ### 3. Remote ready
 
-The architecture of OrbiWork's websocket layer (`orbi`) enables a lot of awesome remote features. These have become core to the product. Whether users are connecting directly over their local network, using Tailscale, or leaning in fully with Orbi Connect (our tunnel solution, also in this repo), we need to make sure new features are properly supported.
+The architecture of OrbiWork's websocket layer (`orbi`) enables a lot of awesome remote features. These have become core to the product. Whether users are connecting directly over their local network, over Tailscale, or over SSH, we need to make sure new features are properly supported.
 
 ### 4. Multi-surface
 
-OrbiWork has 3 key app surfaces: **web**, **desktop**, and **mobile**.
+OrbiWork has 2 key app surfaces: **web** and **desktop**. Phones use the web UI in a browser, over the user's own network or Tailscale.
 
 **Web** is kind of two surfaces, as we have the public facing "app.orbiwork.invalid" as well as locally hosting the web app through the `orbi` command. Both need to be supported by all new features where reasonable.
 
-**Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing remote connections from app.orbiwork.invalid or the mobile app.
-
-**Mobile** is a React Native app for both iOS and Android, available on the App Store and Google Play. The mobile app allows for connecting to any OrbiWork server to control work remotely.
+**Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing remote connections from app.orbiwork.invalid or a phone browser.
 
 ## A note from Theo
 
@@ -56,13 +54,13 @@ Of note: Most OrbiWork contributions will come from OrbiWork itself, often contr
 The most common defect in this repo is a change that works on the path you tested and is missing everywhere else. Before calling frontend work done, walk this list and say which entries applied:
 
 - **Entry points.** Chat view, Settings, command palette, and keybindings. Fixing one is not fixing the feature.
-- **Clients.** Web, desktop (Electron shell/IPC), and mobile (React Native). Shared logic lives in `packages/client-runtime`.
+- **Clients.** Web (including phone-width layouts) and desktop (Electron shell/IPC). Shared logic lives in `packages/client-runtime`.
 - **Providers.** Every provider adapter needs a decision, even if the decision is "not supported here".
 - **Agents.** Capabilities a user triggers should be service methods reachable by MCP tools and scheduled tasks, not inline handler code.
-- **Contracts.** Wire changes go in `packages/contracts` so server, web, mobile, and desktop follow.
+- **Contracts.** Wire changes go in `packages/contracts` so server, web, and desktop follow.
 - **Reverse states.** Every way in needs a way out and a way to see it (snooze/unsnooze, close/reopen). A one-way door is a bug.
-- **Connection modes.** Local, remote/relay, and tunnel; multi-device and multi-environment.
-- **Languages.** Translate user-facing copy in `apps/{web,mobile}/src/i18n/translations` (`vp run i18n:generate` / `vp run i18n:check`) and `apps/marketing/src/i18n`. See [14_i18n.md](docs/internals/14_i18n.md).
+- **Connection modes.** Local, LAN pairing, Tailscale, and SSH; multi-device and multi-environment.
+- **Languages.** Translate user-facing copy in `apps/web/src/i18n/translations` (`vp run i18n:generate` / `vp run i18n:check`) and `apps/marketing/src/i18n`. See [14_i18n.md](docs/internals/14_i18n.md).
 - **Docs.** Check whether the change makes existing guidance inaccurate. Follow [Documentation](#documentation).
 
 ## Dev servers and test data
@@ -70,7 +68,7 @@ The most common defect in this repo is a change that works on the path you teste
 See [00_development.md](docs/operations/00_development.md) for setup, ports, seeding (`vp run migrate-dev-db`), and [reusable dev auth](docs/operations/00_development.md#reusable-dev-credential). Agent-specific rules:
 
 - **Worktree setup:** Wait while `.orbi/setup-running` names a live PID; do not run `vp i` concurrently. If no `.orbi/setup-*` marker exists, run `vp i` yourself.
-- **Process lifecycle:** Start dev servers, Metro, and builds from your own shell so they exit with your session—never detach with `systemd-run`, `nohup`, `setsid`, or `tmux` unless asked. Stop background tasks with your harness's own stop (`vp` does not forward SIGTERM to child Vite/server processes).
+- **Process lifecycle:** Start dev servers and builds from your own shell so they exit with your session—never detach with `systemd-run`, `nohup`, `setsid`, or `tmux` unless asked. Stop background tasks with your harness's own stop (`vp` does not forward SIGTERM to child Vite/server processes).
 - **Sharing (`vp run dev --share`):** Wait for `pairingUrl:` and hand the full URL to the user. Never wire `tailscale serve` by hand, open the URL yourself, or consume the user's one-time pairing link. Mint another with `node apps/server/src/bin.ts pair` if needed.
 - **Test data:** Always copy in (never symlink) and refresh `statev2.sqlite`, not `state.sqlite`. Bring `secrets` / `settings.json` only if the flow under test needs them.
 - **Extra checkouts:** Put `git worktree add` next to this worktree, not in `/tmp`, and remove it when done.
@@ -80,7 +78,7 @@ See [00_development.md](docs/operations/00_development.md) for setup, ports, see
 - Before you push, run `vp run check:changed`. **Do not run repo-wide checks** (`vp check`, `vp run -r test`, `vp run -r typecheck`) unless asked—CI owns the full suite.
 - Iterate with `vp test run <files>` (add `-t "<name>"` for large files) and `vp run typecheck` (`effect-tsgo tsrs --noEmit`). Run `node -e` snippets from the owning package (`effect` does not resolve from repo root).
 - Follow [15_testing.md](docs/internals/15_testing.md) for what to test, bug-fix proof, draining async work (no sleeps/polling), web browser tests (`await using screen = await render(...)`), and real-app [Scenarios](docs/internals/15_testing.md#scenarios) (`vp run scenarios:prove`).
-- Give user-visible frontend changes one integrated pass in a real client: `test-orbi-app` for web, `test-orbi-mobile` for mobile (primary agent only; subagents do not launch dev servers). Inspect the rendered result and walk the flow as a user using the feature—checking layout, visual hierarchy, and ergonomics—and fix anything rough until you are satisfied before handing back. Use the free `Replay (dev)` provider unless the change depends on a real provider (then pick its cheapest model, e.g. Haiku or Luna). On mobile, run `vp run mobile:install <ios|android> [device-id]` before Metro rather than rebuilding from scratch.
+- Give user-visible frontend changes one integrated pass in a real client: `test-orbi-app` (primary agent only; subagents do not launch dev servers). Inspect the rendered result and walk the flow as a user using the feature—checking layout, visual hierarchy, and ergonomics—and fix anything rough until you are satisfied before handing back. Use the free `Replay (dev)` provider unless the change depends on a real provider (then pick its cheapest model, e.g. Haiku or Luna).
 
 ## Pull requests
 
@@ -111,32 +109,30 @@ Most code changes do not need an internal documentation change. Agents can read 
 ## Where code lives
 
 - `apps/server` - WebSocket, event-sourced orchestration (`Orchestrator` → `EventSink` → `EffectWorker`), providers, checkpointing. Read [02_effect-services.md](docs/internals/02_effect-services.md) and `.repos/effect/LLMS.md`.
-- `apps/web` - React/Vite UI. `apps/desktop` wraps it; `apps/mobile` is React Native; `apps/marketing` is the site.
+- `apps/web` - React/Vite UI. `apps/desktop` wraps it; `apps/marketing` is the site.
 - `packages/contracts` - Effect/Schema wire contracts plus small derived helpers. No heavy runtime logic.
 - `packages/shared` - shared runtime utils, subpath exports, no barrel.
-- `packages/client-runtime` - client connection and domain state shared by web and mobile.
+- `packages/client-runtime` - client connection and domain state shared by the web and desktop clients.
 - `.repos/` - optional read-only reference checkouts, not committed. `vpr sync:repos` fetches them. Never edit or import from them.
 
 ### Internal docs by area
 
 Read the matching doc before changing code in that area; code review enforces them.
 
-| Area                                       | Read first                                                                                                                                                                                        |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Architecture & orchestration               | [00_glossary.md](docs/internals/00_glossary.md), [01_architecture.md](docs/internals/01_architecture.md)                                                                                          |
-| Server Effect services & errors            | [02_effect-services.md](docs/internals/02_effect-services.md)                                                                                                                                     |
-| Providers & ACP                            | [03_providers.md](docs/internals/03_providers.md)                                                                                                                                                 |
-| Auth, MCP, guest links, assets, security   | [04_environment-auth.md](docs/internals/04_environment-auth.md), [SECURITY.md](SECURITY.md)                                                                                                       |
-| Remote routes, peer links, previews        | [05_remote.md](docs/internals/05_remote.md)                                                                                                                                                       |
-| Orbi Connect & relay                       | [06_orbi-connect.md](docs/internals/06_orbi-connect.md)                                                                                                                                           |
-| Server updates & crash recovery            | [07_server-updates.md](docs/internals/07_server-updates.md)                                                                                                                                       |
-| Client connection & sync runtime           | [09_connection-runtime.md](docs/internals/09_connection-runtime.md)                                                                                                                               |
-| Web UI primitives, styles & React Compiler | [10_web-ui.md](docs/internals/10_web-ui.md)                                                                                                                                                       |
-| Mobile layout, navigation & dev lifecycle  | [11_mobile-layout.md](docs/internals/11_mobile-layout.md), [12_mobile-navigation.md](docs/internals/12_mobile-navigation.md), [13_mobile-development.md](docs/internals/13_mobile-development.md) |
-| Translations & UI copy                     | [14_i18n.md](docs/internals/14_i18n.md)                                                                                                                                                           |
-| Writing & reviewing tests                  | [15_testing.md](docs/internals/15_testing.md)                                                                                                                                                     |
-| Wire budgets, server metrics & perf        | [16_performance-regressions.md](docs/internals/16_performance-regressions.md)                                                                                                                     |
-| Repo & package scripts                     | [17_scripts.md](docs/internals/17_scripts.md)                                                                                                                                                     |
+| Area                                       | Read first                                                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Architecture & orchestration               | [00_glossary.md](docs/internals/00_glossary.md), [01_architecture.md](docs/internals/01_architecture.md) |
+| Server Effect services & errors            | [02_effect-services.md](docs/internals/02_effect-services.md)                                            |
+| Providers & ACP                            | [03_providers.md](docs/internals/03_providers.md)                                                        |
+| Auth, MCP, guest links, assets, security   | [04_environment-auth.md](docs/internals/04_environment-auth.md), [SECURITY.md](SECURITY.md)              |
+| Remote routes, peer links, previews        | [05_remote.md](docs/internals/05_remote.md)                                                              |
+| Server updates & crash recovery            | [07_server-updates.md](docs/internals/07_server-updates.md)                                              |
+| Client connection & sync runtime           | [09_connection-runtime.md](docs/internals/09_connection-runtime.md)                                      |
+| Web UI primitives, styles & React Compiler | [10_web-ui.md](docs/internals/10_web-ui.md)                                                              |
+| Translations & UI copy                     | [14_i18n.md](docs/internals/14_i18n.md)                                                                  |
+| Writing & reviewing tests                  | [15_testing.md](docs/internals/15_testing.md)                                                            |
+| Wire budgets, server metrics & perf        | [16_performance-regressions.md](docs/internals/16_performance-regressions.md)                            |
+| Repo & package scripts                     | [17_scripts.md](docs/internals/17_scripts.md)                                                            |
 
 ## Taste
 

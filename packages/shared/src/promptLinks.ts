@@ -1,4 +1,3 @@
-import { DEFAULT_HOSTED_APP_URL } from "./connectAuth.ts";
 import { parseUrl } from "./url.ts";
 
 export const PROMPT_LINK_MAX_PROMPT_LENGTH = 8_000;
@@ -196,7 +195,9 @@ export function buildNewThreadLink(input: {
   readonly model?: string | null;
   readonly origin?: string;
 }): string {
-  const url = new URL("/new", input.origin ?? DEFAULT_HOSTED_APP_URL);
+  // Without an origin, an app link: `orbiwork://new?...`.
+  const url =
+    input.origin === undefined ? new URL("orbiwork://new") : new URL("/new", input.origin);
   url.searchParams.set("prompt", input.prompt);
   if (input.repository) {
     url.searchParams.set("repo", `${input.repository.owner}/${input.repository.name}`);
@@ -209,27 +210,14 @@ export function buildNewThreadLink(input: {
 const APP_SCHEME = /^orbiwork(?:-[a-z]+)?:$/;
 const THREAD_PATH = /^\/([^/]+)\/([^/]+)\/?$/;
 
-export function promptLinkAppPath(
-  value: string,
-  hostedAppUrl: string = DEFAULT_HOSTED_APP_URL,
-): string | null {
+/** The in-app path an `orbiwork(-*)://new` or `orbiwork(-*)://threads/...` app link opens. */
+export function promptLinkAppPath(value: string): string | null {
   const url = parseUrl(value);
-  if (!url) return null;
-  if (APP_SCHEME.test(url.protocol)) {
-    if (url.host === "new" && (url.pathname === "" || url.pathname === "/")) {
-      return `/new${url.search}`;
-    }
-    const thread = url.host === "threads" ? THREAD_PATH.exec(url.pathname) : null;
-    return thread ? `/${thread[1]}/${thread[2]}${url.search}` : null;
+  if (!url || !APP_SCHEME.test(url.protocol)) return null;
+  if (url.host === "new" && (url.pathname === "" || url.pathname === "/")) {
+    return `/new${url.search}`;
   }
-  if (url.origin !== parseUrl(hostedAppUrl)?.origin) return null;
-  if (url.pathname === "/new") return `/new${url.search}`;
-  // The web app's own thread route is a link only with a prompt, so reloading a tab never asks.
-  const thread = url.pathname.startsWith("/threads/")
-    ? THREAD_PATH.exec(url.pathname.slice("/threads".length))
-    : url.searchParams.has("prompt")
-      ? THREAD_PATH.exec(url.pathname)
-      : null;
+  const thread = url.host === "threads" ? THREAD_PATH.exec(url.pathname) : null;
   return thread ? `/${thread[1]}/${thread[2]}${url.search}` : null;
 }
 

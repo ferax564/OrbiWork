@@ -129,7 +129,6 @@ import * as ThreadIssueService from "./orchestration-v2/ThreadIssueService.ts";
 import * as IssueTrackerConnections from "./issue/IssueTrackerConnections.ts";
 import * as PullRequestService from "./pullRequest/PullRequestService.ts";
 import * as PullRequestSyncReactor from "./orchestration-v2/PullRequestSyncReactor.ts";
-import * as RelayClient from "@orbiwork/shared/relayClient";
 import * as RemoteOpenTargets from "./environment/RemoteOpenTargets.ts";
 import * as RepositoryIdentityResolver from "./project/RepositoryIdentityResolver.ts";
 import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
@@ -138,8 +137,6 @@ import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
 import * as Workflows from "./workflows/Workflows.ts";
 import * as WorkflowRuntime from "./workflows/WorkflowRuntime.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
-import * as FeedbackStore from "./feedback/FeedbackStore.ts";
-import * as GuestShareService from "./guest/GuestShareService.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
@@ -880,7 +877,6 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(ThreadIssueService.ThreadIssueService)({}),
   Layer.mock(IssueTrackerConnections.IssueTrackerConnections)({}),
   Layer.mock(PullRequestSyncReactor.PullRequestSyncReactor)({}),
-  Layer.mock(RelayClient.RelayClient)({}),
   Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({}),
   Layer.mock(ResourceTelemetry.ResourceTelemetry)({}),
   Layer.mock(ReviewService.ReviewService)({}),
@@ -888,9 +884,7 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Workflows.layerDisabled,
   Layer.mock(WorkflowRuntime.WorkflowDefinitions)({}),
   Layer.mock(SecretRequests.SecretRequests)({}),
-  Layer.mock(FeedbackStore.FeedbackStore)({}),
   Layer.mock(SecretResolver.SecretResolver)({}),
-  Layer.mock(GuestShareService.GuestShareService)({}),
   Layer.mock(ServerLifecycleEvents.ServerLifecycleEvents)({}),
   Layer.mock(ServerRuntimeStartup.ServerRuntimeStartup)({}),
   Layer.mock(ServerSelfUpdate.ServerSelfUpdate)({}),
@@ -937,7 +931,6 @@ it.live.each([
   { subject: "desktop-bootstrap", extensions: "", framed: false },
   { subject: "desktop-bootstrap", extensions: "", framed: true },
   { subject: "one-time-token", extensions: "permessage-deflate", framed: false },
-  { subject: "cloud-connect", extensions: "permessage-deflate", framed: false },
 ])(
   "negotiates compression for $subject sessions (framed=$framed)",
   ({ subject, extensions, framed }) =>
@@ -1335,7 +1328,6 @@ it.effect("access changes made while the snapshot loads reach the client after i
               Layer.mock(ServerEnvironment.ServerEnvironment)({}),
               Layer.mock(EnvironmentAuth.EnvironmentAuth)({
                 listPairingLinks: () => Effect.succeed([]),
-                listConnectDevices: () => Effect.succeed([]),
                 // Another client revokes a session after the snapshot read it.
                 listClientSessions: () =>
                   PubSub.publish(sessionChanges, {
@@ -1382,15 +1374,6 @@ it.effect("access changes made while the snapshot loads reach the client after i
     yield* server.write(0, { _tag: "Ack", requestId });
     assert.equal((yield* Queue.take(responses)).type, "pairingLinkRemoved");
     yield* server.write(0, { _tag: "Ack", requestId });
-
-    // Device trust has no incremental event, so a change re-sends the whole snapshot.
-    yield* PubSub.publish(pairingChanges, { type: "connectDevicesChanged" });
-    assert.deepEqual(yield* Queue.take(responses), {
-      version: 1,
-      revision: 4,
-      type: "snapshot",
-      payload: { pairingLinks: [], clientSessions: [], connectDevices: [] },
-    });
     yield* server.write(0, { _tag: "Interrupt", requestId, interruptors: [] });
   }).pipe(
     Effect.provide(

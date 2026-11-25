@@ -1,7 +1,7 @@
 # Prompt links
 
-A prompt link opens OrbiWork with a prompt ready to send. Use one to share a prompt on social
-media, or to put a one-click fix in a pull request comment.
+A prompt link opens OrbiWork with a prompt ready to send. Use one to share a prompt with someone
+who uses OrbiWork, or to put a one-click fix in a pull request comment.
 
 A link never runs anything. It opens a draft. You read the prompt, then press Send. A link cannot
 change your permission mode, branch, or worktree. Your own defaults apply.
@@ -15,9 +15,9 @@ and the model you picked. Sent messages have a **Copy prompt link** button too.
 You can also write a link by hand:
 
 ```
-https://app.orbiwork.invalid/new?prompt=Rate%20my%20swearing
-https://app.orbiwork.invalid/new?prompt=Fix%20the%20build&repo=owner/name&provider=codex&model=gpt-5.5
-https://app.orbiwork.invalid/new?pr=owner/name/123&prompt=Fix%20the%20failing%20check
+orbiwork://new?prompt=Rate%20my%20swearing
+orbiwork://new?prompt=Fix%20the%20build&repo=owner/name&provider=codex&model=gpt-5.5
+orbiwork://new?pr=owner/name/123&prompt=Fix%20the%20failing%20check
 ```
 
 | Parameter  | Meaning                                                                       |
@@ -32,9 +32,7 @@ Encode the prompt for a URL. In JavaScript, use `encodeURIComponent`.
 
 ## Open a link
 
-On app.orbiwork.invalid, the link first asks where to open it: the desktop or mobile app, this browser
-when it is connected to a machine, or the download page. Select **Remember my choice** to skip
-this step next time.
+Opening an `orbiwork://` link launches the OrbiWork app installed on that device.
 
 - **No `repo`**: the draft opens without a project, on the machine you used last.
 - **`repo`**: the draft opens in your most recently used project for that repository. A fork
@@ -47,9 +45,9 @@ this step next time.
   worktree. OrbiWork checks the code out only after you confirm, because the checkout runs your
   setup script on it.
 
-A thread link with a prompt, such as `https://app.orbiwork.invalid/<environment>/<thread>?prompt=…`,
-puts the prompt in that thread's composer. If you already typed a draft there, OrbiWork asks
-before it replaces it.
+A thread link with a prompt, such as `orbiwork://threads/<environment>/<thread>?prompt=…`, puts
+the prompt in that thread's composer. If you already typed a draft there, OrbiWork asks before it
+replaces it.
 
 OrbiWork removes characters you cannot see, such as zero-width and hidden tag characters, because
 they can hide instructions for the agent. When a prompt had them, OrbiWork warns you that it may be
@@ -57,8 +55,7 @@ malicious.
 
 ## Share a thread
 
-**Copy thread** copies a link such as `https://app.orbiwork.invalid/threads/<environment>/<thread>`. Paste
-it anywhere, such as Slack, a GitHub comment, or your notes. On a phone with OrbiWork installed, it
-opens the thread in the app. Elsewhere, opening it asks where to open it, like a prompt link, then
-opens the thread. Only someone connected to the machine that runs the thread can see it. In OrbiWork,
-a thread link in a message opens the thread in the app.
+**Copy thread** copies a link to the thread. Paste it anywhere, such as Slack, a GitHub comment,
+or your notes. A thread link has the form `orbiwork://threads/<environment>/<thread>` and opens
+the thread in the app. Only someone connected to the machine that runs the thread can see it. In
+OrbiWork, a thread link in a message opens the thread in the app.

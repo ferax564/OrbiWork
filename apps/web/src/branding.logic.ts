@@ -11,21 +11,10 @@ export function formatAppDisplayName(input: {
   return `${input.baseName} (${input.stageLabel})`;
 }
 
-export function resolveHostedAppChannelLabel(channel: string | null | undefined): string | null {
-  const normalized = channel?.trim().toLowerCase();
-  // oxlint-disable-next-line orbiwork/no-untranslated-copy -- release channel name, part of the product name
-  return normalized === "nightly" ? "Nightly" : normalized === "latest" ? "Latest" : null;
-}
-
 /** Stage label of a web build. vite.config.ts stamps it into index.html's title too. */
-export function resolveWebAppStageLabel(input: {
-  readonly hostedAppChannel: string | null | undefined;
-  readonly development: boolean;
-}): string {
-  return (
-    // oxlint-disable-next-line orbiwork/no-untranslated-copy -- release channel name, part of the product name
-    resolveHostedAppChannelLabel(input.hostedAppChannel) ?? (input.development ? "Dev" : "Beta")
-  );
+export function resolveWebAppStageLabel(input: { readonly development: boolean }): string {
+  // oxlint-disable-next-line orbiwork/no-untranslated-copy -- release channel name, part of the product name
+  return input.development ? "Dev" : "Beta";
 }
 
 export function resolveServerBackedAppStageLabel(input: {

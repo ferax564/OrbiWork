@@ -4,7 +4,8 @@ import * as CodexManagedTokenBroker from "./CodexManagedTokenBroker.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as ClaudeSdk from "@anthropic-ai/claude-agent-sdk";
 import { describe, expect, it } from "@effect/vitest";
-import { vi } from "vite-plus/test";
+import { afterAll, beforeAll, vi } from "vite-plus/test";
+import { setUsageLimitReadsAllowedForTests } from "@orbiwork/provider-core/server/usageLimits";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
@@ -169,6 +170,10 @@ const makeTildeProviderFixtures = Effect.fn(
     codexScriptPath,
   };
 });
+
+// These tests cover the quota read itself; the request gate is tested in provider-core.
+beforeAll(() => setUsageLimitReadsAllowedForTests(true));
+afterAll(() => setUsageLimitReadsAllowedForTests(false));
 
 describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
   const layerBaseDeps = ServerConfig.layerTest(process.cwd(), {

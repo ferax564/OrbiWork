@@ -222,15 +222,12 @@ function ProviderLastChecked({ environmentId }: { environmentId: EnvironmentId }
   );
 }
 
-const ORBI_CONNECT_NAME = "Orbi Connect";
-
 function providerEnvironmentDetail(
   environment: EnvironmentPresentation,
   resolve: MessageResolver,
 ): string {
   if (environment.entry.target._tag === "PrimaryConnectionTarget")
     return resolve(msg("Primary device"));
-  if (environment.relayManaged) return ORBI_CONNECT_NAME;
   if (environment.entry.target._tag === "SshConnectionTarget") return "SSH";
   if (isDesktopLocalConnectionTarget(environment.entry.target)) return resolve(msg("Local device"));
   return environment.displayUrl ?? resolve(msg("Remote device"));

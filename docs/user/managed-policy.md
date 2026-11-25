@@ -3,7 +3,7 @@
 A managed policy lets an administrator configure OrbiWork for every user on a machine. It sets
 defaults and locks for settings, and limits such as the broadest permission mode or which
 providers may run. The OrbiWork server on the machine enforces it for every app that connects:
-the desktop app, a browser, or the mobile app.
+the desktop app or a browser.
 
 ## Roll out a policy
 
@@ -30,8 +30,7 @@ The desktop app includes the `orbi` command; see [The `orbi` command](./install.
   },
   "limits": {
     "maxRuntimeMode": "auto-accept-edits",
-    "clients": ["desktop", "local-browser"],
-    "telemetry": false
+    "clients": ["desktop", "local-browser"]
   }
 }
 ```
@@ -75,9 +74,9 @@ Administrative Templates > OrbiWork. Set **Organization** whenever you set any o
 Locks and provider fields go in the two JSON policies, as the same objects a policy file would hold.
 Machines pick up a change at the next Group Policy refresh; run `gpupdate /target:computer /force`
 to apply it now, then restart OrbiWork.
-Setting **Allow Orbi Connect**, **Allow webhook tasks**, **Allow importing browser cookies**, or
-**Allow relay connection traces** to **Disabled** turns that feature off. Setting any other OrbiWork policy to
-**Disabled** restricts nothing, the same as **Not Configured**.
+Setting **Allow webhook tasks** or **Allow importing browser cookies** to **Disabled** turns that
+feature off. Setting any other OrbiWork policy to **Disabled** restricts nothing, the same as
+**Not Configured**.
 
 **Windows registry value.** Instead of the template, set the `Policy` value (`REG_SZ`) to the whole policy as one line of JSON,
 from Group Policy Preferences or an Intune script. OrbiWork reads it through the Windows registry
@@ -166,11 +165,9 @@ A few settings need care:
   "limits": {
     "maxRuntimeMode": "auto-accept-edits",
     "clients": ["desktop"],
-    "connect": false,
     "webhookTasks": false,
     "browserCookieImport": false,
     "previewTunnel": false,
-    "telemetry": false,
     "providers": {
       "allowedDrivers": ["claudeAgent", "codex"],
       "instances": {
@@ -213,13 +210,13 @@ OrbiWork can place under the limit. Users still choose which ACP Registry agent 
 The limit decides which modes OrbiWork asks the provider for. It is not a sandbox; see
 [What a policy does not cover](#what-a-policy-does-not-cover).
 
-### Clients and Orbi Connect
+### Clients
 
 `clients` lists how the server may run:
 
 - `desktop`: as the desktop app's own server.
 - `local-browser`: as a server only browsers on this machine reach, such as `orbi` started in a terminal.
-- `remote`: reachable from phones, other computers, and app.orbiwork.invalid over the network.
+- `remote`: reachable from phones and other computers over the network.
 
 `remote` is the line that matters. A server reachable from the network also accepts browsers on
 this machine, and the two local kinds differ only in how OrbiWork was started. On machines with the
@@ -231,8 +228,7 @@ address or `localhost`. A [background service](./background-service.md) installe
 `ORBIWORK_LAN` existed keeps private-network access, so without `remote` it refuses to start.
 Run `orbi up --no-lan` when its `service.env` sets no `ORBIWORK_HOST`, or set
 `ORBIWORK_HOST=127.0.0.1` in `service.env`, then run `orbi service restart`. The desktop app starts
-with network access and Tailscale Serve off, whatever the user chose. That also turns off
-Orbi Connect. To keep other remote access but turn off Orbi Connect alone, set `"connect": false`.
+with network access and Tailscale Serve off, whatever the user chose.
 
 When it starts, the server also turns off each Tailscale Serve route, HTTPS or TCP, that forwards
 to it, such as one `orbi pair --tailscale` set up, and leaves other routes alone. It does not start
@@ -256,9 +252,8 @@ so restart OrbiWork after that.
   Browser tabs stream from it instead, and port forwarding and **Open on this device** are
   unavailable. This wins over the user's
   [Preview tunnel setting](./remote-access.md#browser-on-a-remote-environment).
-- `telemetry: false`: the server and desktop app send no
-  [relay connection traces](./telemetry.md#relay-connection-diagnostics). A policy cannot turn them on. A browser that opens the server, such as
-  app.orbiwork.invalid, still sends its own relay traces.
+- `connect` and `telemetry` are still accepted, so existing policies keep loading, but they no
+  longer change anything. The features they controlled have been removed from OrbiWork.
 
 ### Providers
 

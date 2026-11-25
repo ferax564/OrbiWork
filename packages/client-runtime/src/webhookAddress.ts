@@ -14,14 +14,13 @@ export function webhookAddress(
   httpBaseUrl: string | null,
   resolve: MFunctionType = mFallback,
 ): WebhookAddress {
-  if (endpoint.url !== null) {
-    return { address: endpoint.url, copyable: true, note: null };
-  }
   if (httpBaseUrl === null) {
     return {
       address: endpoint.path,
       copyable: false,
-      note: resolve(msg("Link this environment to Orbi Connect for a public URL.")),
+      note: resolve(
+        msg("Pair this environment at a network address, such as over Tailscale, for a URL."),
+      ),
     };
   }
   const url = new URL(endpoint.path, httpBaseUrl);
@@ -30,11 +29,13 @@ export function webhookAddress(
     copyable: true,
     note: isLocalLoopbackHost(url.hostname)
       ? resolve(
-          msg("Only this computer can call this address. Link Orbi Connect for a public URL."),
+          msg(
+            "Only this computer can call this address. Use Tailscale or your own proxy to reach it from elsewhere.",
+          ),
         )
       : resolve(
           msg(
-            "Works wherever this environment's address is reachable, for example over Tailscale or your own proxy. Link Orbi Connect for a public URL.",
+            "Works wherever this environment's address is reachable, for example over Tailscale or your own proxy.",
           ),
         ),
   };

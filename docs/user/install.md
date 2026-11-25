@@ -1,7 +1,7 @@
 # Install OrbiWork
 
 OrbiWork runs coding agents on your computer and lets you control them from its
-desktop, web, or mobile app. Set up the machine where the agents will work first.
+desktop app or a browser. Set up the machine where the agents will work first.
 
 ## Requirements
 
@@ -163,27 +163,6 @@ Drag one or more folders from Finder, Explorer, or your file manager onto the
 sidebar. Each one opens as a project on this computer, the same as `orbi app`.
 Files dropped on a thread still attach to that thread. Browsers do not share
 folder paths, so in the web app use **Add project** instead.
-
-## Mobile app
-
-Install OrbiWork from the
-[App Store](https://orbiwork.invalid/mobile/ios) or
-[Google Play](https://orbiwork.invalid/mobile/android).
-The phone connects to a server on another machine. Follow
-[remote access](./remote-access.md) to link it through Orbi Connect or a pairing URL.
-
-Store links and QR codes are also available in **Settings → About → Mobile app**
-on web and desktop. The store apps work with both stable and Nightly servers. Test builds are optional:
-
-- **iPhone and iPad:** TestFlight is invite-only.
-- **Android:** download an APK from the
-  [Android beta releases](https://github.com/ferax564/orbiwork/releases?q=android-beta-).
-
-If the app crashes during launch, open Settings → Diagnostics on the next launch
-that succeeds. It lists startup crashes from the last 7 days with the error and
-component stack that store crash reports leave out. Copy the report and paste it
-into a GitHub issue. Error messages can quote values from the app, so read it over
-before sharing.
 
 ## Providers
 

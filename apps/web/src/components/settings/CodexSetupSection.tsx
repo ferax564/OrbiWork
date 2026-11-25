@@ -15,8 +15,6 @@ import type {
   ProviderInstanceId,
   ServerProvider,
 } from "@orbiwork/contracts";
-import { codexAuthHandoffUrl } from "@orbiwork/shared/codexAuthHandoff";
-import { providerAuthReturnUrl } from "@orbiwork/shared/providerAuthReturnUrl";
 import { isLoopbackHost } from "@orbiwork/shared/preview";
 import { CheckIcon, ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
 import {
@@ -327,10 +325,6 @@ function ManagedCodexSetup({
   const importProfile = useAtomCommand(serverEnvironment.chatGptImportProfile, options);
   const clientCallback = !handoff && prefersClientCallback(local);
   const remoteWeb = clientCallback && !window.desktopBridge;
-  const returnUrl = new URL(window.location.href);
-  if (returnUrl.pathname === "/welcome") returnUrl.hash = `agents:${environmentId}`;
-  if (returnUrl.pathname === "/settings/providers")
-    returnUrl.searchParams.set("instanceId", instanceId);
   const needsManualCallback = remoteWeb;
   const callbackHelpId = useId();
   const [callbackHelpOpen, setCallbackHelpOpen] = useState(false);
@@ -686,19 +680,6 @@ function ManagedCodexSetup({
     (reconnectEmail ?? gt("Use your ChatGPT subscription."))
   );
 
-  const handoffUrl =
-    needsManualCallback && url && auth?.flowId && providerAuthReturnUrl(returnUrl.toString())
-      ? codexAuthHandoffUrl(
-          {
-            authorizationUrl: url,
-            returnUrl: returnUrl.toString(),
-            environmentId,
-            instanceId,
-            flowId: auth.flowId,
-          },
-          import.meta.env.DEV,
-        )
-      : null;
   const waitingControl = (
     <Button
       size="sm"
@@ -786,16 +767,6 @@ function ManagedCodexSetup({
               <ExternalLinkIcon className="size-3.5" />
             </Button>
           </div>
-        ) : null}
-        {handoffUrl ? (
-          <details>
-            <summary className="cursor-pointer">
-              <T>Other ways to connect</T>
-            </summary>
-            <Button className="mt-2" size="sm" variant="outline" render={<a href={handoffUrl} />}>
-              <T>Use Orbi desktop for automatic return</T>
-            </Button>
-          </details>
         ) : null}
       </div>
     ) : null;

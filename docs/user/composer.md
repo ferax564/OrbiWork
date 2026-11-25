@@ -52,11 +52,7 @@ message can send. Retry or remove a failed upload. On web and desktop, reloading
 before an upload finishes requires you to attach that file again.
 
 You can drag or paste images into the web or desktop composer. HEIC and HEIF
-photos are converted to JPEG there and when selected from the mobile photo
-library; photos over the image limit are also resized to fit. On mobile, you can
-also send files to OrbiWork through another app's system share sheet.
-On Android, you can also drag images from another app into the message input
-in split screen.
+photos are converted to JPEG there; photos over the image limit are also resized to fit.
 
 See [images and videos](#images-and-videos-in-messages) for previewing and saving media.
 
@@ -96,20 +92,6 @@ this rule to your [keybindings file](keybindings.md#edit-the-configuration-file)
 Press `Option+Up` on macOS or `Alt+Up` on Windows and Linux with the cursor at the
 start of the composer to edit the most recently queued message. Change
 `thread.editQueuedMessage` to use another shortcut.
-
-Mobile has the same choice under **Settings → Chat**. While a turn is
-running the send button shows which action it will take. Long-press it to use the
-other action for a single message. From a hardware keyboard, `Cmd+Return`
-(`Ctrl+Return` on Android) uses the other action, or `Cmd+Shift+Return`
-(`Ctrl+Shift+Return`) when Return inserts a new line. The button only offers
-Steer when the running agent supports it.
-
-## Queue messages offline on mobile
-
-Mobile keeps local copies of draft attachments, so you can preview them and queue
-messages while disconnected. Uploads resume when you reconnect. Drafts and queued
-messages survive app restarts. Signing out of Orbi Connect keeps that work on your
-device until you sign back into the same account.
 
 ## Custom models
 
@@ -155,13 +137,6 @@ delete it like other inline context. Copying, reloading, and restoring a
 [stashed prompt](#prompt-stash) keep each comment
 with its quote, and sending tells the agent which words were quoted and which comment you wrote.
 The quoted text and comment count toward the message limit.
-
-On mobile, long-press an assistant response, adjust the text selection, and choose
-**Cite** to insert a quote at the composer cursor. If the passage appears more than
-once in that section, choose its source occurrence. Select more surrounding text
-if a short passage appears too often. Tap a quote in a draft to add
-or edit its comment, or to remove it. To open the source message, tap a quote in
-a draft or sent message, then choose **Go to message**.
 
 ## Recall a sent prompt
 
@@ -223,47 +198,6 @@ is transcribed on an environment you choose in **Settings → Voice**, or on the
 with Apple Speech in the macOS desktop app; nothing is sent until you choose one.
 See [Voice input](./voice-input.md).
 
-## Voice input on mobile
-
-Use the composer's microphone to record, then confirm to transcribe. Text is
-inserted where your selection was when recording started, ready for you to review
-and edit before sending.
-
-By default, audio stays on the phone. Local transcription needs a supported iPhone
-with iOS 26 or later, or Android 12 or later with compatible Google speech services.
-To use a paired environment instead, open **Settings → Voice → Transcribe on**,
-choose the environment, and confirm. Finished recordings go only to that environment,
-even when a draft belongs to another one. This also works on phones without local
-speech recognition. If the chosen environment disconnects, dictation stops; it never
-switches hosts. Choose **This device** to revoke access and discard pending audio.
-For [cloud dictation](./voice-input.md#choose-where-audio-goes), open **Cloud providers**
-under the environment in **Settings → Voice** and confirm which provider may receive recordings.
-On Android, keep OrbiWork open while recording and transcribing.
-
-On-device dictation may need a network connection to download a speech model the
-first time. After that it works offline for that language. iPhone dictates in the
-first of your preferred languages (**Settings → General → Language & Region**)
-that Apple’s speech model supports. If none is supported, it tries the app’s
-language. Android transcribes on the device while you
-record and finishes after you stop. Recordings can be up to five
-minutes long. Canceling or an audio interruption discards the recording and
-preserves your existing draft. Navigating to another screen keeps dictation active;
-use the floating controls to finish or cancel. While recording, the screen stays
-awake; it can sleep normally once recording stops.
-
-Choose a preferred order in **Settings → Voice**. Voice input requests the first
-connected microphone in the list. The list mixes kinds (built-in, other wired, other
-Bluetooth, and CarPlay on iOS) with wired and Bluetooth devices you have dictated
-with, listed by name. Drag to rank them together:
-for example, put **Other Bluetooth** above your AirPods so a new headset is preferred
-while the AirPods microphone stays low. By default, CarPlay comes after the built-in
-microphone on iOS. Swipe a device left to forget it. Android may use another input
-when the preferred microphone cannot be routed. Devices with the same name may share
-a saved preference, but simultaneous same-name inputs remain separately selectable.
-
-OrbiWork deletes the temporary recording from your phone after transcription or
-cancellation. The transcript stays in your draft until you send the message to the agent.
-
 ## Queued messages
 
 On web and desktop, the composer shows **Interrupt** while the agent is working and the draft is
@@ -274,7 +208,7 @@ Windows and Linux to switch the button to the opposite action, then click, or us
 shortcut described above.
 
 On web and desktop, queued messages appear at the end of the thread as dashed messages that have
-not been sent yet. On mobile they appear above the composer. Each shows its text and any attached
+not been sent yet. Each shows its text and any attached
 images. **Send now** sends a message right away, into the running turn if there is one. While a
 turn runs, a slash command moves to the front of the queue instead. You can also edit or
 remove it.
@@ -299,8 +233,7 @@ composer when it is empty, and is discarded otherwise.
 ## Commands and skills
 
 Type `/` for commands or `$` to add a skill from the selected environment and
-provider. On mobile, both are also available before starting a thread on
-**New task**.
+provider.
 
 The slash menu also includes skills unless you turn off **Settings → Chat →
 Show skills in slash menu**, under Advanced. Only skills enabled for the provider are listed.
@@ -333,7 +266,7 @@ Claude instances can also compact idle threads for you. See
 With Codex, Claude, and OpenCode 2.2.5 or later, send `/goal` followed by what "done" means, for example
 `/goal all tests in packages/api pass`. The agent keeps working across turns
 until it judges the goal met. The thread shows **Goal** while it works, and a
-line at the end of the thread (above the composer on mobile) shows the goal and
+line at the end of the thread shows the goal and
 its progress.
 
 - `/goal` alone shows the current goal. `/goal clear` removes it.
@@ -401,9 +334,6 @@ Markdown with a link in place of each chip. Older messages that were sent before
 show their context. Stashing a prompt keeps its chips and what they point to; restoring brings
 them back.
 
-On mobile, tap a chip to inspect its content. File references open the current file; attached
-files show the copy that was attached to the message.
-
 ## Attached files
 
 Select a file chip in your draft or a sent message to preview it. Code and JSON use syntax
@@ -411,22 +341,15 @@ highlighting; Markdown, HTML, CSV, and TSV offer rendered and raw views. Audio f
 playback controls. Large text files show a limited preview; save the file to read it in full.
 
 On web and desktop, files open beside the conversation with the same controls as a workspace
-file: a header row with the view toggle, **Copy contents** and **Save file**. On mobile, documents
-open in the same file screen as workspace files; its menu holds **Copy contents**, **Save or
-share** and **Open in file viewer**. Pictures, videos and PDFs keep their native viewers, and
-other document formats such as Word or Pages open in the device's own viewer when it has one.
-If nothing on the device can show a format, save or share it to open it elsewhere. A ZIP up to
-50 MB opens as a folder list on every surface; on mobile, select a file inside it to preview,
-save, or add it to chat.
+file: a header row with the view toggle, **Copy contents** and **Save file**. A ZIP up to
+50 MB opens as a folder list.
 
 ## Images and videos in messages
 
 Select an image or video attachment or link to preview it. Playback support depends
 on your browser or device; save an unsupported video to open it in another app.
 
-On web and desktop, right-click media to save it or copy its path or URL. On mobile,
-touch and hold an image or video thumbnail and choose **Save or share**. On iOS,
-return to the thumbnail to open this menu after watching a full-screen video.
+On web and desktop, right-click media to save it or copy its path or URL.
 
 File links refer to the environment's machine, including when you connect remotely.
 Previews use the original file, even outside the workspace. Moving or deleting it
@@ -446,6 +369,3 @@ automatically. HTML previews cannot access your OrbiWork session.
 
 The file viewer recognizes images, HTML, and PDF files by their filename extension,
 including filenames or folders containing `#` or `?`.
-
-On mobile, select a PDF attachment or link to open it. iOS uses the native viewer;
-Android opens a compatible installed file viewer.

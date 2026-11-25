@@ -578,9 +578,9 @@ describe("threadLinkContextReferences", () => {
   it("makes a chip of a copied link, a v2 link, and a labeled link, titled here", () => {
     const pasted = threadLinkContextReferences(
       [
-        "https://app.orbiwork.invalid/threads/env-1/t1",
+        "orbiwork://threads/env-1/t1",
         "<orbi-thread://v2/env-1/t2>",
-        "[Written](https://app.orbiwork.invalid/threads/env-2/orbi)",
+        "[Written](orbiwork://threads/env-2/orbi)",
       ].join(" "),
       [],
       ({ threadId }) => (threadId === "orbi" ? undefined : `Title ${threadId}`),
@@ -602,25 +602,21 @@ describe("threadLinkContextReferences", () => {
   it("prefers the record the copy carried, and names an unknown thread plainly", () => {
     const copied = threadContextRecord(thread("env-1", "t1"), "Copied title");
     const pasted = threadLinkContextReferences(
-      "https://app.orbiwork.invalid/threads/env-1/t1 https://app.orbiwork.invalid/threads/env-9/t9",
+      "orbiwork://threads/env-1/t1 orbiwork://threads/env-9/t9",
       [copied],
       () => "Here",
     );
     expect(pasted.records).toEqual([copied, threadContextRecord(thread("env-9", "t9"), "Here")]);
     expect(
-      threadLinkContextReferences(
-        "https://app.orbiwork.invalid/threads/env-9/t9",
-        [],
-        () => undefined,
-      ).records,
+      threadLinkContextReferences("orbiwork://threads/env-9/t9", [], () => undefined).records,
     ).toEqual([threadContextRecord(thread("env-9", "t9"), "Thread")]);
   });
 
   it("keeps links it may not chip, v1 links, and links in code as written", () => {
     const text = [
-      "https://app.orbiwork.invalid/threads/elsewhere/t1",
+      "orbiwork://threads/elsewhere/t1",
       "[Old](orbi-thread://v1/t2)",
-      "`https://app.orbiwork.invalid/threads/env-1/orbi`",
+      "`orbiwork://threads/env-1/orbi`",
     ].join(" ");
     const pasted = threadLinkContextReferences(
       text,

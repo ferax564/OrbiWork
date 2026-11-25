@@ -12,6 +12,8 @@ import {
   sessionGrantsScope,
 } from "./auth.ts";
 
+const decodeUnknownGrantScopes = Schema.decodeUnknownSync(AuthGrantScopes);
+
 describe("authorization grants", () => {
   it("decodes legacy review credentials without offering them in new grants", () => {
     const decodeAuthEnvironmentScopes = Schema.decodeSync(AuthEnvironmentScopes);
@@ -21,6 +23,15 @@ describe("authorization grants", () => {
 
     expect(() => decodeAuthGrantScopes(["review:write"])).toThrow();
     expect(AuthStandardClientScopes).not.toContain("review:write");
+  });
+
+  it("drops retired relay scopes from stored sessions instead of failing", () => {
+    const decodeAuthEnvironmentScopes = Schema.decodeUnknownSync(AuthEnvironmentScopes);
+
+    expect(
+      decodeAuthEnvironmentScopes(["orchestration:read", "relay:read", "relay:configure"]),
+    ).toEqual(["orchestration:read"]);
+    expect(() => decodeUnknownGrantScopes(["relay:write"])).toThrow();
   });
 
   // Keep the pre-granular vocabulary frozen to expose compatibility regressions.

@@ -9,7 +9,6 @@ import type { ServerSettings, SourceControlAppAccessInput } from "@orbiwork/cont
 import { parseGitRemoteRepository } from "@orbiwork/shared/git";
 
 export {
-  isMonochromeSourceControlIcon,
   UNKNOWN_SOURCE_CONTROL_CLIENT,
   type ChangeRequestLink,
   type ChangeRequestTerminology,

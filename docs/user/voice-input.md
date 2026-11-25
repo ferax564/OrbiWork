@@ -6,10 +6,6 @@ also works in citation comments, diff and file annotations, pull request
 comments, replies, and review summaries, and in the desktop app's browser
 annotation editor.
 
-On iPhone and Android, voice input transcribes on the device by default. To opt in
-to a named environment on that phone, open **Settings → Voice → Transcribe on**. See
-[Voice input on mobile](./composer.md#voice-input-on-mobile).
-
 ## Choose where audio goes
 
 On web and desktop, you choose where transcription runs.
@@ -39,8 +35,7 @@ dictation access to the environment can use the key, but only this device opts i
 If a key is already saved, just confirm the provider. After
 you stop, the environment forwards your recording and any vocabulary hints to
 the selected provider, which bills its API account. No local model download or chat
-subscription is needed. Switch back to **This device** on mobile or **Off** on
-web and desktop to stop sharing. Removing the key stops that provider for everyone
+subscription is needed. Switch back to **Off** to stop sharing. Removing the key stops that provider for everyone
 on the environment.
 
 **OpenRouter** works the same way but has no default model: pick one from its live

@@ -391,34 +391,7 @@ describe("OtelEnvironment", () => {
   });
 });
 
-describe("isRelayTracingEnabled", () => {
-  it("is off unless telemetry is opted into", () => {
-    assert.isFalse(OtelEnvironment.isRelayTracingEnabled({}));
-    assert.isFalse(OtelEnvironment.isRelayTracingEnabled({ ORBIWORK_OTEL_SDK_DISABLED: "false" }));
-    assert.isTrue(OtelEnvironment.isRelayTracingEnabled({ ORBIWORK_TELEMETRY_ENABLED: "true" }));
-  });
-
-  it("respects the ORBIWORK SDK override of the standard kill switch once opted in", () => {
-    const optedIn = { ORBIWORK_TELEMETRY_ENABLED: "true" };
-    assert.isFalse(
-      OtelEnvironment.isRelayTracingEnabled({ ...optedIn, OTEL_SDK_DISABLED: "true" }),
-    );
-    assert.isTrue(
-      OtelEnvironment.isRelayTracingEnabled({
-        ...optedIn,
-        OTEL_SDK_DISABLED: "true",
-        ORBIWORK_OTEL_SDK_DISABLED: "false",
-      }),
-    );
-    assert.isFalse(
-      OtelEnvironment.isRelayTracingEnabled({
-        ...optedIn,
-        OTEL_SDK_DISABLED: "false",
-        ORBIWORK_OTEL_SDK_DISABLED: "true",
-      }),
-    );
-  });
-
+describe("ORBIWORK_TELEMETRY_ENABLED", () => {
   it.effect("product opt-out beats SDK enable without disabling user-configured tracing", () =>
     Effect.gen(function* () {
       const env = {
@@ -427,8 +400,6 @@ describe("isRelayTracingEnabled", () => {
         OTEL_SDK_DISABLED: "true",
         OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "https://user.example.test/v1/traces",
       };
-      assert.isFalse(OtelEnvironment.isRelayTracingEnabled(env));
-
       const otel = yield* load(env);
       assert.isFalse(otel.disabled);
       assert.deepStrictEqual(

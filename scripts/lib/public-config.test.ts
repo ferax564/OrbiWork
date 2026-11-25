@@ -19,37 +19,17 @@ describe("loadRepoEnv", () => {
     const repoRoot = makeTemporaryDirectory();
     NodeFS.writeFileSync(
       NodePath.join(repoRoot, ".env"),
-      "ORBIWORK_CLERK_PUBLISHABLE_KEY=pk_root\nORBIWORK_CLERK_JWT_TEMPLATE=template_root\nORBIWORK_CLERK_CLI_OAUTH_CLIENT_ID=oauth_root\nORBIWORK_RELAY_URL=https://root.example.test\n",
+      "ORBIWORK_EXAMPLE=root\nORBIWORK_ROOT_ONLY=root\n",
     );
-    NodeFS.writeFileSync(
-      NodePath.join(repoRoot, ".env.local"),
-      "ORBIWORK_CLERK_PUBLISHABLE_KEY=pk_local\nORBIWORK_CLERK_JWT_TEMPLATE=template_local\nORBIWORK_CLERK_CLI_OAUTH_CLIENT_ID=oauth_local\nORBIWORK_RELAY_URL=https://local.example.test\n",
-    );
+    NodeFS.writeFileSync(NodePath.join(repoRoot, ".env.local"), "ORBIWORK_EXAMPLE=local\n");
 
-    expect(loadRepoEnv({ baseEnv: {}, repoRoot }).ORBIWORK_RELAY_URL).toBe(
-      "https://local.example.test",
-    );
-    expect(
-      loadRepoEnv({
-        baseEnv: {
-          ORBIWORK_CLERK_PUBLISHABLE_KEY: "pk_ci",
-          ORBIWORK_CLERK_JWT_TEMPLATE: "template_ci",
-          ORBIWORK_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
-          ORBIWORK_RELAY_URL: "https://ci.example.test",
-        },
-        repoRoot,
-      }),
-    ).toMatchObject({
-      ORBIWORK_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      ORBIWORK_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
-      VITE_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      ORBIWORK_CLERK_JWT_TEMPLATE: "template_ci",
-      VITE_CLERK_JWT_TEMPLATE: "template_ci",
-      EXPO_PUBLIC_CLERK_JWT_TEMPLATE: "template_ci",
-      ORBIWORK_RELAY_URL: "https://ci.example.test",
-      VITE_ORBIWORK_RELAY_URL: "https://ci.example.test",
+    expect(loadRepoEnv({ baseEnv: {}, repoRoot })).toMatchObject({
+      ORBIWORK_EXAMPLE: "local",
+      ORBIWORK_ROOT_ONLY: "root",
     });
+    expect(loadRepoEnv({ baseEnv: { ORBIWORK_EXAMPLE: "ci" }, repoRoot }).ORBIWORK_EXAMPLE).toBe(
+      "ci",
+    );
   });
 });
 

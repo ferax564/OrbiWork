@@ -16,23 +16,12 @@ import { BearerConnectionTarget, type ConnectionTarget } from "./model.ts";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 
-export type ConnectionRouteKind =
-  | "relay"
-  | "loopback"
-  | "lan"
-  | "tailnet"
-  | "vpn"
-  | "public"
-  | "ssh";
-
-export const RELAY_ROUTE_ID = "relay";
+export type ConnectionRouteKind = "loopback" | "lan" | "tailnet" | "vpn" | "public" | "ssh";
 
 export function connectionRouteId(target: ConnectionTarget): string {
   switch (target._tag) {
     case "PrimaryConnectionTarget":
       return "primary";
-    case "RelayConnectionTarget":
-      return RELAY_ROUTE_ID;
     case "BearerConnectionTarget":
     case "SshConnectionTarget":
       return target.connectionId;
@@ -92,8 +81,6 @@ function directAddressKind(hostname: string, tailscale = false) {
 
 export function connectionRouteKind(route: ConnectionRoute): ConnectionRouteKind {
   switch (route.target._tag) {
-    case "RelayConnectionTarget":
-      return "relay";
     case "SshConnectionTarget":
       return "ssh";
     case "PrimaryConnectionTarget":
@@ -137,7 +124,6 @@ const ROUTE_KIND_RANK: Record<ConnectionRouteKind, number> = {
   vpn: 2,
   public: 3,
   ssh: 4,
-  relay: 5,
 };
 
 export function insertRoute(
@@ -188,13 +174,9 @@ function routeAddressKey(route: ConnectionRoute): string | null {
   }
 }
 
-const ORBI_CONNECT_NAME = "Orbi Connect";
-
 /** The route's label in English. Display sites use `connectionRouteLabelText`. */
 export function connectionRouteLabel(route: ConnectionRoute): string {
   switch (connectionRouteKind(route)) {
-    case "relay":
-      return ORBI_CONNECT_NAME;
     case "loopback":
       return msg("This device");
     case "lan":
@@ -241,17 +223,9 @@ export function connectionRouteAddress(route: ConnectionRoute): string | null {
   return routeHttpBaseUrl(route);
 }
 
-/** Learned routes alone must not make relay environments manually retryable. */
+/** Whether the entry has a paired address of its own, not only learned or SSH routes. */
 export const hasSavedBearerRoute = (entry: ConnectionCatalogEntry) =>
   connectionRoutes(entry).some((r) => !isLearned(r) && r.target._tag === "BearerConnectionTarget");
-
-export function hasRelayRoute(
-  entry: Pick<ConnectionCatalogEntry, "target" | "alternateRoutes">,
-): boolean {
-  return [entry.target, ...(entry.alternateRoutes ?? []).map((route) => route.target)].some(
-    (target) => target._tag === "RelayConnectionTarget",
-  );
-}
 
 export function mergeLearnedRoutes(input: {
   readonly entry: ConnectionCatalogEntry;
@@ -263,20 +237,10 @@ export function mergeLearnedRoutes(input: {
   const { entry } = input;
   const active = input.activeRoute.target;
   const saved = connectionRoutes(entry);
-  if (active._tag !== "RelayConnectionTarget" && active._tag !== "BearerConnectionTarget") {
+  if (active._tag !== "BearerConnectionTarget") {
     return null;
   }
-  const activeProfile = Option.getOrNull(input.activeRoute.profile);
-  const authorization =
-    active._tag === "RelayConnectionTarget" ||
-    (activeProfile?._tag === "BearerConnectionProfile" &&
-      activeProfile.authorization === "orbi-connect")
-      ? ("orbi-connect" as const)
-      : undefined;
-  const sharedCredential =
-    authorization === undefined && active._tag === "BearerConnectionTarget"
-      ? credentialConnectionId(active.connectionId)
-      : undefined;
+  const sharedCredential = credentialConnectionId(active.connectionId);
   const reported = new Map<string, URL>();
   const tailscaleOrigins = new Set<string>();
   for (const endpoint of input.reported) {
@@ -319,7 +283,6 @@ export function mergeLearnedRoutes(input: {
     if (known.has(url.origin)) continue;
     if (
       url.protocol === "http:" &&
-      sharedCredential !== undefined &&
       !tailscaleOrigins.has(url.origin) &&
       !tokenAllowsPlainHttp(saved, sharedCredential)
     ) {
@@ -345,7 +308,6 @@ export function mergeLearnedRoutes(input: {
           httpBaseUrl,
           wsBaseUrl: `${url.protocol === "https:" ? "wss:" : "ws:"}//${url.host}/`,
           learned: true,
-          ...(authorization === undefined ? {} : { authorization }),
           ...(tailscaleOrigins.has(url.origin) ? { network: "tailscale" as const } : {}),
         }),
       ),
@@ -388,7 +350,7 @@ export function sendsTokenInClear(
   tailscale?: boolean,
 ): boolean {
   const profile = Option.getOrNull(route.profile);
-  if (profile?._tag !== "BearerConnectionProfile" || profile.authorization === "orbi-connect") {
+  if (profile?._tag !== "BearerConnectionProfile") {
     return false;
   }
   if ((tailscale ?? profile.network === "tailscale") || !profile.httpBaseUrl.startsWith("http:")) {
@@ -425,7 +387,6 @@ function withNetwork(route: ConnectionRoute, tailscale: boolean): ConnectionRout
         httpBaseUrl: profile.httpBaseUrl,
         wsBaseUrl: profile.wsBaseUrl,
         ...(profile.learned === undefined ? {} : { learned: profile.learned }),
-        ...(profile.authorization === undefined ? {} : { authorization: profile.authorization }),
         ...(tailscale ? { network: "tailscale" as const } : {}),
       }),
     ),
@@ -435,11 +396,9 @@ function withNetwork(route: ConnectionRoute, tailscale: boolean): ConnectionRout
 function learnedConnectionId(
   environmentId: string,
   origin: string,
-  sharedCredential: string | undefined,
+  sharedCredential: string,
 ): string {
-  return sharedCredential === undefined
-    ? `learned:${environmentId}:${origin}`
-    : `learned:${environmentId}:${origin}@${sharedCredential}`;
+  return `learned:${environmentId}:${origin}@${sharedCredential}`;
 }
 
 export function credentialConnectionId(connectionId: string): string {
@@ -456,9 +415,8 @@ export function isLearned(route: ConnectionRoute): boolean {
 
 /**
  * A learned route borrows the credential of the route it was learned over, so
- * it cannot outlive that route: removing Orbi Connect also removes routes learned
- * through it, and removing a paired address removes routes that borrow its
- * token.
+ * it cannot outlive that route: removing a paired address removes routes that
+ * borrow its token.
  */
 export function routesAfterRemoving(
   routes: ReadonlyArray<ConnectionRoute>,
@@ -469,10 +427,6 @@ export function routesAfterRemoving(
   return routes.filter((route) => {
     if (route === removed) return false;
     if (!isLearned(route)) return true;
-    const profile = Option.getOrNull(route.profile);
-    if (profile?._tag === "BearerConnectionProfile" && profile.authorization === "orbi-connect") {
-      return removed.target._tag !== "RelayConnectionTarget";
-    }
     return credentialConnectionId(connectionRouteId(route.target)) !== removedId;
   });
 }
@@ -505,10 +459,6 @@ export function pendingRouteOrder(
   const saved = new Set(savedIds);
   if (!pending.every((id) => saved.has(id))) return null;
   return pending.some((id, index) => id !== savedIds[index]) ? pending : null;
-}
-
-export function removedWithRelay(entry: ConnectionCatalogEntry): boolean {
-  return routesAfterRemoving(connectionRoutes(entry), RELAY_ROUTE_ID).length === 0;
 }
 
 export function sshTargetKey(target: DesktopSshEnvironmentTarget): string {

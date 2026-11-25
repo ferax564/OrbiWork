@@ -2,7 +2,7 @@
 import * as NodeCrypto from "node:crypto";
 import type { ThreadId } from "@orbiwork/contracts";
 import type { HtmlRenderReference } from "@orbiwork/shared/htmlRender";
-import { stableStringify } from "@orbiwork/shared/relaySigning";
+import { stableStringify } from "@orbiwork/shared/stableStringify";
 import { resolveOrbiMcpToolId } from "@orbiwork/shared/orbiMcpToolPresentation";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";

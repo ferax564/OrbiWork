@@ -4,12 +4,10 @@ import * as Schema from "effect/Schema";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 
-import * as TokenStore from "../authorization/tokenStore.ts";
 import {
   BearerConnectionCredential,
   BearerConnectionProfile,
   BearerConnectionRegistration,
-  RelayConnectionRegistration,
   SshConnectionProfile,
   SshConnectionRegistration,
 } from "../connection/catalog.ts";
@@ -17,7 +15,6 @@ import {
   BearerConnectionTarget,
   ConnectionTransientError,
   PrimaryConnectionTarget,
-  RelayConnectionTarget,
   SshConnectionTarget,
 } from "../connection/model.ts";
 import {
@@ -29,7 +26,6 @@ import {
   EMPTY_CONNECTION_CATALOG_DOCUMENT,
   catalogRoutes,
   setRoutesInCatalog,
-  putRemoteDpopTokenInCatalog,
   registerConnectionInCatalog,
   removeConnectionFromCatalog,
   setConnectionEnabledInCatalog,
@@ -39,11 +35,10 @@ const decodeConnectionCatalogDocument = Schema.decodeUnknownEffect(ConnectionCat
 
 const ENVIRONMENT_ID = EnvironmentId.make("environment-1");
 const decodeCatalogDocument = Schema.decodeUnknownSync(ConnectionCatalogDocument);
+const CatalogJson = Schema.fromJsonString(ConnectionCatalogDocument);
+const decodeCatalogJson = Schema.decodeSync(CatalogJson);
+const encodeCatalogJson = Schema.encodeSync(CatalogJson);
 
-const RELAY_TARGET = new RelayConnectionTarget({
-  environmentId: ENVIRONMENT_ID,
-  label: "Remote",
-});
 const BEARER_TARGET = new BearerConnectionTarget({
   environmentId: ENVIRONMENT_ID,
   label: "Remote",
@@ -59,17 +54,17 @@ const BEARER_PROFILE = new BearerConnectionProfile({
 const BEARER_CREDENTIAL = new BearerConnectionCredential({
   token: "bearer-token",
 });
-const REMOTE_TOKEN = new TokenStore.RemoteDpopAccessToken({
+const SECOND_TARGET = new BearerConnectionTarget({
   environmentId: ENVIRONMENT_ID,
   label: "Remote",
-  endpoint: {
-    httpBaseUrl: "https://remote.example.test",
-    wsBaseUrl: "wss://remote.example.test",
-    providerKind: "cloudflare_tunnel",
-  },
-  accessToken: "dpop-token",
-  expiresAtEpochMs: 1_000_000,
-  dpopThumbprint: "thumbprint",
+  connectionId: "bearer-2",
+});
+const SECOND_PROFILE = new BearerConnectionProfile({
+  connectionId: SECOND_TARGET.connectionId,
+  environmentId: ENVIRONMENT_ID,
+  label: SECOND_TARGET.label,
+  httpBaseUrl: "http://192.168.1.20:3773",
+  wsBaseUrl: "ws://192.168.1.20:3773",
 });
 
 describe("ConnectionCatalogDocument", () => {
@@ -115,7 +110,7 @@ describe("ConnectionCatalogDocument", () => {
         }),
       ).toBe("off");
       expect(
-        yield* restarted.get({ target: RELAY_TARGET, profile: Option.none(), enabled: true }),
+        yield* restarted.get({ target: SECOND_TARGET, profile: Option.none(), enabled: true }),
       ).toBe("off");
       yield* restarted.set(entry, "read-write");
       expect(yield* restarted.get(entry)).toBe("read-write");
@@ -131,49 +126,56 @@ describe("ConnectionCatalogDocument", () => {
     }),
   );
 
-  it.effect("requires explicit trust for primary, relay, and SSH connections independently", () =>
-    Effect.gen(function* () {
-      const permissions = yield* makePullRequestRoutingPermissions({
-        read: Effect.succeed([]),
-        write: () => Effect.void,
-      });
-      const entries = [
-        {
-          target: new PrimaryConnectionTarget({
-            environmentId: ENVIRONMENT_ID,
-            label: "Local",
-            httpBaseUrl: "http://localhost:3000",
-            wsBaseUrl: "ws://localhost:3000",
-          }),
-          profile: Option.none(),
-          enabled: true,
-        },
-        { target: RELAY_TARGET, profile: Option.none(), enabled: true },
-        {
-          enabled: true,
-          target: new SshConnectionTarget({
-            environmentId: ENVIRONMENT_ID,
-            label: "SSH",
-            connectionId: "ssh-1",
-          }),
-          profile: Option.some(
-            new SshConnectionProfile({
+  it.effect(
+    "requires explicit trust for primary, saved-address, and SSH connections independently",
+    () =>
+      Effect.gen(function* () {
+        const permissions = yield* makePullRequestRoutingPermissions({
+          read: Effect.succeed([]),
+          write: () => Effect.void,
+        });
+        const entries = [
+          {
+            target: new PrimaryConnectionTarget({
+              environmentId: ENVIRONMENT_ID,
+              label: "Local",
+              httpBaseUrl: "http://localhost:3000",
+              wsBaseUrl: "ws://localhost:3000",
+            }),
+            profile: Option.none(),
+            enabled: true,
+          },
+          { target: SECOND_TARGET, profile: Option.some(SECOND_PROFILE), enabled: true },
+          {
+            enabled: true,
+            target: new SshConnectionTarget({
               environmentId: ENVIRONMENT_ID,
               label: "SSH",
               connectionId: "ssh-1",
-              target: { alias: "work", hostname: "work.example.test", username: "maria", port: 22 },
             }),
-          ),
-        },
-      ];
-      for (const entry of entries) {
-        expect(yield* permissions.get(entry)).toBe("off");
-        yield* permissions.set(entry, "read");
-        expect(yield* permissions.get(entry)).toBe("read");
-        yield* permissions.set(entry, "off");
-        expect(yield* permissions.get(entry)).toBe("off");
-      }
-    }),
+            profile: Option.some(
+              new SshConnectionProfile({
+                environmentId: ENVIRONMENT_ID,
+                label: "SSH",
+                connectionId: "ssh-1",
+                target: {
+                  alias: "work",
+                  hostname: "work.example.test",
+                  username: "maria",
+                  port: 22,
+                },
+              }),
+            ),
+          },
+        ];
+        for (const entry of entries) {
+          expect(yield* permissions.get(entry)).toBe("off");
+          yield* permissions.set(entry, "read");
+          expect(yield* permissions.get(entry)).toBe("read");
+          yield* permissions.set(entry, "off");
+          expect(yield* permissions.get(entry)).toBe("off");
+        }
+      }),
   );
 
   it.effect("does not enable GitHub routing when permission persistence fails", () =>
@@ -195,39 +197,9 @@ describe("ConnectionCatalogDocument", () => {
     }),
   );
 
-  it("replaces obsolete connection metadata without discarding a reusable DPoP token", () => {
-    const bearer = registerConnectionInCatalog(
-      {
-        ...EMPTY_CONNECTION_CATALOG_DOCUMENT,
-        remoteDpopTokens: [REMOTE_TOKEN],
-      },
-      new BearerConnectionRegistration({
-        target: BEARER_TARGET,
-        profile: BEARER_PROFILE,
-        credential: BEARER_CREDENTIAL,
-      }),
-    );
-    const relayTarget = new RelayConnectionTarget({
-      environmentId: ENVIRONMENT_ID,
-      label: "Remote",
-    });
-    const relay = registerConnectionInCatalog(
-      bearer,
-      new RelayConnectionRegistration({ target: relayTarget }),
-    );
-
-    expect(relay.targets).toEqual([relayTarget]);
-    expect(relay.profiles).toEqual([]);
-    expect(relay.credentials).toEqual([]);
-    expect(relay.remoteDpopTokens).toEqual([REMOTE_TOKEN]);
-  });
-
   it("removes every catalog record owned by an explicit disconnect", () => {
     const registered = registerConnectionInCatalog(
-      {
-        ...EMPTY_CONNECTION_CATALOG_DOCUMENT,
-        remoteDpopTokens: [REMOTE_TOKEN],
-      },
+      EMPTY_CONNECTION_CATALOG_DOCUMENT,
       new BearerConnectionRegistration({
         target: BEARER_TARGET,
         profile: BEARER_PROFILE,
@@ -238,53 +210,6 @@ describe("ConnectionCatalogDocument", () => {
     expect(removeConnectionFromCatalog(registered, ENVIRONMENT_ID)).toEqual(
       EMPTY_CONNECTION_CATALOG_DOCUMENT,
     );
-  });
-
-  it("stores a DPoP token for a registered relay environment", () => {
-    const registered = registerConnectionInCatalog(
-      EMPTY_CONNECTION_CATALOG_DOCUMENT,
-      new RelayConnectionRegistration({ target: RELAY_TARGET }),
-    );
-
-    expect(putRemoteDpopTokenInCatalog(registered, REMOTE_TOKEN)).toEqual({
-      ...registered,
-      remoteDpopTokens: [REMOTE_TOKEN],
-    });
-  });
-
-  it("ignores a late DPoP token after the environment is removed", () => {
-    const registered = registerConnectionInCatalog(
-      EMPTY_CONNECTION_CATALOG_DOCUMENT,
-      new RelayConnectionRegistration({ target: RELAY_TARGET }),
-    );
-    const removed = removeConnectionFromCatalog(registered, ENVIRONMENT_ID);
-
-    expect(putRemoteDpopTokenInCatalog(removed, REMOTE_TOKEN)).toEqual(
-      EMPTY_CONNECTION_CATALOG_DOCUMENT,
-    );
-  });
-
-  it("does not store DPoP tokens for a different environment or connection kind", () => {
-    const bearer = registerConnectionInCatalog(
-      EMPTY_CONNECTION_CATALOG_DOCUMENT,
-      new BearerConnectionRegistration({
-        target: BEARER_TARGET,
-        profile: BEARER_PROFILE,
-        credential: BEARER_CREDENTIAL,
-      }),
-    );
-    const otherRelay = registerConnectionInCatalog(
-      EMPTY_CONNECTION_CATALOG_DOCUMENT,
-      new RelayConnectionRegistration({
-        target: new RelayConnectionTarget({
-          environmentId: EnvironmentId.make("environment-2"),
-          label: "Other relay",
-        }),
-      }),
-    );
-
-    expect(putRemoteDpopTokenInCatalog(bearer, REMOTE_TOKEN)).toBe(bearer);
-    expect(putRemoteDpopTokenInCatalog(otherRelay, REMOTE_TOKEN)).toBe(otherRelay);
   });
 
   it("decodes a document written before the disabled list existed", () => {
@@ -368,43 +293,135 @@ describe("ConnectionCatalogDocument", () => {
 
   it("keeps every route of an environment and drops only a removed route's records", () => {
     const withBearer = registerConnectionInCatalog(
-      { ...EMPTY_CONNECTION_CATALOG_DOCUMENT, remoteDpopTokens: [REMOTE_TOKEN] },
+      EMPTY_CONNECTION_CATALOG_DOCUMENT,
       new BearerConnectionRegistration({
         target: BEARER_TARGET,
         profile: BEARER_PROFILE,
         credential: BEARER_CREDENTIAL,
       }),
     );
-    const withRelay = registerConnectionInCatalog(
+    const withBoth = registerConnectionInCatalog(
       withBearer,
-      new RelayConnectionRegistration({ target: RELAY_TARGET }),
-      [BEARER_TARGET, RELAY_TARGET],
+      new BearerConnectionRegistration({
+        target: SECOND_TARGET,
+        profile: SECOND_PROFILE,
+        credential: BEARER_CREDENTIAL,
+      }),
+      [BEARER_TARGET, SECOND_TARGET],
     );
-    expect(catalogRoutes(withRelay, ENVIRONMENT_ID)).toEqual([BEARER_TARGET, RELAY_TARGET]);
-    expect(withRelay.credentials).toHaveLength(1);
+    expect(catalogRoutes(withBoth, ENVIRONMENT_ID)).toEqual([BEARER_TARGET, SECOND_TARGET]);
+    expect(withBoth.credentials).toHaveLength(2);
 
-    const relayOnly = setRoutesInCatalog(withRelay, ENVIRONMENT_ID, [RELAY_TARGET]);
-    expect(relayOnly.targets).toEqual([RELAY_TARGET]);
-    expect(relayOnly.profiles).toEqual([]);
-    expect(relayOnly.credentials).toEqual([]);
-    expect(relayOnly.remoteDpopTokens).toEqual([REMOTE_TOKEN]);
-
-    const bearerOnly = setRoutesInCatalog(withRelay, ENVIRONMENT_ID, [BEARER_TARGET]);
-    expect(bearerOnly.credentials).toHaveLength(1);
-    expect(bearerOnly.remoteDpopTokens).toEqual([]);
+    const secondOnly = setRoutesInCatalog(withBoth, ENVIRONMENT_ID, [SECOND_TARGET]);
+    expect(secondOnly.targets).toEqual([SECOND_TARGET]);
+    expect(secondOnly.profiles).toEqual([SECOND_PROFILE]);
+    expect(secondOnly.credentials.map((value) => value.connectionId)).toEqual([
+      SECOND_TARGET.connectionId,
+    ]);
   });
 
   it("keeps an environment's position in the catalog when its routes change", () => {
-    const other = new RelayConnectionTarget({
+    const other = new BearerConnectionTarget({
       environmentId: EnvironmentId.make("environment-2"),
       label: "Other",
+      connectionId: "other-1",
     });
     const document = {
       ...EMPTY_CONNECTION_CATALOG_DOCUMENT,
-      targets: [RELAY_TARGET, other],
+      targets: [SECOND_TARGET, other],
     };
     expect(
-      setRoutesInCatalog(document, ENVIRONMENT_ID, [BEARER_TARGET, RELAY_TARGET]).targets,
-    ).toEqual([BEARER_TARGET, RELAY_TARGET, other]);
+      setRoutesInCatalog(document, ENVIRONMENT_ID, [BEARER_TARGET, SECOND_TARGET]).targets,
+    ).toEqual([BEARER_TARGET, SECOND_TARGET, other]);
+  });
+
+  describe("a catalog saved with Orbi Connect entries", () => {
+    const saved = {
+      schemaVersion: 1,
+      targets: [
+        { _tag: "RelayConnectionTarget", environmentId: "environment-1", label: "Remote" },
+        {
+          _tag: "BearerConnectionTarget",
+          environmentId: "environment-1",
+          label: "Remote",
+          connectionId: "learned:environment-1:http://192.168.1.9:3773",
+        },
+        {
+          _tag: "BearerConnectionTarget",
+          environmentId: "environment-1",
+          label: "Remote",
+          connectionId: "bearer-1",
+        },
+      ],
+      profiles: [
+        {
+          _tag: "BearerConnectionProfile",
+          connectionId: "learned:environment-1:http://192.168.1.9:3773",
+          environmentId: "environment-1",
+          label: "Remote",
+          httpBaseUrl: "http://192.168.1.9:3773/",
+          wsBaseUrl: "ws://192.168.1.9:3773/",
+          learned: true,
+          authorization: "orbi-connect",
+        },
+        {
+          _tag: "BearerConnectionProfile",
+          connectionId: "bearer-1",
+          environmentId: "environment-1",
+          label: "Remote",
+          httpBaseUrl: "https://remote.example.test",
+          wsBaseUrl: "wss://remote.example.test",
+        },
+      ],
+      credentials: [
+        {
+          connectionId: "bearer-1",
+          credential: { _tag: "BearerConnectionCredential", token: "bearer-token" },
+        },
+      ],
+      remoteDpopTokens: [
+        {
+          environmentId: "environment-1",
+          label: "Remote",
+          endpoint: {
+            httpBaseUrl: "https://remote.example.test",
+            wsBaseUrl: "wss://remote.example.test",
+            providerKind: "cloudflare_tunnel",
+          },
+          accessToken: "dpop-token",
+          expiresAtEpochMs: 1_000_000,
+          dpopThumbprint: "thumbprint",
+        },
+      ],
+      disabledEnvironmentIds: [],
+    };
+
+    it("loads with only the directly paired route", () => {
+      const decoded = decodeCatalogJson(JSON.stringify(saved));
+      expect(decoded.targets).toEqual([BEARER_TARGET]);
+      expect(decoded.profiles).toEqual([BEARER_PROFILE]);
+      expect(decoded.credentials).toEqual([
+        { connectionId: "bearer-1", credential: BEARER_CREDENTIAL },
+      ]);
+      expect("remoteDpopTokens" in decoded).toBe(false);
+    });
+
+    it("writes an empty relay token list for older clients", () => {
+      const decoded = decodeCatalogJson(JSON.stringify(saved));
+      expect(JSON.parse(encodeCatalogJson(decoded)).remoteDpopTokens).toEqual([]);
+    });
+
+    it("still refuses a malformed saved route", () => {
+      expect(() =>
+        decodeCatalogJson(
+          JSON.stringify({
+            ...saved,
+            targets: [
+              { _tag: "BearerConnectionTarget", environmentId: "environment-1", label: "Remote" },
+            ],
+          }),
+        ),
+      ).toThrow();
+    });
   });
 });

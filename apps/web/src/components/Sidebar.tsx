@@ -109,7 +109,6 @@ import {
 import { isModelPickerOpen } from "../modelPickerVisibility";
 import { isMacPlatform } from "~/lib/utils";
 import { readLocalApi } from "../localApi";
-import { configuredHostedAppUrl } from "../hostedPairing";
 import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
 import { SidebarFolderDrop } from "./sidebar/SidebarFolderDrop";
 import {
@@ -166,9 +165,6 @@ import { useOlderSettledShelf, useOlderSettledShelfGrowth } from "../state/older
 import { useThreadSearch } from "../state/queries";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
-import { appAtomRegistry } from "../rpc/atomRegistry";
-import { canShareWithGuestAtom } from "./chat/guestShareAvailability";
-import { openGuestShareDialog } from "./chat/guestShareDialogState";
 import {
   buildThreadRouteParams,
   resolveActiveThreadRouteRef,
@@ -2734,9 +2730,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               isRegeneratingTitle,
               isRunning: !threadRuntimeCanArchive(thread.runtime),
               hasCompletedRun: thread.latestRun?.completedAt != null,
-              canShareWithGuest: appAtomRegistry.get(
-                canShareWithGuestAtom(threadRef.environmentId),
-              ),
               canTurnIntoProject: canTurnThreadIntoProject(threadRef),
               canRename: !fromSearch,
               supports: {
@@ -2861,9 +2854,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           case "rename":
             startThreadRename(threadRef, thread.title);
             return;
-          case "share-guest":
-            openGuestShareDialog(threadRef);
-            return;
           case "regenerate-title": {
             if (isRegeneratingTitle) return;
             const toast = titleRegenerationToast([
@@ -2897,9 +2887,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             }
             return;
           case "copy-thread":
-            void copyThreadReference(
-              threadChipCopyTarget(threadRef, thread.title, configuredHostedAppUrl(), m),
-            );
+            void copyThreadReference(threadChipCopyTarget(threadRef, thread.title, m));
             return;
           case "copy-thread-id":
             copyThreadIdToClipboard(thread.id, { threadId: thread.id });

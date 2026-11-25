@@ -75,10 +75,10 @@ export const ManagedPolicyLimits = Schema.Struct({
   maxRuntimeMode: Schema.optionalKey(RuntimeMode),
   /** Clients the server accepts. Without `remote`, nothing off this machine can pair. */
   clients: Schema.optionalKey(Schema.NonEmptyArray(ManagedPolicyClient)),
-  /** `false` turns Orbi Connect off and unlinks this machine. */
+  /** Retired: parsed so existing policy files still load, but it gates nothing. */
   connect: Schema.optionalKey(Schema.Boolean),
   webhookTasks: Schema.optionalKey(Schema.Boolean),
-  /** `false` turns relay connection tracing off; it can never force it on. */
+  /** Retired: parsed so existing policy files still load, but it gates nothing. */
   telemetry: Schema.optionalKey(Schema.Boolean),
   browserCookieImport: Schema.optionalKey(Schema.Boolean),
   /** `false` turns the preview tunnel off: no client reaches this machine's loopback ports. */
@@ -92,10 +92,7 @@ export type ManagedPolicyLimits = typeof ManagedPolicyLimits.Type;
 export const ManagedPolicySummaryLimits = Schema.Struct({
   maxRuntimeMode: Schema.optionalKey(RuntimeMode),
   clients: Schema.optionalKey(Schema.NonEmptyArray(ManagedPolicyClient)),
-  /** `false` also when `clients` leaves out `remote`, since Connect is remote access. */
-  connect: Schema.optionalKey(Schema.Boolean),
   webhookTasks: Schema.optionalKey(Schema.Boolean),
-  telemetry: Schema.optionalKey(Schema.Boolean),
   browserCookieImport: Schema.optionalKey(Schema.Boolean),
   previewTunnel: Schema.optionalKey(Schema.Boolean),
   providers: Schema.optionalKey(
@@ -209,7 +206,6 @@ export function clampManagedRuntimeMode(
 
 const CAPABILITY_LABELS = {
   remoteClients: "connecting from other devices",
-  connect: "Orbi Connect",
   webhookTasks: "webhook tasks",
   browserCookieImport: "importing browser cookies",
   previewTunnel: "opening this machine's local servers on other devices",
