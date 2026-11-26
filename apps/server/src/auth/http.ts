@@ -306,6 +306,8 @@ export const layer = HttpApiBuilder.group(
       redeem: Effect.Effect<A, E, R>,
     ) {
       const peer = requestPeer(request) ?? "unknown";
+      // Loopback is this machine and every client behind its proxy; limiting it would let one lock out all.
+      if (peer === "loopback") return yield* redeem;
       const waitMs = pairingAttempts.retryAfterMs(peer, yield* Clock.currentTimeMillis);
       if (waitMs > 0) {
         const retryAfterSeconds = Math.ceil(waitMs / 1000);

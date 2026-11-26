@@ -61,7 +61,7 @@ session, traffic is readable at the tunnel edge, and tunnel routes are set remot
 - Done: pairing codes are 80 bits, links last at most 24 hours, and a key-bound session cannot
   get an unbound socket ticket. A pairing code is refused over plain HTTP from outside the machine
   and the tailnet unless `ORBIWORK_INSECURE_HTTP_PAIRING` is set, and Sharing & access marks the
-  addresses that cannot pair. Wrong codes are limited per peer and in total. Media tickets work
+  addresses that cannot pair. Wrong codes are limited per peer. Media tickets work
   only from the address that asked for them. Session cookies are `Secure` on HTTPS.
 
 ## Phase 3: cut breadth

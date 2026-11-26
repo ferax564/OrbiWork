@@ -20,10 +20,10 @@ The environment issues its own sessions and enforces their capabilities. See
   because forwarding headers can be forged; a loopback peer covers the desktop app, SSH forwards and
   a local TLS proxy. Carriers also hand out 100.64.0.0/10, so such a peer counts only when the
   connection arrived on the interface that holds a Tailscale IPv6 address. Sessions that already
-  exist keep working over any route. Wrong codes are rate limited in memory per socket peer and
-  globally ([`pairingAttemptLimit.ts`](../../apps/server/src/auth/pairingAttemptLimit.ts)), answering
-  429 with `Retry-After`. Every proxied client shares the loopback peer's budget, and the global cap
-  means a flood of guesses briefly blocks legitimate pairing too; token renewal is never limited.
+  exist keep working over any route. Wrong codes are rate limited in memory per socket peer
+  ([`pairingAttemptLimit.ts`](../../apps/server/src/auth/pairingAttemptLimit.ts)), answering 429
+  with `Retry-After`. There is no shared cap and loopback is not limited, so one peer cannot lock
+  out the desktop app or the clients behind a local proxy; token renewal is never limited.
 - **No recoverable secrets in read models.** Only the creation response returns a raw pairing
   credential; access listings expose metadata only.
 - **DPoP binding.** Browser cookies, bearer tokens, and DPoP tokens share the scoped session model.
