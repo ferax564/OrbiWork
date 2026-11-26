@@ -442,6 +442,7 @@
   "7283ebfd16d09677": "環境の資格情報に必要なアクセス権がありません。",
   "d3e9a9cb543b4b7b": "環境が認証リクエストを拒否しました。",
   "0bf42b196261df62": "環境のエンドポイントが見つかりませんでした。",
+  "6832b20f9e2087e9": "Too many failed pairing attempts. Wait {seconds} seconds, then try again.",
   "94c2caab0a9d17a6": "環境が接続を認可できませんでした。",
   "d084f7f88e5bf041": "{host} が {seconds} 秒間フリーズしました",
   "ca97b6934f016952": "CPU が過負荷です ({cpuCount} コアで負荷 {load})。",
@@ -2006,22 +2007,22 @@
   "c65de112b48a66ed": "ペアリングリンクを追加",
   "bc8ab792af1d656f": "コンピューターで実行:",
   "0ba14e4e920cfa00": "またはデスクトップアプリをダウンロード",
-  "0e79b7a6508a6286": "次に",
-  "c7e1737d858f2e07": [
-    "すでに ",
+  "8b8ba23270b77ec5": [
+    "If you do not have ",
     {
       "t": "code",
       "i": 1,
       "c": "orbi"
     },
-    " がある場合はインストールを省略できます。インストール後に",
+    " yet,",
     " ",
     {
-      "t": "code",
+      "t": "a",
       "i": 2,
-      "c": "orbi"
+      "c": "build it from source"
     },
-    " が見つからない場合は、インストーラーが示すフォルダーを PATH に追加してください。"
+    " ",
+    "first. Then run:"
   ],
   "87b24d00c08f54bb": "キーボードショートカットのファイルを開けません",
   "0ee16208cbfcdbf4": "ファイルを開く際に不明なエラーが発生しました。",
@@ -3126,6 +3127,9 @@
   "932e6e0577492ff3": "音声を利用できません",
   "fedcc745e60b2795": "動画を利用できません",
   "db6b3b2fddbb9c08": "画像を利用できません",
+  "5c0871bc63e482fe": "Load audio from {host}",
+  "d388013849068ce4": "Load video from {host}",
+  "402dbc52161d1b40": "Load image from {host}",
   "0b3fd76abaaea6ae": "画像を読み込んでいます",
   "9f951869aa5d4867": "この接続ではホストのファイルを読み取れません。表示するには、新しいリンクでもう一度ペアリングしてください。",
   "13d83e7c0e44494c": [
@@ -6875,6 +6879,7 @@
       "v": "rt"
     }
   ],
+  "8d80c384e9e910e8": "Cannot pair: unencrypted. Use Tailscale or SSH.",
   "ae85d885630b0e51": "{count, plural, other {{count} 個のスコープ}}",
   "129431563dc043bc": "{label}: {scopes} を表示",
   "e19e13b2511e692f": "ペアリング URL をコピーできませんでした",

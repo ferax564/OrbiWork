@@ -7,8 +7,8 @@ import * as NodeFS from "node:fs";
 import * as NodeFSP from "node:fs/promises";
 import * as NodePath from "node:path";
 import * as NodeUtil from "node:util";
-import { acquireServiceSelectionLock } from "./cloud/serviceSelectionLock.ts";
-import { RESTORE_OOMD_WATCH_SCRIPT } from "./cloud/userManagerOom.ts";
+import { acquireServiceSelectionLock } from "./service/serviceSelectionLock.ts";
+import { RESTORE_OOMD_WATCH_SCRIPT } from "./service/userManagerOom.ts";
 import { windowsSystem32Path } from "@orbiwork/shared/windowsSystem";
 import { isNoCopyOnWrite, markNoCopyOnWrite } from "./noCopyOnWrite.ts";
 
@@ -19,7 +19,7 @@ import type {
   ServiceLauncherParentMessage,
   ServiceState,
   ServiceUpdateRecord,
-} from "./cloud/serviceProtocol.ts";
+} from "./service/serviceProtocol.ts";
 import {
   compareExactServiceVersions,
   decodeServiceLauncherChildMessage,
@@ -42,7 +42,7 @@ import {
   SERVICE_STOP_MARKER_FILE,
   SERVICE_UNIT_ENV,
   systemdUnitDirectoryOf,
-} from "./cloud/serviceProtocol.ts";
+} from "./service/serviceProtocol.ts";
 import {
   legacyOwnerStartedBeforeRecord,
   legacyOwnerStartTimeCommand,

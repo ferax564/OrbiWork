@@ -43,6 +43,7 @@ import * as GitManager from "../git/GitManager.ts";
 import * as ProcessRunner from "../processRunner.ts";
 import * as PullRequestService from "../pullRequest/PullRequestService.ts";
 import * as ServerActivation from "../serverActivation.ts";
+import { VcsAutomaticFetchInterval } from "../vcs/VcsAutomaticFetchInterval.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
@@ -190,6 +191,7 @@ interface HarnessOptions {
     input: PullRequestRef,
   ) => Effect.Effect<PullRequestStack | null, PullRequestOperationError>;
   readonly onSync?: (command: SyncCommand) => Effect.Effect<unknown>;
+  readonly backgroundSweeps?: boolean;
 }
 
 const makeHarness = Effect.fn("makePullRequestSyncHarness")(function* (options: HarnessOptions) {
@@ -243,6 +245,10 @@ const makeHarness = Effect.fn("makePullRequestSyncHarness")(function* (options: 
   };
 
   const layerDependencies = Layer.mergeAll(
+    Layer.succeed(
+      VcsAutomaticFetchInterval,
+      Effect.succeed(options.backgroundSweeps === false ? Duration.zero : Duration.minutes(1)),
+    ),
     Layer.mock(PullRequestService.PullRequestService)({
       withSharedProjectReads: (effect) => effect,
       batchesReads: (input) => Effect.succeed(options.batchesReads?.(input) ?? true),
@@ -615,6 +621,31 @@ describe("PullRequestSyncReactor", () => {
     }),
   );
 
+  it.effect("does not sweep the forge unprompted while background fetch is off", () =>
+    Effect.gen(function* () {
+      yield* TestClock.setTime(Date.parse(NOW));
+      const fixture = yield* makeHarness({
+        backgroundSweeps: false,
+        snapshot: makeSnapshot([makeThread("one", { pullRequests: [makeLink(7, {})] })]),
+      });
+      yield* Effect.gen(function* () {
+        const reactor = yield* PullRequestSyncReactor.PullRequestSyncReactor;
+        yield* reactor.start();
+        yield* Deferred.succeed(fixture.activation, undefined);
+        yield* TestClock.adjust("3 minutes");
+        yield* reactor.drain;
+        assert.strictEqual((yield* Ref.get(fixture.summaryCalls)).length, 0);
+        yield* reactor.requestSync({
+          host: "github.com",
+          repository: "owner/repository",
+          number: 7,
+        });
+        yield* Queue.take(fixture.snapshotReads);
+        yield* reactor.drain;
+        assert.strictEqual((yield* Ref.get(fixture.summaryCalls)).length, 1);
+      }).pipe(Effect.provide(fixture.layer));
+    }),
+  );
   it.effect("explicit refresh reads a changed stack even when its PR summary is unchanged", () =>
     Effect.gen(function* () {
       yield* TestClock.setTime(Date.parse(NOW));

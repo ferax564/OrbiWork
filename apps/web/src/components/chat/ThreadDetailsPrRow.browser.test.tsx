@@ -447,10 +447,17 @@ it("names the first linked issue and reveals more issues on demand", async () =>
   );
   expect(exposedKeys).toHaveLength(0);
   const externalClick = new MouseEvent("click", { bubbles: true, cancelable: true });
+  // Read the app's verdict after React's own root listener, then cancel so no real page opens.
+  let appPrevented: boolean | undefined;
+  const stopAtWindow = (event: Event) => {
+    appPrevented = event.defaultPrevented;
+    event.preventDefault();
+  };
+  screen.container.addEventListener("click", stopAtWindow, { once: true });
   await act(async () => {
     row.dispatchEvent(externalClick);
   });
-  expect(externalClick.defaultPrevented).toBe(false);
+  expect(appPrevented).toBe(false);
   const extra = screen.getByRole("link", { name: "Issue #124: Tab list jumps" });
   await expect.element(extra).not.toBeInTheDocument();
   await screen.getByRole("button", { name: "Show 1 more" }).click();

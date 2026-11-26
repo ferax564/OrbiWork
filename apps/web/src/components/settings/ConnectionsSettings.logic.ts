@@ -4,6 +4,11 @@ import { msg } from "gt-react";
 
 import { resolveDesktopPairingUrl } from "./pairingUrls";
 import { getPairingTokenFromUrl, setPairingTokenOnUrl } from "@orbiwork/shared/remote";
+import {
+  isLocalLoopbackHost,
+  isSharedAddressSpaceHost,
+  isTailnetHost,
+} from "@orbiwork/shared/hostClassification";
 import { m, type MessageResolver } from "../../i18n/messages";
 import {
   isLoopbackHostname,
@@ -370,24 +375,51 @@ export function toDesktopClientSessionRecord(
   };
 }
 
+/** Mirrors the server's refusal: plain HTTP pairs only from loopback or tailnet (100.64/10 assumed). */
+export function isPlainHttpPairingRefused(url: string, refusesPlainHttpPairing: boolean): boolean {
+  if (!refusesPlainHttpPairing) return false;
+  try {
+    const { protocol, hostname } = new URL(url);
+    return (
+      protocol === "http:" &&
+      !isLocalLoopbackHost(hostname) &&
+      !isTailnetHost(hostname) &&
+      !isSharedAddressSpaceHost(hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function pickPairingEndpoint(
+  candidates: ReadonlyArray<AdvertisedEndpoint>,
+  defaultEndpointKey: string | null | undefined,
+): AdvertisedEndpoint | null {
+  return (
+    (defaultEndpointKey
+      ? candidates.find((endpoint) => endpointDefaultPreferenceKey(endpoint) === defaultEndpointKey)
+      : undefined) ??
+    candidates.find((endpoint) => endpoint.isDefault) ??
+    candidates.find((endpoint) => endpoint.reachability !== "loopback") ??
+    candidates.find((endpoint) => endpoint.compatibility.hostedHttpsApp === "compatible") ??
+    null
+  );
+}
+
 export function selectPairingEndpoint(
   endpoints: ReadonlyArray<AdvertisedEndpoint>,
   defaultEndpointKey?: string | null,
+  refusesPlainHttpPairing = false,
 ): AdvertisedEndpoint | null {
   const availableEndpoints = endpoints.filter((endpoint) => endpoint.status !== "unavailable");
-  if (defaultEndpointKey) {
-    const selectedEndpoint = availableEndpoints.find(
-      (endpoint) => endpointDefaultPreferenceKey(endpoint) === defaultEndpointKey,
-    );
-    if (selectedEndpoint) {
-      return selectedEndpoint;
-    }
-  }
+  if (!refusesPlainHttpPairing) return pickPairingEndpoint(availableEndpoints, defaultEndpointKey);
+  const pairableEndpoints = availableEndpoints.filter(
+    (endpoint) => !isPlainHttpPairingRefused(endpoint.httpBaseUrl, true),
+  );
   return (
-    availableEndpoints.find((endpoint) => endpoint.isDefault) ??
-    availableEndpoints.find((endpoint) => endpoint.reachability !== "loopback") ??
-    availableEndpoints.find((endpoint) => endpoint.compatibility.hostedHttpsApp === "compatible") ??
-    null
+    pickPairingEndpoint(pairableEndpoints, defaultEndpointKey) ??
+    pairableEndpoints[0] ??
+    pickPairingEndpoint(availableEndpoints, defaultEndpointKey)
   );
 }
 

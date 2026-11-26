@@ -442,6 +442,7 @@
   "7283ebfd16d09677": "A credencial do ambiente não concede o acesso necessário.",
   "d3e9a9cb543b4b7b": "O ambiente rejeitou a solicitação de autenticação.",
   "0bf42b196261df62": "Não foi possível encontrar o endpoint do ambiente.",
+  "6832b20f9e2087e9": "Too many failed pairing attempts. Wait {seconds} seconds, then try again.",
   "94c2caab0a9d17a6": "O ambiente não conseguiu autorizar a conexão.",
   "d084f7f88e5bf041": "{host} travou por {seconds}s",
   "ca97b6934f016952": "A CPU está sobrecarregada (carga {load} em {cpuCount} núcleos).",
@@ -2008,22 +2009,22 @@
   "c65de112b48a66ed": "Adicionar link de pareamento",
   "bc8ab792af1d656f": "Execute no seu computador:",
   "0ba14e4e920cfa00": "Ou baixe o app para desktop",
-  "0e79b7a6508a6286": "Depois",
-  "c7e1737d858f2e07": [
-    "Pule a instalação se você já tem o ",
+  "8b8ba23270b77ec5": [
+    "If you do not have ",
     {
       "t": "code",
       "i": 1,
       "c": "orbi"
     },
-    ". Se o",
+    " yet,",
     " ",
     {
-      "t": "code",
+      "t": "a",
       "i": 2,
-      "c": "orbi"
+      "c": "build it from source"
     },
-    " não for encontrado após a instalação, adicione ao seu PATH a pasta indicada pelo instalador."
+    " ",
+    "first. Then run:"
   ],
   "87b24d00c08f54bb": "Não foi possível abrir o arquivo de atalhos de teclado",
   "0ee16208cbfcdbf4": "Erro desconhecido ao abrir o arquivo.",
@@ -3128,6 +3129,9 @@
   "932e6e0577492ff3": "Áudio indisponível",
   "fedcc745e60b2795": "Vídeo indisponível",
   "db6b3b2fddbb9c08": "Imagem indisponível",
+  "5c0871bc63e482fe": "Load audio from {host}",
+  "d388013849068ce4": "Load video from {host}",
+  "402dbc52161d1b40": "Load image from {host}",
   "0b3fd76abaaea6ae": "Carregando imagem",
   "9f951869aa5d4867": "Esta conexão não consegue ler arquivos do host. Pareie novamente com um novo link para vê-lo.",
   "13d83e7c0e44494c": [
@@ -6903,6 +6907,7 @@
       "v": "rt"
     }
   ],
+  "8d80c384e9e910e8": "Cannot pair: unencrypted. Use Tailscale or SSH.",
   "ae85d885630b0e51": "{count, plural, one {{count} escopo} other {{count} escopos}}",
   "129431563dc043bc": "{label}: mostrar {scopes}",
   "e19e13b2511e692f": "Não foi possível copiar a URL de pareamento",

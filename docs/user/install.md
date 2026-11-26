@@ -10,23 +10,20 @@ launch OrbiWork and configure providers afterwards.
 
 ## Command line
 
+OrbiWork has no published releases, installers, or packages yet, so build the
+server from source. You need Node 26.13.1 and pnpm 12.14.0, or `vp`, which
+provides them ([Install vp](../operations/00_development.md#first-checkout)):
+
 ```bash
-curl -fsSL https://orbiwork.invalid/install.sh | sh
+git clone https://github.com/ferax564/OrbiWork
+cd OrbiWork && vp i && vp run build:desktop
+node apps/server/dist/bin.mjs
 ```
 
-On Windows, in PowerShell:
-
-```powershell
-irm https://orbiwork.invalid/install.ps1 | iex
-```
-
-This installs the `orbi` command to `~/.local/bin`. If that folder is not on your
-`PATH` yet, the installer says so and, for zsh, bash on Linux, and fish, prints
-a command to add it. On Windows, `orbi` works in the same PowerShell window right
-away; add the folder to your `PATH` for new windows. If a `orbi` that the
-installer or the desktop app did not create is already there, it leaves that
-one alone and stops. Set `ORBIWORK_CHANNEL=nightly` to install the nightly train, or
-`ORBIWORK_VERSION` to pin an exact version.
+The commands below are written as `orbi`; with a source build, run
+`node apps/server/dist/bin.mjs` in its place. `orbi update` and the background
+service do not apply to a server run this way; update it with `git pull` and a
+rebuild.
 
 | Task                                  | Command                                                                   |
 | ------------------------------------- | ------------------------------------------------------------------------- |
@@ -48,83 +45,13 @@ before starting a replacement, or use a different `--base-dir` for an
 independent server.
 
 OrbiWork publishes no npm package, so do not run it through `npx`, `pnpm dlx`, or
-`bunx`. To get `orbi` another way, build it from source: Node 26.13.1, pnpm
-12.14.0, then `pnpm install` (see the README).
-
-### Intel Macs
-
-There is no `orbi` executable for Intel Macs (the desktop app is available). To
-run a server there, build it from source with `vp`, which provides the Node version it needs
-([Install vp](../operations/00_development.md#first-checkout)):
-
-```bash
-git clone https://github.com/ferax564/orbiwork
-cd orbiwork && vp i && vp run build:desktop
-node apps/server/dist/bin.mjs
-```
-
-`orbi update` and the background service do not apply to a server run this way;
-update it with `git pull` and a rebuild.
+`bunx`.
 
 ## Desktop app
 
-Download a release from [GitHub Releases](https://github.com/ferax564/orbiwork/releases),
-or use a package manager:
-
-| Platform           | Install                                                        |
-| ------------------ | -------------------------------------------------------------- |
-| Windows            | `winget install OrbiWork.OrbiWork`                             |
-| Windows (Scoop)    | `scoop install extras/orbiwork`                                |
-| macOS              | `brew install --cask orbiwork`                                 |
-| Debian, Ubuntu     | `sudo apt install ./OrbiWork-*.deb`                            |
-| Arch Linux         | `yay -S orbiwork-bin`                                          |
-| Arch Linux nightly | `yay -S orbiwork-nightly-bin`                                  |
-| Nix                | `nix profile add github:NixOS/nixpkgs/nixos-unstable#orbiwork` |
-
-### Linux
-
-AppImage and `.deb` downloads are available for x86_64 and ARM64. Check your
-architecture with `uname -m`: for `x86_64`, choose a file ending in
-`x86_64.AppImage` or `amd64.deb`; for `aarch64`, choose `arm64.AppImage` or
-`arm64.deb`.
-
-To launch an AppImage, open a terminal in its download folder. Replace
-`OrbiWork.AppImage` below with the exact filename you downloaded:
-
-```bash
-chmod +x ./OrbiWork.AppImage
-./OrbiWork.AppImage
-```
-
-The `.deb` updates itself like the other desktop builds. It asks for your
-password to install each update. If your desktop has no password prompt, the
-update fails. Download the new `.deb` and install it the same way.
-
-The AUR packages support x86_64 and ARM64.
-Update AUR installs with your AUR helper, such as `yay -Syu`, instead of the
-in-app updater.
-
-### Nix (nixpkgs)
-
-OrbiWork is maintained in [nixpkgs](https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/by-name/orbi/orbiwork).
-The command above installs from `nixos-unstable` and requires Nix 2.30 or later with
-`nix-command` and `flakes` enabled. Launch the desktop app with `orbiwork-desktop`;
-the package also includes the `orbi` command.
-
-On NixOS, you can instead add the package to your system configuration, using
-a nixpkgs revision that includes `orbiwork`:
-
-```nix
-environment.systemPackages = [ pkgs.orbiwork ];
-```
-
-Apply the change with `sudo nixos-rebuild switch`. For Home Manager, add
-`pkgs.orbiwork` to `home.packages` and run `home-manager switch`.
-
-Update a profile installation with `nix profile upgrade orbiwork`. For NixOS or
-Home Manager, update your configuration's nixpkgs input or channel and rebuild.
-Nix manages both the desktop app and the bundled
-`orbi` command; use Nix to update them instead of the in-app updater or `orbi update`.
+There are no published desktop builds yet. Run the desktop app from a checkout
+with `vp run dev:desktop`, or package it yourself as described in
+[Desktop artifacts](../operations/00_development.md#desktop-artifacts).
 
 ### The `orbi` command
 

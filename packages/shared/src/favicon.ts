@@ -21,6 +21,17 @@ export function toolActivityFaviconUrl(
   );
 }
 
+/** Same rule for a connector's themed logo: hosted logos are not fetched. */
+export function toolActivityLogoUrl(
+  icon: { readonly logoUrl: string; readonly logoUrlDark?: string | undefined },
+  appearance: "light" | "dark",
+): string | null {
+  return (
+    (appearance === "dark" ? inlineFaviconUrl(icon.logoUrlDark) : null) ??
+    inlineFaviconUrl(icon.logoUrl)
+  );
+}
+
 /**
  * Site icons for arbitrary links are not fetched: asking a third-party favicon service (or the
  * site itself) for every domain an agent mentions would disclose what is being discussed.

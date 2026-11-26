@@ -6,7 +6,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
 import packageJson from "../../package.json" with { type: "json" };
-import { posixLauncherScript } from "../cloud/pinnedRuntime.ts";
+import { posixLauncherScript } from "../service/pinnedRuntime.ts";
 import {
   hostShellWord,
   resolveHostCliCommand,

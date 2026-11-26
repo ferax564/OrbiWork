@@ -9,6 +9,7 @@ import {
   type EnvironmentRequestInvalidError,
   type EnvironmentResourceNotFoundError,
   type EnvironmentScopeRequiredError,
+  type EnvironmentTooManyAttemptsError,
 } from "@orbiwork/contracts";
 import * as HttpObservability from "@orbiwork/shared/httpObservability";
 import * as Duration from "effect/Duration";
@@ -89,6 +90,7 @@ export type RemoteEnvironmentRequestError =
   | EnvironmentScopeRequiredError
   | EnvironmentOperationForbiddenError
   | EnvironmentResourceNotFoundError
+  | EnvironmentTooManyAttemptsError
   | EnvironmentInternalError
   | RemoteEnvironmentAuthFetchError
   | RemoteEnvironmentAuthInvalidJsonError

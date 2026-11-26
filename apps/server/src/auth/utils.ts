@@ -174,6 +174,21 @@ function readRemoteAddressFromSource(source: unknown): string | undefined {
 const isLoopbackIpAddress = (address: string): boolean =>
   (NodeNet.isIPv4(address) && address.startsWith("127.")) || address === "::1";
 
+/** The socket peer, with every loopback address as one, since a local client may dial either. */
+export function requestPeer(request: HttpServerRequest.HttpServerRequest): string | undefined {
+  const peer = readRemoteAddressFromSource(request.source);
+  return peer !== undefined && isLoopbackIpAddress(peer) ? "loopback" : peer;
+}
+
+/** Direct TLS, or a local TLS proxy (Tailscale Serve) saying so; others can forge the header. */
+export function arrivesOverHttps(request: HttpServerRequest.HttpServerRequest): boolean {
+  const socket = (request.source as { readonly socket?: { readonly encrypted?: boolean } }).socket;
+  return (
+    socket?.encrypted === true ||
+    (request.headers["x-forwarded-proto"] === "https" && requestPeer(request) === "loopback")
+  );
+}
+
 /**
  * Whether `request` came from this machine (desktop app, SSH forward, local TLS proxy) or a tailnet
  * peer. Carriers also use 100.64.0.0/10, so such a peer counts only on the interface that holds a

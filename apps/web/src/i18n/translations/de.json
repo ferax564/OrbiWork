@@ -442,6 +442,7 @@
   "7283ebfd16d09677": "Die Zugangsdaten der Umgebung gewähren nicht den erforderlichen Zugriff.",
   "d3e9a9cb543b4b7b": "Die Umgebung hat die Authentifizierungsanfrage abgelehnt.",
   "0bf42b196261df62": "Der Endpunkt der Umgebung wurde nicht gefunden.",
+  "6832b20f9e2087e9": "Too many failed pairing attempts. Wait {seconds} seconds, then try again.",
   "94c2caab0a9d17a6": "Die Umgebung konnte die Verbindung nicht autorisieren.",
   "d084f7f88e5bf041": "{host} war {seconds} s lang eingefroren",
   "ca97b6934f016952": "Die CPU ist überlastet (Last {load} auf {cpuCount} Kernen).",
@@ -2008,22 +2009,22 @@
   "c65de112b48a66ed": "Kopplungslink hinzufügen",
   "bc8ab792af1d656f": "Auf deinem Computer ausführen:",
   "0ba14e4e920cfa00": "Oder lade die Desktop-App herunter",
-  "0e79b7a6508a6286": "Dann",
-  "c7e1737d858f2e07": [
-    "Überspringe die Installation, wenn du ",
+  "8b8ba23270b77ec5": [
+    "If you do not have ",
     {
       "t": "code",
       "i": 1,
       "c": "orbi"
     },
-    " bereits hast. Wenn",
+    " yet,",
     " ",
     {
-      "t": "code",
+      "t": "a",
       "i": 2,
-      "c": "orbi"
+      "c": "build it from source"
     },
-    " nach der Installation nicht gefunden wird, füge den Ordner, den das Installationsprogramm nennt, zu deinem PATH hinzu."
+    " ",
+    "first. Then run:"
   ],
   "87b24d00c08f54bb": "Tastenkürzel-Datei kann nicht geöffnet werden",
   "0ee16208cbfcdbf4": "Unbekannter Fehler beim Öffnen der Datei.",
@@ -3129,6 +3130,9 @@
   "932e6e0577492ff3": "Audio nicht verfügbar",
   "fedcc745e60b2795": "Video nicht verfügbar",
   "db6b3b2fddbb9c08": "Bild nicht verfügbar",
+  "5c0871bc63e482fe": "Load audio from {host}",
+  "d388013849068ce4": "Load video from {host}",
+  "402dbc52161d1b40": "Load image from {host}",
   "0b3fd76abaaea6ae": "Bild wird geladen",
   "9f951869aa5d4867": "Diese Verbindung kann keine Dateien des Hosts lesen. Kopple erneut mit einem neuen Link, um sie anzuzeigen.",
   "13d83e7c0e44494c": [
@@ -6903,6 +6907,7 @@
       "v": "rt"
     }
   ],
+  "8d80c384e9e910e8": "Cannot pair: unencrypted. Use Tailscale or SSH.",
   "ae85d885630b0e51": "{count, plural, one {{count} Berechtigung} other {{count} Berechtigungen}}",
   "129431563dc043bc": "{label}: {scopes} anzeigen",
   "e19e13b2511e692f": "Kopplungs-URL konnte nicht kopiert werden",

@@ -128,6 +128,7 @@ import {
   toDesktopPairingLinkRecord,
   toDesktopClientSessionRecord,
   selectPairingEndpoint,
+  isPlainHttpPairingRefused,
   isServerNetworkAccessible,
   isTailscaleHttpsEndpoint,
   endpointDefaultPreferenceKey,
@@ -762,6 +763,7 @@ function ConnectionsSettingsContent({
   };
 
   const updateAccessSettings = useUpdateEnvironmentSettings(accessEnvironmentId);
+  const refusesPlainHttpPairing = accessEnvironment?.serverConfig?.refusesPlainHttpPairing === true;
   const tailscaleHttpsEndpoint = desktopAdvertisedEndpoints.find(isTailscaleHttpsEndpoint) ?? null;
   const visibleDesktopNetworkAdvertisedEndpoints = isLocalBackendNetworkAccessible
     ? desktopAdvertisedEndpoints.filter((endpoint) => !isTailscaleHttpsEndpoint(endpoint))
@@ -772,6 +774,7 @@ function ConnectionsSettingsContent({
   const defaultDesktopNetworkAdvertisedEndpoint = selectPairingEndpoint(
     visibleDesktopNetworkAdvertisedEndpoints,
     defaultAdvertisedEndpointKey,
+    refusesPlainHttpPairing,
   );
   const defaultDesktopAdvertisedEndpoint =
     defaultDesktopNetworkAdvertisedEndpoint ??
@@ -805,6 +808,10 @@ function ConnectionsSettingsContent({
               key={endpoint.id}
               endpoint={endpoint}
               isDefault={endpointKey === defaultDesktopAdvertisedEndpointKey}
+              pairingRefused={isPlainHttpPairingRefused(
+                endpoint.httpBaseUrl,
+                refusesPlainHttpPairing,
+              )}
               onSetDefault={handleSetDefaultAdvertisedEndpoint}
               onSetupTailscaleServe={handleStartTailscaleServeSetup}
               onDisableTailscaleServe={handleStartTailscaleServeDisable}
@@ -1105,6 +1112,7 @@ function ConnectionsSettingsContent({
       endpointUrl={desktopServerExposureState?.endpointUrl}
       endpoints={visibleDesktopAdvertisedEndpoints}
       defaultEndpointKey={defaultDesktopAdvertisedEndpointKey}
+      refusesPlainHttpPairing={refusesPlainHttpPairing}
       isLoading={isLoadingDesktopAccessManagement}
       pairingLinks={pairingLinks}
       createdPairingCredentials={createdPairingCredentials}

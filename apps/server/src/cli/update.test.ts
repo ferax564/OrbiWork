@@ -17,15 +17,15 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import { afterEach, vi } from "vite-plus/test";
 
 import packageJson from "../../package.json" with { type: "json" };
-import * as BootService from "../cloud/bootService.ts";
-import { SERVICE_LAUNCHER_PROTOCOL } from "../cloud/serviceProtocol.ts";
+import * as BootService from "../service/bootService.ts";
+import { SERVICE_LAUNCHER_PROTOCOL } from "../service/serviceProtocol.ts";
 import {
   pinnedRuntimePaths,
   posixLauncherScript,
   prunePinnedRuntimes,
   readPosixLauncherTarget,
   resolveLauncherPath,
-} from "../cloud/pinnedRuntime.ts";
+} from "../service/pinnedRuntime.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as ProcessRunner from "../processRunner.ts";
 import {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  arrivesOverHttps,
   deriveAuthClientMetadata,
   arrivesOverPrivateTransport,
   resolveSessionCookieName,
@@ -47,6 +48,24 @@ describe("arrivesOverPrivateTransport", () => {
         "x-forwarded-proto": "https",
       }),
     ).toBe(false);
+  });
+});
+
+describe("arrivesOverHttps", () => {
+  const from = (socket: object, headers: Record<string, string> = {}) =>
+    arrivesOverHttps({ headers, source: { socket } } as never);
+  const proxied = { "x-forwarded-proto": "https" };
+
+  it("trusts direct TLS and a loopback proxy that says https", () => {
+    expect(from({ remoteAddress: "192.168.1.20", encrypted: true })).toBe(true);
+    expect(from({ remoteAddress: "127.0.0.1" }, proxied)).toBe(true);
+    expect(from({ remoteAddress: "::1" }, proxied)).toBe(true);
+  });
+
+  it("keeps plain HTTP and forged forwarding headers insecure", () => {
+    expect(from({ remoteAddress: "127.0.0.1" })).toBe(false);
+    expect(from({ remoteAddress: "192.168.1.20" }, proxied)).toBe(false);
+    expect(from({ remoteAddress: "100.101.102.103" }, proxied)).toBe(false);
   });
 });
 

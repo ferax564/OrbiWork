@@ -1007,6 +1007,25 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodePlatformCrypto.layer))(
         const mediaOnRpc = yield* Effect.flip(upgrade(Redacted.value(media.ticket), "rpc"));
         expect(mediaOnRpc._tag).toBe("ServerAuthInvalidCredentialError");
 
+        const peerMedia = yield* serverAuth.issueWebSocketTicket(session, {
+          use: "media",
+          peer: "192.168.1.20",
+        });
+        const mediaFrom = (remoteAddress: string) =>
+          serverAuth.authenticateWebSocketUpgrade(
+            {
+              method: "GET",
+              url: `/api/device/ws?wsTicket=${Redacted.value(peerMedia.ticket)}`,
+              cookies: {},
+              headers: { host },
+              source: { socket: { remoteAddress } },
+            } as never,
+            "media",
+          );
+        expect((yield* mediaFrom("::ffff:192.168.1.20")).sessionId).toBe(session.sessionId);
+        const otherPeer = yield* Effect.flip(mediaFrom("192.168.1.99"));
+        expect(otherPeer._tag).toBe("ServerAuthInvalidCredentialError");
+
         // A ticket from the audience-less route is bound too, so it cannot open the RPC socket
         // without the session's proof.
         const legacy = yield* serverAuth.issueWebSocketTicket(session);

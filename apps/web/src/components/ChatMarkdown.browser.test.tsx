@@ -385,6 +385,22 @@ describe("ChatMarkdown favicon privacy", () => {
       expect(container.querySelectorAll("img")).toHaveLength(0);
     }
   });
+
+  it("loads a remote markdown image only after the reader asks", async () => {
+    setup();
+    await using screen = await render(
+      <ChatMarkdown cwd="/tmp/project" text="![Tracker](https://attacker.invalid/pixel.png)" />,
+    );
+    expect(screen.container.querySelectorAll("img")).toHaveLength(0);
+    await userEvent.click(
+      screen.getByRole("button", { name: /Load image from attacker\.invalid/ }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.container.querySelector("img")?.getAttribute("src")).toBe(
+        "https://attacker.invalid/pixel.png",
+      ),
+    );
+  });
 });
 
 describe("ChatMarkdown external link labels", () => {

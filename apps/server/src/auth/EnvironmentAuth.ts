@@ -55,6 +55,7 @@ import {
   PEER_LINK_PAIRING_SUBJECT_PREFIX,
 } from "../persistence/AuthPairingLinks.ts";
 import { requestUrl } from "../requestUrl.ts";
+import { requestPeer } from "./utils.ts";
 
 const DEFAULT_SESSION_SUBJECT = "cli-issued-session";
 export const INTERNAL_ADMINISTRATIVE_BOOTSTRAP_SUBJECT = "administrative-bootstrap";
@@ -490,7 +491,7 @@ export class EnvironmentAuth extends Context.Service<
     ) => Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError>;
     readonly issueWebSocketTicket: (
       session: Pick<AuthenticatedSession, "sessionId" | "proofKeyThumbprint">,
-      input?: { readonly use?: AuthWebSocketTicketUse },
+      input?: { readonly use?: AuthWebSocketTicketUse; readonly peer?: string | undefined },
     ) => Effect.Effect<AuthWebSocketTicketResult, ServerAuthInternalError>;
     readonly issueStartupPairingUrl: (
       baseUrl: string,
@@ -1306,7 +1307,7 @@ export const make = Effect.gen(function* () {
   // Every ticket but a media one carries the session's proof key, including the
   // audience-less kind, which also opens the RPC socket. The media routes reuse
   // one ticket across <img>, EventSource and several sockets, and each of those
-  // would need its own single-use proof.
+  // would need its own single-use proof, so a media ticket is bound to the minting peer.
   const issueWebSocketTicket: EnvironmentAuth["Service"]["issueWebSocketTicket"] = (
     session,
     input,
@@ -1314,6 +1315,7 @@ export const make = Effect.gen(function* () {
     sessions
       .issueWebSocketToken(session.sessionId, {
         ...(input?.use ? { audience: input.use } : {}),
+        ...(input?.use === "media" && input.peer !== undefined ? { peer: input.peer } : {}),
         ...(input?.use !== "media" && session.proofKeyThumbprint
           ? { proofKeyThumbprint: session.proofKeyThumbprint }
           : {}),
@@ -1350,6 +1352,11 @@ export const make = Effect.gen(function* () {
           if (session.audience !== undefined && session.audience !== use) {
             return yield* new ServerAuthInvalidCredentialError({
               diagnostic: `WebSocket ticket was issued for the ${session.audience} route.`,
+            });
+          }
+          if (session.peer !== undefined && session.peer !== requestPeer(request)) {
+            return yield* new ServerAuthInvalidCredentialError({
+              diagnostic: "WebSocket ticket was issued to another network peer.",
             });
           }
           if (session.proofKeyThumbprint) {

@@ -68,6 +68,7 @@ export interface VerifiedSession {
 
 export interface VerifiedWebSocketTicket extends VerifiedSession {
   readonly audience?: AuthWebSocketTicketUse;
+  readonly peer?: string;
 }
 
 export type SessionCredentialChange =
@@ -448,6 +449,7 @@ export class SessionStore extends Context.Service<
         readonly ttl?: Duration.Duration;
         readonly audience?: AuthWebSocketTicketUse;
         readonly proofKeyThumbprint?: string;
+        readonly peer?: string;
       },
     ) => Effect.Effect<
       {
@@ -515,6 +517,7 @@ const WebSocketClaims = Schema.Struct({
   sid: AuthSessionId,
   aud: Schema.optionalKey(AuthWebSocketTicketUse),
   jkt: Schema.optionalKey(Schema.String),
+  peer: Schema.optionalKey(Schema.String),
   iat: Schema.Number,
   exp: Schema.Number,
 });
@@ -1058,6 +1061,7 @@ const make = Effect.gen(function* () {
       sid: sessionId,
       ...(input?.audience ? { aud: input.audience } : {}),
       ...(input?.proofKeyThumbprint ? { jkt: input.proofKeyThumbprint } : {}),
+      ...(input?.peer ? { peer: input.peer } : {}),
       iat: issuedAt.epochMilliseconds,
       exp: expiresAt.epochMilliseconds,
     };
@@ -1151,6 +1155,7 @@ const make = Effect.gen(function* () {
       scopes: row.value.scopes,
       ...(claims.aud ? { audience: claims.aud } : {}),
       ...(claims.jkt ? { proofKeyThumbprint: claims.jkt } : {}),
+      ...(claims.peer ? { peer: claims.peer } : {}),
     } satisfies VerifiedWebSocketTicket;
   });
 

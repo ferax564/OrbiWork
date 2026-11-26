@@ -3,10 +3,9 @@ import { cn } from "~/lib/utils";
 
 import { CommandBlock } from "./CommandBlock";
 
-/**
- * Setup steps for another computer: install `orbi`, then run `command`. Both installers are shown
- * because the browser showing this is often not the computer being set up.
- */
+const BUILD_FROM_SOURCE_URL = "https://github.com/ferax564/OrbiWork#build-from-source";
+
+/** Setup steps for another computer: get `orbi`, then run `command`. */
 export function InstallOrbiCommands({
   command,
   className,
@@ -16,21 +15,21 @@ export function InstallOrbiCommands({
 }) {
   return (
     <div className={cn("space-y-2", className)}>
-      <p className="text-xs text-muted-foreground">macOS, Linux</p>
-      <CommandBlock command="curl -fsSL https://orbiwork.invalid/install.sh | sh" />
-      <p className="text-xs text-muted-foreground">Windows (PowerShell)</p>
-      <CommandBlock command="irm https://orbiwork.invalid/install.ps1 | iex" />
-      <p className="text-xs text-muted-foreground">
-        <T>Then</T>
-      </p>
-      <CommandBlock command={command} />
       <p className="text-xs text-muted-foreground">
         <T>
-          Skip the install if you already have <code className="font-mono">orbi</code>. If{" "}
-          <code className="font-mono">orbi</code> is not found after installing, add the folder the
-          installer names to your PATH.
+          If you do not have <code className="font-mono">orbi</code> yet,{" "}
+          <a
+            className="underline underline-offset-2 hover:text-foreground"
+            href={BUILD_FROM_SOURCE_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            build it from source
+          </a>{" "}
+          first. Then run:
         </T>
       </p>
+      <CommandBlock command={command} />
     </div>
   );
 }

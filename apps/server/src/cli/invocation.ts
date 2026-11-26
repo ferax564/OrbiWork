@@ -13,7 +13,7 @@ import {
   findPosixLauncher,
   readPosixLauncherTarget,
   resolveLauncherPath,
-} from "../cloud/pinnedRuntime.ts";
+} from "../service/pinnedRuntime.ts";
 
 const PINNED_RUNTIME_ENTRY = /^(.*)\/runtime\/versions\/[^/]+\/orbi$/;
 

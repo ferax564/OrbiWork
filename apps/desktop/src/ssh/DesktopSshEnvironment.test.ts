@@ -1,7 +1,10 @@
 import * as NodePath from "@effect/platform-node/NodePath";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
-import { CLI_RELEASE_BASE_URL_ENV } from "@orbiwork/shared/cliRelease";
+import {
+  CLI_RELEASE_BASE_URL_ENV,
+  CLI_RELEASE_SIGNING_PUBLIC_KEY,
+} from "@orbiwork/shared/cliRelease";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -40,6 +43,7 @@ describe("resolveDesktopSshCliRunner", () => {
 
       assert.deepStrictEqual(runner, {
         archiveVersion: "0.0.22",
+        releaseSigningKey: CLI_RELEASE_SIGNING_PUBLIC_KEY,
         releaseBaseUrl: "https://mirror.example.com/orbiwork",
       });
     }),

@@ -20,19 +20,27 @@ The environment issues its own sessions and enforces their capabilities. See
   because forwarding headers can be forged; a loopback peer covers the desktop app, SSH forwards and
   a local TLS proxy. Carriers also hand out 100.64.0.0/10, so such a peer counts only when the
   connection arrived on the interface that holds a Tailscale IPv6 address. Sessions that already
-  exist keep working over any route.
+  exist keep working over any route. Wrong codes are rate limited in memory per socket peer and
+  globally ([`pairingAttemptLimit.ts`](../../apps/server/src/auth/pairingAttemptLimit.ts)), answering
+  429 with `Retry-After`. Every proxied client shares the loopback peer's budget, and the global cap
+  means a flood of guesses briefly blocks legitimate pairing too; token renewal is never limited.
 - **No recoverable secrets in read models.** Only the creation response returns a raw pairing
   credential; access listings expose metadata only.
 - **DPoP binding.** Browser cookies, bearer tokens, and DPoP tokens share the scoped session model.
   DPoP binds tokens to a client proof key; an invalid proof must fail rather than fall back to
-  bearer auth. Plain paired DPoP sessions renew in place so live sockets and Sharing & access rows
-  stay stable; CLI and desktop sessions never self-renew so revoking/unlinking cuts
-  them off.
+  bearer auth. Session cookies are `HttpOnly` and `SameSite=Lax`, and `Secure` only when the request
+  arrived over TLS, directly or as `X-Forwarded-Proto: https` from a loopback peer (a local TLS
+  proxy); plain HTTP keeps a non-`Secure` cookie. Plain paired DPoP sessions renew in place so
+  live sockets and Sharing & access rows stay stable; CLI and desktop sessions never self-renew so
+  revoking/unlinking cuts them off.
 - **WebSocket tickets and per-RPC authorization.** Bearer and DPoP clients mint short-lived tickets
   over authenticated HTTP so long-lived tokens never appear in socket URLs. A DPoP session's
   tickets stay proof-key bound at upgrade, including audience-less ones, which can open the RPC
-  socket; only `media` tickets are unbound, since one is reused across several requests. A successful handshake grants no extra authority: every RPC declares
-  and checks its required scope in [`RpcAuthorization.ts`](../../apps/server/src/auth/RpcAuthorization.ts).
+  socket. A `media` ticket is reused across `<img>`, EventSource and sockets that cannot each carry
+  a fresh proof, so it is bound to the socket peer that minted it instead (all loopback addresses
+  count as one). A leaked media URL then fails from another address, but not from behind the same
+  NAT or local proxy. A successful handshake grants no extra authority: every RPC declares and
+  checks its required scope in [`RpcAuthorization.ts`](../../apps/server/src/auth/RpcAuthorization.ts).
 - **Secret references need `providers:manage`.** A request that names a secret for the server to
   read needs `providers:manage` on top of its method's scope, whether the reference is saved in
   settings or used once, as in a secret request answered with a reference. Typed values need only

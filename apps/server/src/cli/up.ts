@@ -10,8 +10,8 @@ import { Command, Flag, GlobalFlag, Prompt } from "effect/cli";
 import * as CliError from "effect/cli/CliError";
 
 import packageJson from "../../package.json" with { type: "json" };
-import * as BootService from "../cloud/bootService.ts";
-import { compareExactServiceVersions } from "../cloud/serviceProtocol.ts";
+import * as BootService from "../service/bootService.ts";
+import { compareExactServiceVersions } from "../service/serviceProtocol.ts";
 import * as ServerConfig from "../config.ts";
 import * as ManagedLimits from "../policy/managedLimits.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";

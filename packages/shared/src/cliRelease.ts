@@ -5,6 +5,10 @@ import { compareSemverVersions } from "./semver.ts";
 
 const CLI_RELEASE_REPOSITORY = "ferax564/orbiwork";
 export const CLI_RELEASE_CHECKSUMS_FILE = "SHA256SUMS";
+export const CLI_RELEASE_SIGNING_NAMESPACE = "orbiwork-release";
+// PLACEHOLDER: the release key's `ssh-ed25519 AAAA...` public line; empty until the maintainer sets
+// it (docs/operations/03_release.md). While empty, SSH hosts get no signature-checked install.
+export const CLI_RELEASE_SIGNING_PUBLIC_KEY = "";
 export const CLI_RELEASE_BASE_URL_ENV = "ORBIWORK_RELEASE_BASE_URL";
 
 // Keep archive keys aligned with the Linux matrix, Windows ARM64 build, and cli_archive rows in release.yml,

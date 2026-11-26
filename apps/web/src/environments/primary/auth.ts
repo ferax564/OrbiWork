@@ -99,6 +99,19 @@ class PrimaryEnvironmentPlainHttpPairingRefusedError extends Schema.TaggedError<
   }
 }
 
+class PrimaryEnvironmentPairingRateLimitedError extends Schema.TaggedError<PrimaryEnvironmentPairingRateLimitedError>()(
+  "PrimaryEnvironmentPairingRateLimitedError",
+  { retryAfterSeconds: Schema.Number, cause: Schema.Defect() },
+) {
+  override get message(): string {
+    return m(
+      msg("Too many failed pairing attempts. Wait {seconds} seconds, then try again.", {
+        seconds: String(this.retryAfterSeconds),
+      }),
+    );
+  }
+}
+
 export class PrimaryEnvironmentAuthSessionTimeoutError extends Schema.TaggedError<PrimaryEnvironmentAuthSessionTimeoutError>()(
   "PrimaryEnvironmentAuthSessionTimeoutError",
   {
@@ -227,6 +240,8 @@ function readEnvironmentHttpErrorStatus(error: EnvironmentHttpCommonErrorType): 
     case "EnvironmentOperationForbiddenError":
     case "EnvironmentResourceNotFoundError":
       return 404;
+    case "EnvironmentTooManyAttemptsError":
+      return 429;
     case "EnvironmentInternalError":
       return 500;
   }
@@ -257,6 +272,12 @@ async function exchangeBootstrapCredential(credential: string): Promise<AuthBrow
         error.reason === "plain_http_pairing_refused"
       ) {
         throw new PrimaryEnvironmentPlainHttpPairingRefusedError({ cause: error });
+      }
+      if (isEnvironmentHttpCommonError(error) && error._tag === "EnvironmentTooManyAttemptsError") {
+        throw new PrimaryEnvironmentPairingRateLimitedError({
+          retryAfterSeconds: error.retryAfterSeconds,
+          cause: error,
+        });
       }
       throw PrimaryEnvironmentRequestError.fromCause({
         operation: "exchange-bootstrap-credential",

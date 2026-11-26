@@ -22,7 +22,7 @@ import {
   UserRoundXIcon,
 } from "lucide-react";
 import { msg, useGT, useMessages } from "gt-react";
-import { Children, type CSSProperties, isValidElement, type ReactNode, useState } from "react";
+import { Children, type CSSProperties, isValidElement, type ReactNode } from "react";
 
 import { m, type MessageResolver } from "~/i18n/messages";
 import { cn } from "~/lib/utils";
@@ -463,6 +463,7 @@ export function PullRequestReviewOutcomeBadge({
   );
 }
 
+// Never loads the forge's avatar URL: that would contact its image CDN from the client unasked.
 export function PullRequestActorAvatar({
   actor,
   className,
@@ -471,9 +472,7 @@ export function PullRequestActorAvatar({
   className?: string;
 }) {
   const login = actor?.login ?? "ghost";
-  const avatarUrl = actor?.avatarUrl ?? null;
-  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
-  return avatarUrl === null || failedAvatarUrl === avatarUrl ? (
+  return (
     <span
       aria-hidden
       className={cn(
@@ -483,15 +482,6 @@ export function PullRequestActorAvatar({
     >
       {login.slice(0, 1).toUpperCase()}
     </span>
-  ) : (
-    <img
-      aria-hidden
-      alt=""
-      src={avatarUrl}
-      loading="lazy"
-      className={cn("size-4 shrink-0 rounded-full bg-muted object-cover", className)}
-      onError={() => setFailedAvatarUrl(avatarUrl)}
-    />
   );
 }
 

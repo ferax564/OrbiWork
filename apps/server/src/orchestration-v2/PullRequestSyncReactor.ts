@@ -26,6 +26,7 @@ import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
@@ -38,6 +39,7 @@ import * as GitManager from "../git/GitManager.ts";
 import { PullRequestProviderError } from "@orbiwork/source-control-core/server/PullRequestProvider";
 import * as PullRequestService from "../pullRequest/PullRequestService.ts";
 import { forkParked } from "../serverActivation.ts";
+import { VcsAutomaticFetchInterval } from "../vcs/VcsAutomaticFetchInterval.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
@@ -361,6 +363,7 @@ export const make = Effect.gen(function* () {
   const pullRequests = yield* PullRequestService.PullRequestService;
   const git = yield* GitManager.GitManager;
   const random = yield* SecureRandom.SecureRandom;
+  const automaticFetchInterval = yield* VcsAutomaticFetchInterval;
 
   const lastSyncedAt = new Map<string, number>();
   const requested = new Set<string>();
@@ -887,6 +890,8 @@ export const make = Effect.gen(function* () {
     );
     yield* forkParked(
       Effect.gen(function* () {
+        // Unprompted sweeps contact the forge, so they share background `git fetch`'s opt-in.
+        if (Duration.isZero(yield* automaticFetchInterval)) return;
         yield* worker.enqueue("all");
         yield* worker.drain;
       }).pipe(Effect.repeat(Schedule.spaced("1 minute")), Effect.asVoid),

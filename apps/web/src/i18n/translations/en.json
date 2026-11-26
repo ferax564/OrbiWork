@@ -442,6 +442,7 @@
   "7283ebfd16d09677": "The environment credential does not grant the required access.",
   "d3e9a9cb543b4b7b": "The environment rejected the authentication request.",
   "0bf42b196261df62": "The environment endpoint could not be found.",
+  "6832b20f9e2087e9": "Too many failed pairing attempts. Wait {seconds} seconds, then try again.",
   "94c2caab0a9d17a6": "The environment could not authorize the connection.",
   "d084f7f88e5bf041": "{host} froze for {seconds}s",
   "ca97b6934f016952": "Its CPU is overloaded (load {load} on {cpuCount} cores).",
@@ -2008,22 +2009,22 @@
   "c65de112b48a66ed": "Add pairing link",
   "bc8ab792af1d656f": "Run on your computer:",
   "0ba14e4e920cfa00": "Or download the desktop app",
-  "0e79b7a6508a6286": "Then",
-  "c7e1737d858f2e07": [
-    "Skip the install if you already have ",
+  "8b8ba23270b77ec5": [
+    "If you do not have ",
     {
       "t": "code",
       "i": 1,
       "c": "orbi"
     },
-    ". If",
+    " yet,",
     " ",
     {
-      "t": "code",
+      "t": "a",
       "i": 2,
-      "c": "orbi"
+      "c": "build it from source"
     },
-    " is not found after installing, add the folder the installer names to your PATH."
+    " ",
+    "first. Then run:"
   ],
   "87b24d00c08f54bb": "Unable to open keybindings file",
   "0ee16208cbfcdbf4": "Unknown error opening file.",
@@ -3128,6 +3129,9 @@
   "932e6e0577492ff3": "Audio unavailable",
   "fedcc745e60b2795": "Video unavailable",
   "db6b3b2fddbb9c08": "Image unavailable",
+  "5c0871bc63e482fe": "Load audio from {host}",
+  "d388013849068ce4": "Load video from {host}",
+  "402dbc52161d1b40": "Load image from {host}",
   "0b3fd76abaaea6ae": "Loading image",
   "9f951869aa5d4867": "This connection cannot read host files. Pair again with a new link to view it.",
   "13d83e7c0e44494c": [
@@ -6910,6 +6914,7 @@
       "v": "rt"
     }
   ],
+  "8d80c384e9e910e8": "Cannot pair: unencrypted. Use Tailscale or SSH.",
   "ae85d885630b0e51": "{count, plural, one {{count} scope} other {{count} scopes}}",
   "129431563dc043bc": "{label}: show {scopes}",
   "e19e13b2511e692f": "Could not copy pairing URL",

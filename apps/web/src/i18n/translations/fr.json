@@ -442,6 +442,7 @@
   "7283ebfd16d09677": "Les identifiants de l’environnement n’accordent pas l’accès requis.",
   "d3e9a9cb543b4b7b": "L’environnement a rejeté la demande d’authentification.",
   "0bf42b196261df62": "Le point de terminaison de l’environnement est introuvable.",
+  "6832b20f9e2087e9": "Too many failed pairing attempts. Wait {seconds} seconds, then try again.",
   "94c2caab0a9d17a6": "L’environnement n’a pas pu autoriser la connexion.",
   "d084f7f88e5bf041": "{host} a été figé pendant {seconds} s",
   "ca97b6934f016952": "Son processeur est surchargé (charge {load} sur {cpuCount} cœurs).",
@@ -2008,22 +2009,22 @@
   "c65de112b48a66ed": "Ajouter un lien d’appairage",
   "bc8ab792af1d656f": "Exécutez sur votre ordinateur :",
   "0ba14e4e920cfa00": "Ou téléchargez l’app desktop",
-  "0e79b7a6508a6286": "Puis",
-  "c7e1737d858f2e07": [
-    "Ignorez l’installation si vous avez déjà ",
+  "8b8ba23270b77ec5": [
+    "If you do not have ",
     {
       "t": "code",
       "i": 1,
       "c": "orbi"
     },
-    ". Si",
+    " yet,",
     " ",
     {
-      "t": "code",
+      "t": "a",
       "i": 2,
-      "c": "orbi"
+      "c": "build it from source"
     },
-    " est introuvable après l’installation, ajoutez à votre PATH le dossier indiqué par l’installateur."
+    " ",
+    "first. Then run:"
   ],
   "87b24d00c08f54bb": "Impossible d’ouvrir le fichier des raccourcis clavier",
   "0ee16208cbfcdbf4": "Erreur inconnue à l’ouverture du fichier.",
@@ -3128,6 +3129,9 @@
   "932e6e0577492ff3": "Audio indisponible",
   "fedcc745e60b2795": "Vidéo indisponible",
   "db6b3b2fddbb9c08": "Image indisponible",
+  "5c0871bc63e482fe": "Load audio from {host}",
+  "d388013849068ce4": "Load video from {host}",
+  "402dbc52161d1b40": "Load image from {host}",
   "0b3fd76abaaea6ae": "Chargement de l’image",
   "9f951869aa5d4867": "Cette connexion ne peut pas lire les fichiers de l’hôte. Appairez à nouveau avec un nouveau lien pour les voir.",
   "13d83e7c0e44494c": [
@@ -6904,6 +6908,7 @@
       "v": "rt"
     }
   ],
+  "8d80c384e9e910e8": "Cannot pair: unencrypted. Use Tailscale or SSH.",
   "ae85d885630b0e51": "{count, plural, one {{count} portée} other {{count} portées}}",
   "129431563dc043bc": "{label} : afficher {scopes}",
   "e19e13b2511e692f": "Impossible de copier l’URL d’appairage",

@@ -185,8 +185,8 @@ import * as AcpRegistryRuntimeCoordinator from "@orbiwork/provider-acp-registry/
 import * as ProviderMaintenanceRunner from "./provider/providerMaintenanceRunner.ts";
 import * as ProviderAuthService from "./provider/ProviderAuthService.ts";
 import * as ProviderInstallation from "./provider/providerInstallation.ts";
-import * as ServerSelfUpdate from "./cloud/selfUpdate.ts";
-import * as NpmRelease from "./cloud/npmRelease.ts";
+import * as ServerSelfUpdate from "./service/selfUpdate.ts";
+import * as NpmRelease from "./service/npmRelease.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 import * as SecretResolver from "@orbiwork/secret-provider-core/server/SecretResolver";
@@ -1782,6 +1782,7 @@ export const layerWsRpc = (
           issues: keybindingsConfig.issues,
           providers,
           ...discovery,
+          ...(config.insecureHttpPairing ? {} : { refusesPlainHttpPairing: true }),
           observability: {
             logsDirectoryPath: config.logsDir,
             localTracingEnabled: true,

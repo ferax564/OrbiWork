@@ -442,6 +442,7 @@
   "7283ebfd16d09677": "Miljöns autentiseringsuppgift ger inte den åtkomst som krävs.",
   "d3e9a9cb543b4b7b": "Miljön avvisade autentiseringsbegäran.",
   "0bf42b196261df62": "Miljöns slutpunkt hittades inte.",
+  "6832b20f9e2087e9": "Too many failed pairing attempts. Wait {seconds} seconds, then try again.",
   "94c2caab0a9d17a6": "Miljön kunde inte auktorisera anslutningen.",
   "d084f7f88e5bf041": "{host} frös i {seconds} s",
   "ca97b6934f016952": "Processorn är överbelastad (belastning {load} på {cpuCount} kärnor).",
@@ -2008,22 +2009,22 @@
   "c65de112b48a66ed": "Lägg till parkopplingslänk",
   "bc8ab792af1d656f": "Kör på din dator:",
   "0ba14e4e920cfa00": "Eller ladda ned skrivbordsappen",
-  "0e79b7a6508a6286": "Sedan",
-  "c7e1737d858f2e07": [
-    "Hoppa över installationen om du redan har ",
+  "8b8ba23270b77ec5": [
+    "If you do not have ",
     {
       "t": "code",
       "i": 1,
       "c": "orbi"
     },
-    ". Om",
+    " yet,",
     " ",
     {
-      "t": "code",
+      "t": "a",
       "i": 2,
-      "c": "orbi"
+      "c": "build it from source"
     },
-    " inte hittas efter installationen, lägg till mappen som installationsprogrammet anger i din PATH."
+    " ",
+    "first. Then run:"
   ],
   "87b24d00c08f54bb": "Det gick inte att öppna filen med kortkommandon",
   "0ee16208cbfcdbf4": "Okänt fel när filen öppnades.",
@@ -3128,6 +3129,9 @@
   "932e6e0577492ff3": "Ljudet är inte tillgängligt",
   "fedcc745e60b2795": "Videon är inte tillgänglig",
   "db6b3b2fddbb9c08": "Bilden är inte tillgänglig",
+  "5c0871bc63e482fe": "Load audio from {host}",
+  "d388013849068ce4": "Load video from {host}",
+  "402dbc52161d1b40": "Load image from {host}",
   "0b3fd76abaaea6ae": "Läser in bild",
   "9f951869aa5d4867": "Den här anslutningen kan inte läsa värdens filer. Parkoppla igen med en ny länk för att visa den.",
   "13d83e7c0e44494c": [
@@ -6909,6 +6913,7 @@
       "v": "rt"
     }
   ],
+  "8d80c384e9e910e8": "Cannot pair: unencrypted. Use Tailscale or SSH.",
   "ae85d885630b0e51": "{count, plural, one {{count} omfång} other {{count} omfång}}",
   "129431563dc043bc": "{label}: visa {scopes}",
   "e19e13b2511e692f": "Kunde inte kopiera parkopplings-URL:en",

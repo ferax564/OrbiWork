@@ -3,7 +3,10 @@ import type {
   DesktopSshEnvironmentBootstrap,
   DesktopSshEnvironmentTarget,
 } from "@orbiwork/contracts";
-import { CLI_RELEASE_BASE_URL_ENV } from "@orbiwork/shared/cliRelease";
+import {
+  CLI_RELEASE_BASE_URL_ENV,
+  CLI_RELEASE_SIGNING_PUBLIC_KEY,
+} from "@orbiwork/shared/cliRelease";
 import * as NetService from "@orbiwork/shared/Net";
 import * as SshAuth from "@orbiwork/ssh/auth";
 import { resolveSshTarget } from "@orbiwork/ssh/command";
@@ -93,6 +96,7 @@ export const resolveDesktopSshCliRunner = (
   const releaseBaseUrl = env[CLI_RELEASE_BASE_URL_ENV]?.trim() || undefined;
   return {
     archiveVersion: environment.appVersion,
+    releaseSigningKey: CLI_RELEASE_SIGNING_PUBLIC_KEY,
     ...(releaseBaseUrl === undefined ? {} : { releaseBaseUrl }),
   };
 };

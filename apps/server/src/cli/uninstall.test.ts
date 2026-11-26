@@ -14,8 +14,8 @@ import * as NetService from "@orbiwork/shared/Net";
 import { afterEach, expect, vi } from "vite-plus/test";
 
 import packageJson from "../../package.json" with { type: "json" };
-import * as BootService from "../cloud/bootService.ts";
-import { posixLauncherScript } from "../cloud/pinnedRuntime.ts";
+import * as BootService from "../service/bootService.ts";
+import { posixLauncherScript } from "../service/pinnedRuntime.ts";
 import {
   findOwnedLauncher,
   findRecordedLaunchers,

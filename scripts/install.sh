@@ -2,7 +2,7 @@
 # Installs the OrbiWork CLI from a GitHub Release archive. Needs only sh, tar,
 # sha256sum or shasum, and curl or wget; no Node, npm, or compiler.
 #
-#   curl -fsSL https://orbiwork.invalid/install.sh | sh
+#   sh scripts/install.sh   (from a checkout; needs a published GitHub Release)
 #
 # Environment:
 #   ORBIWORK_CHANNEL           release train to follow: stable, nightly, or preview
@@ -163,7 +163,7 @@ download() {
 case "$(uname -s)" in
   Darwin) platform="darwin" ;;
   Linux) platform="linux" ;;
-  *) fail "unsupported operating system $(uname -s); use the desktop app or npm" ;;
+  *) fail "unsupported operating system $(uname -s); build orbi from source: https://github.com/${repo}#build-from-source" ;;
 esac
 case "$(uname -m)" in
   arm64 | aarch64) arch="arm64" ;;
@@ -171,7 +171,7 @@ case "$(uname -m)" in
   *) fail "unsupported architecture $(uname -m)" ;;
 esac
 if [ "${platform}-${arch}" = darwin-x64 ]; then
-  fail "there is no orbi CLI for Intel Macs. Install the desktop app from https://orbiwork.invalid/download, or run a server from source: https://github.com/${repo}/blob/main/docs/user/install.md#intel-macs"
+  fail "there is no orbi CLI for Intel Macs. Run a server from source: https://github.com/${repo}/blob/main/docs/user/install.md#command-line"
 fi
 command -v tar >/dev/null 2>&1 || fail "tar is required"
 if command -v sha256sum >/dev/null 2>&1; then

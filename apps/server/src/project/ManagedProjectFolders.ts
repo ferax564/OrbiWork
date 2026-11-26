@@ -199,7 +199,7 @@ function namedProjectReadme(name: string): string {
     "",
     `# ${name}`,
     "",
-    "Created in [OrbiWork](https://orbiwork.invalid).",
+    "Created in [OrbiWork](https://orbiwork.com).",
     "",
   ].join("\n");
 }

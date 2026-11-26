@@ -27,9 +27,7 @@ it.each([1])("blocks legacy launcher protocol %i with exact recovery steps", (la
   const reason = result.status === "blocked" ? result.reason : "";
   expect(reason).toMatch(new RegExp(`\\b${launcherProtocol}\\b`));
   expect(reason).toMatch(new RegExp(`\\b${SERVICE_LAUNCHER_PROTOCOL}\\b`));
-  expect(reason).toContain(
-    "curl -fsSL https://orbiwork.invalid/install.sh | ORBIWORK_VERSION=9.8.7 sh",
-  );
+  expect(reason).toContain("install orbi 9.8.7");
   expect(reason).toContain("~/.local/bin/orbi service install");
   expect(reason).toContain("orbi --version");
   expect(reason).toContain("which -a orbi");

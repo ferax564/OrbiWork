@@ -7,7 +7,11 @@ import type {
   DesktopSshEnvironmentTarget,
 } from "@orbiwork/contracts";
 import { waitForHttpReady as waitForHttpReadyShared } from "@orbiwork/shared/httpReadiness";
-import { type CliArchivePlatformKey, cliReleaseDownloadBaseUrl } from "@orbiwork/shared/cliRelease";
+import {
+  type CliArchivePlatformKey,
+  CLI_RELEASE_SIGNING_NAMESPACE,
+  cliReleaseDownloadBaseUrl,
+} from "@orbiwork/shared/cliRelease";
 import * as KeyedLock from "@orbiwork/shared/KeyedLock";
 import * as NetService from "@orbiwork/shared/Net";
 import { extractJsonObject, fromLenientJson } from "@orbiwork/shared/schemaJson";
@@ -116,6 +120,8 @@ export interface RemoteOrbiRunnerOptions {
    * remote install refuses an archive without one, so a mirror or release cannot swap it.
    */
   readonly archiveSha256?: Readonly<Partial<Record<CliArchivePlatformKey, string>>> | null;
+  /** `ssh-ed25519` public key that must have signed the release's SHA256SUMS when no digest is given. */
+  readonly releaseSigningKey?: string | null;
 }
 
 export interface SshEnvironmentManagerOptions {
@@ -551,8 +557,13 @@ if ! orbi_runtime_ready; then
 @@ORBI_ARCHIVE_SHA256_CASES@@
     *) ORBI_EXPECTED= ;;
   esac
-  if [ -z "$ORBI_EXPECTED" ]; then
+  ORBI_SIGNING_KEY=@@ORBI_RELEASE_SIGNING_KEY@@
+  if [ -z "$ORBI_EXPECTED" ] && [ -z "$ORBI_SIGNING_KEY" ]; then
     printf 'This OrbiWork app has no trusted SHA-256 digest for %s, so it will not install it. Install orbi %s on this host yourself and try again.\\n' "$ORBI_ARCHIVE" "$ORBI_ARCHIVE_VERSION" >&2
+    exit 1
+  fi
+  if [ -z "$ORBI_EXPECTED" ] && ! command -v ssh-keygen >/dev/null 2>&1; then
+    printf 'Remote host needs ssh-keygen (OpenSSH 8.1 or later) to verify the orbi %s release signature.\\n' "$ORBI_ARCHIVE_VERSION" >&2
     exit 1
   fi
   ORBI_STAGING="$(mktemp -d "$HOME/.orbi/runtime/versions/.staging-XXXXXX")"
@@ -562,10 +573,23 @@ if ! orbi_runtime_ready; then
     elif command -v wget >/dev/null 2>&1; then wget -q --timeout=30 --tries=1 "$1" -O "$2"
     else printf 'Remote host needs curl or wget to download %s.\\n' "$ORBI_ARCHIVE" >&2; exit 1
     fi || {
-      printf 'Could not download orbi %s from %s. If this host cannot reach it, install orbi %s on it with https://orbiwork.invalid/install.sh (ORBIWORK_VERSION=%s; ORBIWORK_RELEASE_BASE_URL selects a mirror).\\n' "$ORBI_ARCHIVE_VERSION" "$1" "$ORBI_ARCHIVE_VERSION" "$ORBI_ARCHIVE_VERSION" >&2
+      printf 'Could not download orbi %s from %s. If this host cannot reach it, build orbi %s from source on it (https://github.com/ferax564/OrbiWork#build-from-source), or set ORBIWORK_RELEASE_BASE_URL to a mirror.\\n' "$ORBI_ARCHIVE_VERSION" "$1" "$ORBI_ARCHIVE_VERSION" >&2
       exit 1
     }
   }
+  if [ -z "$ORBI_EXPECTED" ]; then
+    # The origin's sums count only once the app's release key has signed them.
+    orbi_fetch "$ORBI_RELEASE_BASE_URL/v$ORBI_ARCHIVE_VERSION/SHA256SUMS" "$ORBI_STAGING/SHA256SUMS" 60
+    orbi_fetch "$ORBI_RELEASE_BASE_URL/v$ORBI_ARCHIVE_VERSION/SHA256SUMS.sig" "$ORBI_STAGING/SHA256SUMS.sig" 60
+    printf '@@ORBI_RELEASE_SIGNING_NAMESPACE@@ namespaces="@@ORBI_RELEASE_SIGNING_NAMESPACE@@" %s\\n' "$ORBI_SIGNING_KEY" > "$ORBI_STAGING/allowed_signers"
+    if ! ssh-keygen -Y verify -f "$ORBI_STAGING/allowed_signers" -I @@ORBI_RELEASE_SIGNING_NAMESPACE@@ -n @@ORBI_RELEASE_SIGNING_NAMESPACE@@ -s "$ORBI_STAGING/SHA256SUMS.sig" < "$ORBI_STAGING/SHA256SUMS" >/dev/null 2>&1; then
+      printf 'The orbi %s release checksums are not signed by this OrbiWork app'"'"'s release key, so it will not install them.\\n' "$ORBI_ARCHIVE_VERSION" >&2; exit 1
+    fi
+    ORBI_EXPECTED="$(awk -v f="$ORBI_ARCHIVE" '$2 == f || $2 == "*" f { print tolower($1); exit }' "$ORBI_STAGING/SHA256SUMS")"
+    if [ -z "$ORBI_EXPECTED" ]; then
+      printf 'The signed orbi %s release checksums do not list %s.\\n' "$ORBI_ARCHIVE_VERSION" "$ORBI_ARCHIVE" >&2; exit 1
+    fi
+  fi
   orbi_fetch "$ORBI_RELEASE_BASE_URL/v$ORBI_ARCHIVE_VERSION/$ORBI_ARCHIVE" "$ORBI_STAGING/$ORBI_ARCHIVE" @@ORBI_ARCHIVE_DOWNLOAD_SECONDS@@
   if command -v sha256sum >/dev/null 2>&1; then
     ORBI_ACTUAL="$(sha256sum < "$ORBI_STAGING/$ORBI_ARCHIVE" | cut -d' ' -f1)"
@@ -1219,6 +1243,10 @@ export function buildRemoteOrbiRunnerScript(input?: RemoteOrbiRunnerOptions): st
   if (!/^https?:\/\/[^\s'"\\]+$/u.test(releaseBaseUrl)) {
     throw new SshInvalidRunnerOptionError({ option: "releaseBaseUrl" });
   }
+  const releaseSigningKey = input?.releaseSigningKey?.trim() || "";
+  if (releaseSigningKey !== "" && !/^ssh-ed25519 [A-Za-z0-9+/]+={0,2}$/u.test(releaseSigningKey)) {
+    throw new SshInvalidRunnerOptionError({ option: "releaseSigningKey" });
+  }
   return stripTrailingNewlines(
     applyScriptPlaceholders(REMOTE_RUNNER_SCRIPT, {
       ORBI_NODE_SCRIPT_PATH: shellSingleQuote(nodeScriptPath),
@@ -1227,6 +1255,8 @@ export function buildRemoteOrbiRunnerScript(input?: RemoteOrbiRunnerOptions): st
       ORBI_ARCHIVE_LOCK_WAIT_SECONDS: String(REMOTE_ARCHIVE_LOCK_WAIT_SECONDS),
       ORBI_ARCHIVE_DOWNLOAD_SECONDS: String(REMOTE_ARCHIVE_DOWNLOAD_SECONDS),
       ORBI_ARCHIVE_SHA256_CASES: archiveSha256Cases(input),
+      ORBI_RELEASE_SIGNING_KEY: shellSingleQuote(releaseSigningKey),
+      ORBI_RELEASE_SIGNING_NAMESPACE: CLI_RELEASE_SIGNING_NAMESPACE,
       ORBI_NODE_ENV_SCRIPT: buildRemoteNodeEnvScript(input),
     }),
   );

@@ -16,6 +16,7 @@ import {
   EnvironmentResourceNotFoundError,
   type EnvironmentResourceNotFoundReason,
   EnvironmentScopeRequiredError,
+  EnvironmentTooManyAttemptsError,
   EnvironmentAuthenticatedAuth,
   EnvironmentAuthenticatedPrincipal,
   mcpClientScopes,
@@ -27,9 +28,9 @@ import type {
 } from "@orbiwork/contracts";
 import { parseOAuthScope } from "@orbiwork/shared/oauthScope";
 import { causeErrorTag } from "@orbiwork/shared/observability";
+import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
-import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Layer from "effect/Layer";
 import * as Cookies from "effect/http/Cookies";
@@ -39,7 +40,13 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 
 import * as EnvironmentAuth from "./EnvironmentAuth.ts";
 import * as SessionStore from "./SessionStore.ts";
-import { arrivesOverPrivateTransport, deriveAuthClientMetadata } from "./utils.ts";
+import { makePairingAttemptLimit } from "./pairingAttemptLimit.ts";
+import {
+  arrivesOverHttps,
+  arrivesOverPrivateTransport,
+  deriveAuthClientMetadata,
+  requestPeer,
+} from "./utils.ts";
 import { checkRequestDpopProof } from "./dpop.ts";
 import { requestUrl } from "../requestUrl.ts";
 import * as ServerConfig from "../config.ts";
@@ -214,12 +221,12 @@ export const failEnvironmentInternal =
     });
   });
 
-// Plaintext LAN servers still need the cookie; TLS arrives through a proxy that sets X-Forwarded-Proto.
+// Plaintext LAN servers still need the cookie, so `Secure` follows the transport.
 const sessionCookieOptions = (request: HttpServerRequest.HttpServerRequest) => ({
   httpOnly: true,
   path: "/",
   sameSite: "lax" as const,
-  secure: Option.exists(requestUrl(request), (url) => url.protocol === "https:"),
+  secure: arrivesOverHttps(request),
 });
 
 const appendSessionCookie = (
@@ -292,6 +299,35 @@ export const layer = HttpApiBuilder.group(
       insecureHttpPairing || arrivesOverPrivateTransport(request)
         ? Effect.void
         : failEnvironmentOperationForbidden("plain_http_pairing_refused");
+    const pairingAttempts = makePairingAttemptLimit();
+    // Only a wrong code counts; the socket peer decides because forwarding headers can be forged.
+    const limitPairingAttempts = Effect.fnUntraced(function* <A, E, R>(
+      request: HttpServerRequest.HttpServerRequest,
+      redeem: Effect.Effect<A, E, R>,
+    ) {
+      const peer = requestPeer(request) ?? "unknown";
+      const waitMs = pairingAttempts.retryAfterMs(peer, yield* Clock.currentTimeMillis);
+      if (waitMs > 0) {
+        const retryAfterSeconds = Math.ceil(waitMs / 1000);
+        yield* HttpEffect.appendPreResponseHandler((_request, response) =>
+          Effect.succeed(
+            HttpServerResponse.setHeader(response, "retry-after", String(retryAfterSeconds)),
+          ),
+        );
+        return yield* new EnvironmentTooManyAttemptsError({
+          code: "too_many_attempts",
+          retryAfterSeconds,
+          traceId: yield* currentEnvironmentTraceId,
+        });
+      }
+      return yield* redeem.pipe(
+        Effect.tapError((error) =>
+          EnvironmentAuth.isServerAuthCredentialError(error)
+            ? Effect.map(Clock.currentTimeMillis, (now) => pairingAttempts.recordFailure(peer, now))
+            : Effect.void,
+        ),
+      );
+    });
 
     return handlers
       .handle(
@@ -339,13 +375,16 @@ export const layer = HttpApiBuilder.group(
               sessions.cookieName,
               sessions.legacyCookieName,
             );
-            const result = yield* serverAuth.createBrowserSession(
-              args.payload.credential,
-              deriveAuthClientMetadata({ request }),
-              previousCredential &&
-                EnvironmentAuth.isBrowserCookieCredential(previousCredential.source)
-                ? previousCredential.token
-                : undefined,
+            const result = yield* limitPairingAttempts(
+              request,
+              serverAuth.createBrowserSession(
+                args.payload.credential,
+                deriveAuthClientMetadata({ request }),
+                previousCredential &&
+                  EnvironmentAuth.isBrowserCookieCredential(previousCredential.source)
+                  ? previousCredential.token
+                  : undefined,
+              ),
             );
             const cookieName = result.cookieName ?? sessions.cookieName;
             const selectedCookie = yield* Effect.fromResult(
@@ -428,20 +467,23 @@ export const layer = HttpApiBuilder.group(
               );
             }
             yield* refusePlainHttpPairing(request);
-            return yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
-              args.payload.subject_token,
-              requestedScopes,
-              deriveAuthClientMetadata({
-                request,
-                presented: {
-                  ...(args.payload.client_label ? { label: args.payload.client_label } : {}),
-                  ...(args.payload.client_device_type
-                    ? { deviceType: args.payload.client_device_type }
-                    : {}),
-                  ...(args.payload.client_os ? { os: args.payload.client_os } : {}),
-                },
-              }),
-              proof ? { proofKeyThumbprint: proof.thumbprint } : undefined,
+            return yield* limitPairingAttempts(
+              request,
+              serverAuth.exchangeBootstrapCredentialForAccessToken(
+                args.payload.subject_token,
+                requestedScopes,
+                deriveAuthClientMetadata({
+                  request,
+                  presented: {
+                    ...(args.payload.client_label ? { label: args.payload.client_label } : {}),
+                    ...(args.payload.client_device_type
+                      ? { deviceType: args.payload.client_device_type }
+                      : {}),
+                    ...(args.payload.client_os ? { os: args.payload.client_os } : {}),
+                  },
+                }),
+                proof ? { proofKeyThumbprint: proof.thumbprint } : undefined,
+              ),
             );
           },
           Effect.catchIf(EnvironmentAuth.isServerAuthCredentialError, (error) =>
@@ -478,8 +520,12 @@ export const layer = HttpApiBuilder.group(
           function* (args) {
             yield* annotateEnvironmentRequest(args.endpoint.name);
             const session = yield* EnvironmentAuthenticatedPrincipal;
+            const request = yield* HttpServerRequest.HttpServerRequest;
             yield* appendCredentialResponseHeaders;
-            return yield* serverAuth.issueWebSocketTicket(session, { use: args.params.use });
+            return yield* serverAuth.issueWebSocketTicket(session, {
+              use: args.params.use,
+              peer: requestPeer(request),
+            });
           },
           Effect.catchIf(EnvironmentAuth.isServerAuthInternalError, (error) =>
             failEnvironmentInternal("websocket_ticket_issuance_failed", error),

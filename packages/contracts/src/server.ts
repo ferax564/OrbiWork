@@ -721,6 +721,8 @@ export const ServerConfig = Schema.Struct({
   remoteOpenTargets: Schema.optionalKey(ForwardCompatibleArray(RemoteOpenTarget)),
   /** Hints only; verify each address answers as this environment. */
   directEndpoints: Schema.optionalKey(ForwardCompatibleArray(ServerDirectEndpoint)),
+  /** Pairing codes are refused unless the peer is loopback or on the tailnet. Older servers omit it. */
+  refusesPlainHttpPairing: Schema.optionalKey(Schema.Boolean),
   observability: ServerObservability,
   settings: ServerSettings,
   /** Present when an administrator's policy file manages this environment. */

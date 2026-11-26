@@ -38,6 +38,10 @@ the server is tests. The bloat is feature breadth and compatibility layers, not 
   change require local consent.
 - Done: remove the agent feedback delivery path (it can carry conversation excerpts).
 - Remove the star prompt and the token check behind it.
+- Done: remote images, video and audio in markdown load on click; no forge avatars or hosted
+  connector logos; pull-request status sweeps follow the background fetch setting (off by default).
+- Open: provider usage-limit and model lookups on the health refresh still run for signed-in
+  providers.
 - Add a network-capture regression check: a clean profile at startup and at idle makes zero
   outbound connections.
 
@@ -49,15 +53,16 @@ session, traffic is readable at the tunnel edge, and tunnel routes are set remot
 - Done: removed hosted sign-in, the relay client, the managed tunnel, guest share links, activity
   publishing, webhook delivery through the relay, the third-party chat account link and
   `infra/relay`. Webhooks sent straight to the server's own address stay.
-- First split the service launcher, boot service and runtime pinning out of `cloud/`, which mixes
-  them with the hosted code.
+- Done: the service launcher, boot service and runtime pinning live in `apps/server/src/service/`.
 - Keep SSH and Tailscale. Harden SSH: pass the password over a file descriptor, scope the askpass
-  helper to password prompts, verify release signatures rather than same-origin checksums.
+  helper to password prompts.
+- Done in code: an SSH install checks a signed `SHA256SUMS`. It stays off until a release key is
+  committed (`docs/operations/03_release.md`). Open: the same check for server self-update.
 - Done: pairing codes are 80 bits, links last at most 24 hours, and a key-bound session cannot
   get an unbound socket ticket. A pairing code is refused over plain HTTP from outside the machine
-  and the tailnet unless `ORBIWORK_INSECURE_HTTP_PAIRING` is set.
-- Open: limit wrong-code attempts; bind media tickets; show in the desktop's Sharing & access list
-  which addresses can pair.
+  and the tailnet unless `ORBIWORK_INSECURE_HTTP_PAIRING` is set, and Sharing & access marks the
+  addresses that cannot pair. Wrong codes are limited per peer and in total. Media tickets work
+  only from the address that asked for them. Session cookies are `Secure` on HTTPS.
 
 ## Phase 3: cut breadth
 
@@ -85,6 +90,10 @@ In order of value for effort:
 
 Each item needs a before and after number.
 
+Baseline (M-series Mac, empty state, three runs): server cold start 1.15 to 1.22 s; idle server
+about 450 MB RSS, 171 MB heap, 0.4% CPU; web boot path 190 chunks, 1.6 MB gzip JS; 144 chunks
+are emitted twice.
+
 - Startup: lazy CLI command imports; build optional server layers on first use; lazy desktop
   subsystems; fewer always-mounted hosts in the web root route. Measure with
   `scripts/profile-startup.mjs` and time to first window.
@@ -98,10 +107,12 @@ Each item needs a before and after number.
 
 ## Phase 5: desktop hardening
 
-- Electron fuses, with the backend moved off run-as-node so the signed app cannot be used as a
-  general Node binary that inherits its OS permissions.
-- Tighter content security policy: no inline scripts, no wildcard connect/frame sources.
-- Do not register as a system handler for http/https.
+- Checked on a packaged macOS build: asar integrity, asar-only loading, cookie encryption and no
+  inspector arguments are set; no inline scripts; only the app's own URL schemes are registered.
+- Open: run-as-node and `NODE_OPTIONS` are still on. The backend, provider adapters, the SSH
+  password helper, the CLI shim and the desktop workers all run Electron as Node. Embedding the
+  standalone `orbi` binary would fix it at a cost of 150 to 400 MB.
+- Connect and frame sources stay open to any origin because environments are added at runtime.
 
 ## Structure
 

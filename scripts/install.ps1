@@ -1,7 +1,7 @@
 # Installs the OrbiWork CLI from a GitHub Release archive on Windows. Needs
 # only PowerShell 5.1+; no Node, npm, or compiler.
 #
-#   irm https://orbiwork.invalid/install.ps1 | iex
+#   .\scripts\install.ps1   (from a checkout; needs a published GitHub Release)
 #
 # Environment:
 #   ORBIWORK_CHANNEL           release train to follow: stable, nightly, or preview

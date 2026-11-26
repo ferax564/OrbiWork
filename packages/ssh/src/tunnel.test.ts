@@ -542,6 +542,116 @@ describe("ssh tunnel scripts", () => {
     assert.isFalse(installed);
   });
 
+  // The origin serves SHA256SUMS signed (or not) by a throwaway key; the app trusts `trusted`.
+  const installSignedRelease = (input: {
+    readonly signer: "trusted" | "other" | "none";
+    readonly tamperAfterSigning?: boolean;
+  }) => {
+    const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "orbi-ssh-runner-"));
+    try {
+      const bin = NodePath.join(root, "bin");
+      const release = NodePath.join(root, "release");
+      const home = NodePath.join(root, "home");
+      const archive = `orbi-${ARCHIVE.archiveVersion}-linux-x64.tar.gz`;
+      NodeFS.mkdirSync(bin);
+      NodeFS.mkdirSync(home);
+      NodeFS.mkdirSync(NodePath.join(release, "orbi"), { recursive: true });
+      const keys: Record<"trusted" | "other", string> = {
+        trusted: NodePath.join(root, "trusted"),
+        other: NodePath.join(root, "other"),
+      };
+      for (const key of Object.values(keys)) {
+        NodeChildProcess.execFileSync("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", key]);
+      }
+      const writeArchive = (output: string) => {
+        NodeFS.writeFileSync(
+          NodePath.join(release, "orbi", "orbi"),
+          `#!/bin/sh\necho ${output}\n`,
+          {
+            mode: 0o755,
+          },
+        );
+        NodeChildProcess.execFileSync("tar", ["-czf", archive, "orbi"], { cwd: release });
+      };
+      writeArchive("signed");
+      const sums = NodePath.join(release, "SHA256SUMS");
+      NodeFS.writeFileSync(sums, `${sha256Of(NodePath.join(release, archive))}  ${archive}\n`);
+      if (input.signer !== "none") {
+        NodeChildProcess.execFileSync("ssh-keygen", [
+          "-q",
+          "-Y",
+          "sign",
+          "-n",
+          "orbiwork-release",
+          "-f",
+          keys[input.signer],
+          sums,
+        ]);
+      }
+      if (input.tamperAfterSigning) writeArchive("tampered");
+      NodeFS.writeFileSync(
+        NodePath.join(bin, "uname"),
+        '#!/bin/sh\ncase "$1" in -s) echo Linux ;; -m) echo x86_64 ;; esac\n',
+        { mode: 0o755 },
+      );
+      NodeFS.writeFileSync(
+        NodePath.join(bin, "curl"),
+        `#!/bin/sh\nfor last; do :; done\nfor a; do case "$a" in http*) src="${release}/\${a##*/}" ;; esac; done\nexec cat "$src" > "$last"\n`,
+        { mode: 0o755 },
+      );
+      const runner = NodePath.join(root, "run-orbi.sh");
+      NodeFS.writeFileSync(
+        runner,
+        SshTunnel.buildRemoteOrbiRunnerScript({
+          ...ARCHIVE,
+          releaseSigningKey: NodeFS.readFileSync(`${keys.trusted}.pub`, "utf8")
+            .split(" ")
+            .slice(0, 2)
+            .join(" "),
+        }),
+      );
+      const result = NodeChildProcess.spawnSync("sh", [runner, "--version"], {
+        encoding: "utf8",
+        env: { HOME: home, PATH: `${bin}:${process.env.PATH ?? ""}` },
+      });
+      const installed = NodeFS.existsSync(
+        NodePath.join(home, ".orbi", "runtime", "versions", ARCHIVE.archiveVersion),
+      );
+      return { result, installed };
+    } finally {
+      NodeFS.rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("installs a release whose checksums the app's release key signed", () => {
+    const { result, installed } = installSignedRelease({ signer: "trusted" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.include(result.stdout, "signed");
+    assert.isTrue(installed);
+  });
+
+  it("refuses checksums signed by another key or not signed at all", () => {
+    const other = installSignedRelease({ signer: "other" });
+    assert.notEqual(other.result.status, 0);
+    assert.include(other.result.stderr, "not signed by this OrbiWork app's release key");
+    assert.isFalse(other.installed);
+    const unsigned = installSignedRelease({ signer: "none" });
+    assert.notEqual(unsigned.result.status, 0);
+    assert.include(unsigned.result.stderr, "SHA256SUMS.sig");
+    assert.isFalse(unsigned.installed);
+  });
+
+  it("refuses an archive swapped after its checksums were signed", () => {
+    const { result, installed } = installSignedRelease({
+      signer: "trusted",
+      tamperAfterSigning: true,
+    });
+    assert.notEqual(result.status, 0);
+    assert.include(result.stderr, "Checksum mismatch");
+    assert.notInclude(result.stdout, "tampered");
+    assert.isFalse(installed);
+  });
+
   it("rejects runner values that could escape the remote script", () => {
     for (const options of [
       { ...ARCHIVE, archiveSha256: { "linux-x64": "not-hex" } },
@@ -549,6 +659,8 @@ describe("ssh tunnel scripts", () => {
       { ...ARCHIVE, releaseBaseUrl: "https://mirror.example/x\nSH\nrm -rf ~" },
       { ...ARCHIVE, releaseBaseUrl: "-K/etc/passwd" },
       { ...ARCHIVE, releaseBaseUrl: "file:///tmp/orbi" },
+      { ...ARCHIVE, releaseSigningKey: "ssh-ed25519 AAAA' ; rm -rf ~" },
+      { ...ARCHIVE, releaseSigningKey: "ssh-rsa AAAAB3NzaC1yc2E" },
       { nodeScriptPath: "/srv/orbi/server.ts\nSH\nrm -rf ~" },
       { nodeScriptPath: "--require=/tmp/evil.js" },
       { nodeScriptPath: "/srv/orbi/server.ts", nodeEngineRange: ">=22\nSH" },

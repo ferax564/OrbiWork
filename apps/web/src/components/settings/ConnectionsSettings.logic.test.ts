@@ -1,15 +1,51 @@
 import { type DesktopWslState, EnvironmentId } from "@orbiwork/contracts";
+import { createAdvertisedEndpoint } from "@orbiwork/shared/advertisedEndpoint";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   applyWslEnableSelection,
+  isPlainHttpPairingRefused,
   isServerNetworkAccessible,
   parseManualDesktopSshTarget,
   resolveAccessEnvironmentId,
   resolveCurrentOriginPairingUrl,
   resolveTailscaleServeBaseUrl,
+  selectPairingEndpoint,
   selectQrEndpointOption,
   togglePairingScopeSelection,
 } from "./ConnectionsSettings.logic";
+
+describe("plain HTTP pairing refusal", () => {
+  const endpoint = (id: string, httpBaseUrl: string, isDefault?: boolean) =>
+    createAdvertisedEndpoint({
+      id,
+      label: id,
+      provider: { id: "desktop-core", label: "Desktop", kind: "core", isAddon: false },
+      httpBaseUrl,
+      reachability: "lan",
+      source: "desktop-core",
+      ...(isDefault === undefined ? {} : { isDefault }),
+    });
+  const lan = endpoint("desktop-lan:192.168.1.5", "http://192.168.1.5:3773", true);
+  const tailnet = endpoint("tailscale-ip:100.100.1.2", "http://100.100.1.2:3773");
+  const magicDns = endpoint("tailscale-magicdns:box", "https://box.tail1.ts.net");
+
+  it("marks only plain HTTP to a non-loopback, non-tailnet host", () => {
+    expect(isPlainHttpPairingRefused(lan.httpBaseUrl, true)).toBe(true);
+    expect(isPlainHttpPairingRefused(lan.httpBaseUrl, false)).toBe(false);
+    expect(isPlainHttpPairingRefused("https://192.168.1.5:3773", true)).toBe(false);
+    expect(isPlainHttpPairingRefused("http://127.0.0.1:3773", true)).toBe(false);
+    expect(isPlainHttpPairingRefused("http://box.tail1.ts.net:3773", true)).toBe(false);
+    expect(isPlainHttpPairingRefused(tailnet.httpBaseUrl, true)).toBe(false);
+  });
+
+  it("prefers a pairable endpoint over a saved or advertised plain HTTP default", () => {
+    const lanKey = "desktop-core:lan:http";
+    expect(selectPairingEndpoint([lan, tailnet, magicDns], lanKey, true)?.id).toBe(tailnet.id);
+    expect(selectPairingEndpoint([lan, magicDns], null, true)?.id).toBe(magicDns.id);
+    expect(selectPairingEndpoint([lan, tailnet], lanKey, false)?.id).toBe(lan.id);
+    expect(selectPairingEndpoint([lan], null, true)?.id).toBe(lan.id);
+  });
+});
 
 describe("togglePairingScopeSelection", () => {
   it.each([

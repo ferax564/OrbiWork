@@ -1,7 +1,7 @@
 import type { DesktopBridge, DesktopUpdateState } from "@orbiwork/contracts";
 
 const FALLBACK_TRIAGE_COMMAND = "orbi triage";
-const DOWNLOAD_URL = "https://orbiwork.invalid/download";
+const DOWNLOAD_URL = "https://github.com/ferax564/OrbiWork/releases";
 const ISSUE_URL = "https://github.com/ferax564/orbiwork/issues/new";
 const LAST_FAILURE_KEY = "orbiwork:boot-failed-at";
 const REPEAT_FAILURE_MS = 5 * 60_000;
@@ -365,7 +365,7 @@ export function showBootError(error: unknown) {
     ...(bridge
       ? [
           link(
-            nightly ? `${DOWNLOAD_URL}?channel=nightly` : DOWNLOAD_URL,
+            DOWNLOAD_URL,
             nightly
               ? "Download and reinstall the latest nightly build"
               : "Download and reinstall OrbiWork",

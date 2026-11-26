@@ -11,7 +11,7 @@ import * as Schema from "effect/Schema";
 import { Argument, Command } from "effect/cli";
 
 import packageJson from "../../package.json" with { type: "json" };
-import { compareExactServiceVersions, isExactServiceVersion } from "../cloud/serviceProtocol.ts";
+import { compareExactServiceVersions, isExactServiceVersion } from "../service/serviceProtocol.ts";
 import * as DesktopUpdateMarker from "../desktopUpdate/DesktopUpdateMarker.ts";
 import { serviceLauncherIsServing, stateDirOwned } from "../serviceLauncher.ts";
 

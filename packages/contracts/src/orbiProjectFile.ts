@@ -151,7 +151,7 @@ export const OrbiProjectFile = Schema.Struct({
 }).annotate({
   title: "Orbi project file",
   description:
-    "Checked-in project configuration for OrbiWork (orbi.json at the repository root). See https://orbiwork.invalid for documentation.",
+    "Checked-in project configuration for OrbiWork (orbi.json at the repository root). See https://github.com/ferax564/OrbiWork/blob/main/docs/user/project-settings.md for documentation.",
 });
 export type OrbiProjectFile = typeof OrbiProjectFile.Type;
 

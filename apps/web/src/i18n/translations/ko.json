@@ -442,6 +442,7 @@
   "7283ebfd16d09677": "환경 자격 증명에 필요한 액세스 권한이 없습니다.",
   "d3e9a9cb543b4b7b": "환경에서 인증 요청을 거부했습니다.",
   "0bf42b196261df62": "환경 엔드포인트를 찾을 수 없습니다.",
+  "6832b20f9e2087e9": "Too many failed pairing attempts. Wait {seconds} seconds, then try again.",
   "94c2caab0a9d17a6": "환경에서 연결을 인증할 수 없습니다.",
   "d084f7f88e5bf041": "{host}이(가) {seconds}초 동안 멈췄습니다",
   "ca97b6934f016952": "CPU가 과부하 상태입니다(코어 {cpuCount}개에서 부하 {load}).",
@@ -2007,22 +2008,22 @@
   "c65de112b48a66ed": "페어링 링크 추가",
   "bc8ab792af1d656f": "컴퓨터에서 실행:",
   "0ba14e4e920cfa00": "또는 데스크톱 앱 다운로드",
-  "0e79b7a6508a6286": "그다음",
-  "c7e1737d858f2e07": [
-    "이미 ",
+  "8b8ba23270b77ec5": [
+    "If you do not have ",
     {
       "t": "code",
       "i": 1,
       "c": "orbi"
     },
-    "이(가) 있다면 설치를 건너뛰세요. 설치 후",
+    " yet,",
     " ",
     {
-      "t": "code",
+      "t": "a",
       "i": 2,
-      "c": "orbi"
+      "c": "build it from source"
     },
-    "을(를) 찾을 수 없으면 설치 프로그램이 알려 주는 폴더를 PATH에 추가하세요."
+    " ",
+    "first. Then run:"
   ],
   "87b24d00c08f54bb": "단축키 파일을 열 수 없습니다",
   "0ee16208cbfcdbf4": "파일을 여는 중 알 수 없는 오류가 발생했습니다.",
@@ -3126,6 +3127,9 @@
   "932e6e0577492ff3": "오디오를 사용할 수 없음",
   "fedcc745e60b2795": "동영상을 사용할 수 없음",
   "db6b3b2fddbb9c08": "이미지를 사용할 수 없음",
+  "5c0871bc63e482fe": "Load audio from {host}",
+  "d388013849068ce4": "Load video from {host}",
+  "402dbc52161d1b40": "Load image from {host}",
   "0b3fd76abaaea6ae": "이미지 불러오는 중",
   "9f951869aa5d4867": "이 연결로는 호스트 파일을 읽을 수 없습니다. 보려면 새 링크로 다시 페어링하세요.",
   "13d83e7c0e44494c": [
@@ -6876,6 +6880,7 @@
     },
     " 생성됨"
   ],
+  "8d80c384e9e910e8": "Cannot pair: unencrypted. Use Tailscale or SSH.",
   "ae85d885630b0e51": "{count, plural, other {범위 {count}개}}",
   "129431563dc043bc": "{label}: {scopes} 표시",
   "e19e13b2511e692f": "페어링 URL을 복사할 수 없습니다",

@@ -442,6 +442,7 @@
   "7283ebfd16d09677": "La credencial del entorno no concede el acceso necesario.",
   "d3e9a9cb543b4b7b": "El entorno rechazó la solicitud de autenticación.",
   "0bf42b196261df62": "No se encontró el endpoint del entorno.",
+  "6832b20f9e2087e9": "Too many failed pairing attempts. Wait {seconds} seconds, then try again.",
   "94c2caab0a9d17a6": "El entorno no pudo autorizar la conexión.",
   "d084f7f88e5bf041": "{host} se bloqueó durante {seconds} s",
   "ca97b6934f016952": "Su CPU está sobrecargada (carga {load} en {cpuCount} núcleos).",
@@ -2008,22 +2009,22 @@
   "c65de112b48a66ed": "Añadir enlace de emparejamiento",
   "bc8ab792af1d656f": "Ejecuta en tu equipo:",
   "0ba14e4e920cfa00": "O descarga la app de escritorio",
-  "0e79b7a6508a6286": "Después",
-  "c7e1737d858f2e07": [
-    "Omite la instalación si ya tienes ",
+  "8b8ba23270b77ec5": [
+    "If you do not have ",
     {
       "t": "code",
       "i": 1,
       "c": "orbi"
     },
-    ". Si no se encuentra",
+    " yet,",
     " ",
     {
-      "t": "code",
+      "t": "a",
       "i": 2,
-      "c": "orbi"
+      "c": "build it from source"
     },
-    " después de instalarlo, añade a tu PATH la carpeta que indique el instalador."
+    " ",
+    "first. Then run:"
   ],
   "87b24d00c08f54bb": "No se puede abrir el archivo de atajos de teclado",
   "0ee16208cbfcdbf4": "Error desconocido al abrir el archivo.",
@@ -3128,6 +3129,9 @@
   "932e6e0577492ff3": "Audio no disponible",
   "fedcc745e60b2795": "Vídeo no disponible",
   "db6b3b2fddbb9c08": "Imagen no disponible",
+  "5c0871bc63e482fe": "Load audio from {host}",
+  "d388013849068ce4": "Load video from {host}",
+  "402dbc52161d1b40": "Load image from {host}",
   "0b3fd76abaaea6ae": "Cargando imagen",
   "9f951869aa5d4867": "Esta conexión no puede leer archivos del host. Vuelve a emparejar con un enlace nuevo para verlo.",
   "13d83e7c0e44494c": [
@@ -6903,6 +6907,7 @@
       "v": "rt"
     }
   ],
+  "8d80c384e9e910e8": "Cannot pair: unencrypted. Use Tailscale or SSH.",
   "ae85d885630b0e51": "{count, plural, one {{count} ámbito} other {{count} ámbitos}}",
   "129431563dc043bc": "{label}: mostrar {scopes}",
   "e19e13b2511e692f": "No se pudo copiar la URL de emparejamiento",

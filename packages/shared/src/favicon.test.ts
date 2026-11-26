@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest";
 
-import { faviconUrlForOrigin, toolActivityFaviconUrl } from "./favicon.ts";
+import { faviconUrlForOrigin, toolActivityFaviconUrl, toolActivityLogoUrl } from "./favicon.ts";
 
 describe("faviconUrlForOrigin", () => {
   it("never builds a favicon request for an arbitrary public link", () => {
@@ -47,5 +47,20 @@ describe("toolActivityFaviconUrl", () => {
     expect(
       toolActivityFaviconUrl({ ...icon, faviconUrlDark: "https://x.test/d.svg" }, "dark"),
     ).toBe(light);
+  });
+});
+
+describe("toolActivityLogoUrl", () => {
+  it("never loads a hosted connector logo and keeps inline ones", () => {
+    const inline = "data:image/png;base64,AAAA";
+    expect(
+      toolActivityLogoUrl({ logoUrl: "https://cdn.example.com/logo.png" }, "light"),
+    ).toBeNull();
+    expect(
+      toolActivityLogoUrl(
+        { logoUrl: inline, logoUrlDark: "https://cdn.example.com/d.png" },
+        "dark",
+      ),
+    ).toBe(inline);
   });
 });

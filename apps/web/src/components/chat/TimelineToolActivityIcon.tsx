@@ -1,6 +1,6 @@
 import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
 import { type ToolActivityIcon } from "@orbiwork/contracts";
-import { toolActivityFaviconUrl } from "@orbiwork/shared/favicon";
+import { toolActivityFaviconUrl, toolActivityLogoUrl } from "@orbiwork/shared/favicon";
 import { getProjectFaviconCacheKey } from "@orbiwork/shared/projectFavicon";
 import { use, useState } from "react";
 import { OrbiWordmark } from "../OrbiWordmark";
@@ -103,11 +103,8 @@ export function ToolActivityIconView(props: {
     );
   }
   if (props.icon._tag === "themed-logo") {
-    const src =
-      resolvedTheme === "dark"
-        ? (props.icon.logoUrlDark ?? props.icon.logoUrl)
-        : props.icon.logoUrl;
-    return (
+    const src = toolActivityLogoUrl(props.icon, resolvedTheme);
+    return src ? (
       <ToolActivityImageIcon
         key={src}
         cacheKey={src}
@@ -116,6 +113,8 @@ export function ToolActivityIconView(props: {
         className={props.className}
         muted={props.muted}
       />
+    ) : (
+      <WorkEntryIcon name={props.fallbackName} className={fallbackClassName} />
     );
   }
   return (

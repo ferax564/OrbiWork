@@ -39,6 +39,16 @@ Configure `orbi` on npm with GitHub Actions Trusted Publishing for `.github/work
 - **Variables:** `APPLE_TEAM_ID`.
 - The packager only enables passkey entitlements for in-app browser passkeys (`keychain-access-groups`, `com.apple.developer.web-browser.public-key-credential`) present in the provisioning profile; the app claims no associated domains. Regenerate and re-upload `MACOS_PROVISIONING_PROFILE` after Apple approves managed capabilities.
 
+### Release checksum signing key (SSH installs)
+
+The desktop app installs `orbi` on SSH hosts that lack it. The host downloads `SHA256SUMS` and `SHA256SUMS.sig` from the release origin and runs `ssh-keygen -Y verify` (OpenSSH 8.1+) against the public key compiled into the app, so a compromised release page or mirror cannot swap both the archive and its sums. Until a key is set, the app refuses to install on such hosts and asks the user to install `orbi` themselves.
+
+1. Offline, on a trusted machine: `ssh-keygen -t ed25519 -C orbiwork-release -f orbiwork-release`. Keep the private key out of the repo; store it (with its passphrase, if any) as the secret `RELEASE_SIGNING_KEY`.
+2. Commit the one line of `orbiwork-release.pub` up to the comment (`ssh-ed25519 AAAA...`) as `CLI_RELEASE_SIGNING_PUBLIC_KEY` in `packages/shared/src/cliRelease.ts`.
+3. In the release job, after writing `SHA256SUMS` and before uploading assets: `ssh-keygen -Y sign -n orbiwork-release -f "$RELEASE_SIGNING_KEY_FILE" SHA256SUMS` and upload the resulting `SHA256SUMS.sig` next to it. Once the key is committed, a release without that file cannot be installed over SSH.
+
+Rotating the key means shipping a desktop build with the new public key before releases signed only by the new key; older apps keep verifying against the old one.
+
 ### Azure Trusted Signing (Windows)
 
 Set secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`, `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME`, and `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME` with an Entra service principal granted Trusted Signing permissions.

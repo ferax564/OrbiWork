@@ -1,7 +1,7 @@
 import { mediaFileReference, mediaUrlReference } from "@orbiwork/client-runtime/media-reference";
 import type { AssetResource, EnvironmentId, SOURCE_CONTROL_MEDIA_ASSET } from "@orbiwork/contracts";
 import { msg, useGT, useMessages } from "gt-react";
-import { TriangleAlertIcon } from "lucide-react";
+import { ImageIcon, TriangleAlertIcon } from "lucide-react";
 import {
   createContext,
   memo,
@@ -9,6 +9,7 @@ import {
   useState,
   type ComponentProps,
   type CSSProperties,
+  type ReactNode,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
@@ -171,6 +172,60 @@ export function ChatMarkdownImageFallback(props: {
     <MediaActions source={props.actionsSource}>{content}</MediaActions>
   ) : (
     content
+  );
+}
+
+/** The host of a web media URL that loading would reveal the reader to; null for same-origin and loopback. */
+export function remoteMarkdownMediaHost(src: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(src, window.location.href);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.origin === window.location.origin) return null;
+  const host = url.hostname;
+  if (host === "localhost" || host.endsWith(".localhost") || host === "127.0.0.1") return null;
+  if (host === "[::1]") return null;
+  return url.host;
+}
+
+export function ChatMarkdownRemoteMedia(props: {
+  readonly host: string;
+  readonly alt: string;
+  readonly kind: "image" | "video" | "audio";
+  readonly copyMarkdown: string | undefined;
+  readonly children: ReactNode;
+}) {
+  const gt = useGT();
+  const [loaded, setLoaded] = useState(false);
+  if (loaded) return props.children;
+  const label =
+    props.kind === "audio"
+      ? gt("Load audio from {host}", { host: props.host })
+      : props.kind === "video"
+        ? gt("Load video from {host}", { host: props.host })
+        : gt("Load image from {host}", { host: props.host });
+  return (
+    <button
+      type="button"
+      data-markdown-copy={props.copyMarkdown}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setLoaded(true);
+      }}
+      className={cn(
+        CHAT_MARKDOWN_MEDIA_LAYOUT_CLASS_NAME,
+        "rounded-md border border-border/40 bg-muted/40 px-2 py-1 text-xs text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <span className="inline-flex items-center gap-1.5">
+        <ImageIcon aria-hidden className="size-3.5 shrink-0" />
+        {[label, props.alt].filter(Boolean).join(" · ")}
+      </span>
+    </button>
   );
 }
 

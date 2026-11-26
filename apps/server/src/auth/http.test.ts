@@ -139,9 +139,10 @@ it.effect("sets the selected browser session cookies through the HTTP route", ()
             ),
             requestContext,
           );
+          // Without a loopback socket peer, X-Forwarded-Proto is untrusted and adds no Secure.
           const httpsCookies = httpsResponse.headers.getSetCookie();
           expect(httpsCookies).toHaveLength(2);
-          for (const cookie of httpsCookies) expect(cookie).toMatch(/;\s*Secure/i);
+          for (const cookie of httpsCookies) expect(cookie).not.toMatch(/;\s*Secure/i);
           const devCookieHeader = devCookie?.split(";", 1)[0] ?? "";
           const environmentBSession = await environmentB.handler(
             new Request("http://127.0.0.1/api/auth/session", {
@@ -216,6 +217,59 @@ it.effect("refuses to pair over plain HTTP from another machine", () =>
             requestContext,
           );
           expect(token.status).toBe(403);
+        }),
+      (environment) => Effect.promise(() => environment.dispose()),
+    );
+  }).pipe(Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
+);
+
+it.effect("answers 429 once a peer has used up its wrong pairing codes", () =>
+  Effect.gen(function* () {
+    const random = yield* SecureRandom.SecureRandom;
+    const unusedSecretStore = ServerSecretStore.ServerSecretStore.of({
+      get: () => Effect.succeedNone,
+      set: () => Effect.void,
+      create: () => Effect.void,
+      getOrCreateRandom: () => Effect.die("Not used by these routes."),
+      remove: () => Effect.void,
+    });
+    const requestContext = Context.make(SecureRandom.SecureRandom, random).pipe(
+      Context.add(ServerSecretStore.ServerSecretStore, unusedSecretStore),
+    );
+    return yield* Effect.acquireUseRelease(
+      Effect.sync(() => HttpRouter.toWebHandler(layerRoutes, { disableLogger: true })),
+      (environment) =>
+        Effect.promise(async () => {
+          const redeem = (credential: string) =>
+            environment.handler(
+              postJson("/api/auth/browser-session", { credential }),
+              requestContext,
+            );
+          for (let attempt = 0; attempt < 10; attempt++) {
+            expect((await redeem("WRONG-PAIRING-CODE")).status).toBe(401);
+          }
+          const limited = await redeem(DEV_TOKEN);
+          expect(limited.status).toBe(429);
+          expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+          expect(await limited.json()).toMatchObject({ code: "too_many_attempts" });
+          const token = await environment.handler(
+            new Request("http://127.0.0.1/oauth/token", {
+              method: "POST",
+              body: new URLSearchParams({
+                grant_type: AuthTokenExchangeGrantType,
+                subject_token: DEV_TOKEN,
+                subject_token_type: AuthEnvironmentBootstrapTokenType,
+                requested_token_type: AuthAccessTokenType,
+              }),
+            }),
+            requestContext,
+          );
+          expect(token.status).toBe(429);
+          const session = await environment.handler(
+            new Request("http://127.0.0.1/api/auth/session"),
+            requestContext,
+          );
+          expect(session.status).toBe(200);
         }),
       (environment) => Effect.promise(() => environment.dispose()),
     );

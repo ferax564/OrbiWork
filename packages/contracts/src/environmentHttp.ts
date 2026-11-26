@@ -260,12 +260,31 @@ export class EnvironmentResourceNotFoundError extends Schema.TaggedError<Environ
   }
 }
 
+export class EnvironmentTooManyAttemptsError extends Schema.TaggedError<EnvironmentTooManyAttemptsError>()(
+  "EnvironmentTooManyAttemptsError",
+  {
+    code: Schema.Literal("too_many_attempts"),
+    retryAfterSeconds: Schema.Number,
+    traceId: TrimmedNonEmptyString,
+  },
+  { httpApiStatus: 429 },
+) {
+  [HttpServerRespondable.symbol]() {
+    return HttpServerResponse.schemaJson(EnvironmentTooManyAttemptsError)(this, { status: 429 });
+  }
+
+  override get message(): string {
+    return `Too many failed pairing attempts. Try again in ${this.retryAfterSeconds} seconds.`;
+  }
+}
+
 export const EnvironmentHttpCommonError = Schema.Union([
   EnvironmentRequestInvalidError,
   EnvironmentAuthInvalidError,
   EnvironmentScopeRequiredError,
   EnvironmentOperationForbiddenError,
   EnvironmentResourceNotFoundError,
+  EnvironmentTooManyAttemptsError,
   EnvironmentInternalError,
 ]);
 export type EnvironmentHttpCommonError = typeof EnvironmentHttpCommonError.Type;
@@ -315,12 +334,14 @@ const EnvironmentSessionCreationErrors = [
   EnvironmentAuthInvalidError,
   // Pairing over plain HTTP from another machine.
   EnvironmentOperationForbiddenError,
+  EnvironmentTooManyAttemptsError,
   EnvironmentInternalError,
 ] as const;
 const EnvironmentTokenExchangeErrors = [
   EnvironmentRequestInvalidError,
   EnvironmentAuthInvalidError,
   EnvironmentOperationForbiddenError,
+  EnvironmentTooManyAttemptsError,
   EnvironmentInternalError,
 ] as const;
 const EnvironmentScopedOperationErrors = [

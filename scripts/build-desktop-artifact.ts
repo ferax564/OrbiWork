@@ -3786,7 +3786,7 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     description:
       "OrbiWork is an open-source desktop app for coding agents. Work with your existing agent subscriptions, review code changes, and run commands in your projects. Connect from desktop or web, including a phone browser, to continue working remotely.",
     license: "MIT",
-    homepage: "https://orbiwork.invalid",
+    homepage: "https://orbiwork.com",
     author: "OrbiWork",
     main: "apps/desktop/dist-electron/boot.cjs",
     build: yield* createBuildConfig(

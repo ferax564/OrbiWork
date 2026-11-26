@@ -15,7 +15,7 @@ import {
   readPosixLauncherTarget,
   recordPinnedRuntimeLauncher,
   writePosixLauncher,
-} from "../cloud/pinnedRuntime.ts";
+} from "../service/pinnedRuntime.ts";
 import { detectCliRunner } from "./invocation.ts";
 
 export class CliInstallError extends Schema.TaggedError<CliInstallError>()("CliInstallError", {
@@ -50,11 +50,9 @@ export const installCli = Effect.fn("cli.install.install")(function* () {
   const runtime = yield* standaloneRuntime;
   const windows = platform === "win32";
   if (Option.isNone(runtime)) {
-    const script = windows
-      ? "irm https://orbiwork.invalid/install.ps1 | iex"
-      : "curl -fsSL https://orbiwork.invalid/install.sh | sh";
     return yield* new CliInstallError({
-      reason: `Only the standalone orbi can install itself. Use \`${script}\`, or Settings in the desktop app.`,
+      reason:
+        "Only the standalone orbi can install itself. Build orbi from source (https://github.com/ferax564/OrbiWork#build-from-source), or use Settings in the desktop app.",
     });
   }
   const { executable, versionsDir, runtimeDir } = runtime.value;

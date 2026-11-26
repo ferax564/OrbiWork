@@ -808,7 +808,7 @@ export class BootService extends Context.Service<
     readonly uninstall: Effect.Effect<boolean, BootServiceError>;
     readonly status: Effect.Effect<BootServiceStatus, BootServiceError>;
   }
->()("orbi/cloud/bootService") {}
+>()("orbi/service/bootService") {}
 
 export interface BootServiceHost {
   readonly execPath: string;

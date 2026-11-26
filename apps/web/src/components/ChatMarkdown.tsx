@@ -215,9 +215,11 @@ import {
   ChatMarkdownAssetImage,
   ChatMarkdownImage,
   ChatMarkdownImageFallback,
+  ChatMarkdownRemoteMedia,
   ChatMarkdownVideo,
   MarkdownLinkContext,
   markdownImageCopy,
+  remoteMarkdownMediaHost,
 } from "./chat/ChatMarkdownMedia";
 import { MarkdownExternalLinkContent } from "./chat/MarkdownExternalLink";
 import { MarkdownFileLink } from "./chat/MarkdownFileLink";
@@ -1679,7 +1681,11 @@ const CHAT_MARKDOWN_COMPONENTS = {
       if (imageSource._tag !== "Direct" && !(filePath && threadRef)) {
         return <ChatMarkdownImageFallback alt={altText} copyMarkdown={copyMarkdown} kind="audio" />;
       }
-      return (
+      const remoteHost =
+        imageSource._tag === "Direct"
+          ? remoteMarkdownMediaHost(resolveProtocolRelativeMediaUrl(imageSource.uri))
+          : null;
+      const audio = (
         <InlineAudioPreview
           key={classifiedSrc}
           name={name}
@@ -1698,6 +1704,19 @@ const CHAT_MARKDOWN_COMPONENTS = {
               ? { src: resolveProtocolRelativeMediaUrl(imageSource.uri) }
               : {})}
         />
+      );
+      return remoteHost === null ? (
+        audio
+      ) : (
+        <ChatMarkdownRemoteMedia
+          key={classifiedSrc}
+          host={remoteHost}
+          alt={altText}
+          kind="audio"
+          copyMarkdown={copyMarkdown}
+        >
+          {audio}
+        </ChatMarkdownRemoteMedia>
       );
     }
     if (shouldRenderMarkdownImageAsFileLink(imageSource, mediaKind)) {
@@ -1753,8 +1772,9 @@ const CHAT_MARKDOWN_COMPONENTS = {
         src: mediaSrc,
         ...(reference ? { reference } : {}),
       };
-      if (kind === "video") {
-        return (
+      const remoteHost = remoteMarkdownMediaHost(mediaSrc);
+      const media =
+        kind === "video" ? (
           <ChatMarkdownVideo
             src={mediaSrc}
             alt={altText}
@@ -1763,22 +1783,33 @@ const CHAT_MARKDOWN_COMPONENTS = {
             style={authoredSizeStyle}
             actionsSource={actionsSource}
           />
+        ) : (
+          <ChatMarkdownImage
+            key={mediaSrc}
+            src={mediaSrc}
+            alt={altText}
+            copyMarkdown={copyMarkdown}
+            standalone={standalone}
+            className={className}
+            style={authoredSizeStyle}
+            imageProps={imageProps}
+            actionsSource={actionsSource}
+            originalUrl={originalUrl}
+            onImageExpand={imageExpand}
+          />
         );
-      }
-      return (
-        <ChatMarkdownImage
+      return remoteHost === null ? (
+        media
+      ) : (
+        <ChatMarkdownRemoteMedia
           key={mediaSrc}
-          src={mediaSrc}
+          host={remoteHost}
           alt={altText}
+          kind={kind === "video" ? "video" : "image"}
           copyMarkdown={copyMarkdown}
-          standalone={standalone}
-          className={className}
-          style={authoredSizeStyle}
-          imageProps={imageProps}
-          actionsSource={actionsSource}
-          originalUrl={originalUrl}
-          onImageExpand={imageExpand}
-        />
+        >
+          {media}
+        </ChatMarkdownRemoteMedia>
       );
     }
     const hostImageUrl = use(HostImageUrlContext);

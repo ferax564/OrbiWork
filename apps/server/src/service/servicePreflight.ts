@@ -50,7 +50,7 @@ export function runServicePreflight(input: {
       // reinstall itself and report success, so name the exact install and the path check.
       reason: [
         `The installed service launcher speaks protocol ${launcherProtocol}, but orbi@${version} requires protocol ${SERVICE_LAUNCHER_PROTOCOL}.`,
-        `On the server machine, install this exact CLI: \`curl -fsSL https://orbiwork.invalid/install.sh | ORBIWORK_VERSION=${version} sh\`.`,
+        `On the server machine, install orbi ${version} by building it from source (https://github.com/ferax564/OrbiWork#build-from-source).`,
         `Check that \`orbi --version\` prints ${version} and that \`which -a orbi\` lists no older orbi (such as an npm or nvm install) first, then run \`~/.local/bin/orbi service install\` (the installer's default path).`,
         "Updating the desktop app does not update this CLI, and `orbi service update` only repairs the service with whichever CLI runs it.",
       ].join(" "),

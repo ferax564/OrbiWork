@@ -4,7 +4,7 @@ import { managedCapabilityDenial } from "@orbiwork/client-runtime/contract-label
 import { AUTH_SCOPE_OPTIONS as PAIRING_SCOPE_OPTIONS } from "@orbiwork/shared/authScopeOptions";
 import { PlusIcon, QrCodeIcon } from "lucide-react";
 import { type ReactNode, memo, useId, useRef, useState } from "react";
-import { T, useGT, useMessages } from "gt-react";
+import { T, msg, useGT, useMessages } from "gt-react";
 import {
   AuthAccessWriteScope,
   AuthDiagnosticsReadScope,
@@ -72,6 +72,7 @@ import {
   resolveAdvertisedEndpointPairingUrl,
   resolveCurrentOriginPairingUrl,
   endpointShareHint,
+  isPlainHttpPairingRefused,
 } from "./ConnectionsSettings.logic";
 
 function AccessScopeSummary({
@@ -123,6 +124,8 @@ function AccessScopeSummary({
   );
 }
 
+const PLAIN_HTTP_PAIRING_REFUSED = msg("Cannot pair: unencrypted. Use Tailscale or SSH.");
+
 function endpointRowClassName(isAvailable: boolean) {
   return cn(
     "relative first:rounded-t-xl last:rounded-b-xl px-3 py-3 sm:px-4",
@@ -139,6 +142,7 @@ type PairingLinkListRowProps = {
   endpointUrl: string | null | undefined;
   endpoints: ReadonlyArray<AdvertisedEndpoint>;
   defaultEndpointKey: string | null;
+  refusesPlainHttpPairing: boolean;
   revokingPairingLinkId: string | null;
   onRevoke: (id: string) => void;
   canRevoke: boolean;
@@ -152,6 +156,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
   endpointUrl,
   endpoints,
   defaultEndpointKey,
+  refusesPlainHttpPairing,
   revokingPairingLinkId,
   onRevoke,
   canRevoke,
@@ -167,7 +172,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
 
   const currentOriginPairingUrl = credential ? resolveCurrentOriginPairingUrl(credential) : null;
   const endpointPairingUrl = (() => {
-    const endpoint = selectPairingEndpoint(endpoints, defaultEndpointKey);
+    const endpoint = selectPairingEndpoint(endpoints, defaultEndpointKey, refusesPlainHttpPairing);
     return endpoint && credential
       ? resolveAdvertisedEndpointPairingUrl(endpoint, credential)
       : null;
@@ -180,6 +185,7 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
       readonly url: string;
       readonly detail: string;
       readonly qrShareable: boolean;
+      readonly pairingRefused: boolean;
     }> = [];
     if (!credential) return options;
     for (const endpoint of endpoints) {
@@ -187,13 +193,15 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
         continue;
       }
       const url = resolveAdvertisedEndpointPairingUrl(endpoint, credential);
+      const pairingRefused = isPlainHttpPairingRefused(url, refusesPlainHttpPairing);
       options.push({
         id: endpoint.id,
         preferenceKey: endpointDefaultPreferenceKey(endpoint),
         label: endpoint.label,
         url,
-        detail: endpointShareHint(endpoint, m),
-        qrShareable: isQrShareableEndpoint(endpoint),
+        detail: pairingRefused ? m(PLAIN_HTTP_PAIRING_REFUSED) : endpointShareHint(endpoint, m),
+        qrShareable: isQrShareableEndpoint(endpoint) && !pairingRefused,
+        pairingRefused,
       });
     }
     return options;
@@ -209,7 +217,8 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
   const revealValue = failedCopyValue ?? shareablePairingUrl ?? credential ?? "";
   const isRevealValueUrl = revealValue !== credential;
   const isRevealValueQrShareable =
-    endpointCopyOptions.find((option) => option.url === revealValue)?.qrShareable ?? true;
+    endpointCopyOptions.find((option) => option.url === revealValue)?.qrShareable ??
+    !isPlainHttpPairingRefused(revealValue, refusesPlainHttpPairing);
   const canCopyToClipboard =
     typeof window !== "undefined" &&
     window.isSecureContext &&
@@ -255,7 +264,10 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
     defaultEndpointKey,
   );
   const qrPairingUrl = selectedQrOption?.url ?? shareablePairingUrl;
-  const canRenderQrForSelection = selectedQrOption?.qrShareable ?? true;
+  const isQrPairingRefused =
+    selectedQrOption?.pairingRefused ??
+    (qrPairingUrl !== null && isPlainHttpPairingRefused(qrPairingUrl, refusesPlainHttpPairing));
+  const canRenderQrForSelection = !isQrPairingRefused && (selectedQrOption?.qrShareable ?? true);
   if (expiresAtMs <= nowMs) {
     return null;
   }
@@ -423,7 +435,12 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
                       >
                         {option.label}
                       </span>
-                      <span className="min-w-0 truncate text-2xs text-muted-foreground/70">
+                      <span
+                        className={cn(
+                          "min-w-0 truncate text-2xs",
+                          option.pairingRefused ? "text-warning" : "text-muted-foreground/70",
+                        )}
+                      >
                         {option.detail}
                       </span>
                     </button>
@@ -468,10 +485,14 @@ const PairingLinkListRow = memo(function PairingLinkListRow({
           ) : (
             <div className="flex size-[192px] shrink-0 items-center justify-center self-center rounded-xl border border-border/50 p-4 sm:self-start">
               <p className="text-center text-2xs text-muted-foreground/70">
-                <T>
-                  No QR for this endpoint. Another device scanning a loopback link would dial
-                  itself; copy the URL for use on this machine instead.
-                </T>
+                {isQrPairingRefused ? (
+                  m(PLAIN_HTTP_PAIRING_REFUSED)
+                ) : (
+                  <T>
+                    No QR for this endpoint. Another device scanning a loopback link would dial
+                    itself; copy the URL for use on this machine instead.
+                  </T>
+                )}
               </p>
             </div>
           )}
@@ -823,6 +844,7 @@ type PairingClientsListProps = {
   endpointUrl: string | null | undefined;
   endpoints: ReadonlyArray<AdvertisedEndpoint>;
   defaultEndpointKey: string | null;
+  refusesPlainHttpPairing: boolean;
   isLoading: boolean;
   pairingLinks: ReadonlyArray<ServerPairingLinkRecord>;
   createdPairingCredentials: ReadonlyMap<string, string>;
@@ -840,6 +862,7 @@ export const PairingClientsList = memo(function PairingClientsList({
   endpointUrl,
   endpoints,
   defaultEndpointKey,
+  refusesPlainHttpPairing,
   isLoading,
   pairingLinks,
   createdPairingCredentials,
@@ -863,6 +886,7 @@ export const PairingClientsList = memo(function PairingClientsList({
           endpointUrl={endpointUrl}
           endpoints={endpoints}
           defaultEndpointKey={defaultEndpointKey}
+          refusesPlainHttpPairing={refusesPlainHttpPairing}
           revokingPairingLinkId={revokingPairingLinkId}
           onRevoke={onRevokePairingLink}
           canRevoke={canRevoke}
@@ -893,6 +917,7 @@ export const PairingClientsList = memo(function PairingClientsList({
 type AdvertisedEndpointListRowProps = {
   endpoint: AdvertisedEndpoint;
   isDefault: boolean;
+  pairingRefused: boolean;
   onSetDefault: (endpoint: AdvertisedEndpoint) => void;
   onSetupTailscaleServe: (endpoint: AdvertisedEndpoint) => void;
   onDisableTailscaleServe: (endpoint: AdvertisedEndpoint) => void;
@@ -902,6 +927,7 @@ type AdvertisedEndpointListRowProps = {
 export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow({
   endpoint,
   isDefault,
+  pairingRefused,
   onSetDefault,
   onSetupTailscaleServe,
   onDisableTailscaleServe,
@@ -971,13 +997,16 @@ export const AdvertisedEndpointListRow = memo(function AdvertisedEndpointListRow
               {isUpdatingTailscaleServe ? gt("Restarting…") : gt("Disable")}
             </Button>
           ) : null}
-          {!needsTailscaleSetup && !isDefault ? (
+          {!needsTailscaleSetup && !isDefault && !pairingRefused ? (
             <Button size="xs" variant="outline" onClick={() => onSetDefault(endpoint)}>
               <T>Set as default</T>
             </Button>
           ) : null}
         </div>
       </div>
+      {pairingRefused ? (
+        <p className="mt-1 text-2xs text-warning">{m(PLAIN_HTTP_PAIRING_REFUSED)}</p>
+      ) : null}
     </div>
   );
 });

@@ -115,6 +115,17 @@ export function mapRemoteEnvironmentError(
         traceId: error.traceId,
         hop: "server",
       });
+    case "EnvironmentTooManyAttemptsError":
+      return new ConnectionTransientError({
+        reason: "remote-unavailable",
+        ...translatableDetail(
+          msg("Too many failed pairing attempts. Wait {seconds} seconds, then try again.", {
+            seconds: String(error.retryAfterSeconds),
+          }),
+        ),
+        traceId: error.traceId,
+        hop: "server",
+      });
     case "RemoteEnvironmentAuthTimeoutError":
       return new ConnectionTransientError({
         reason: "timeout",
