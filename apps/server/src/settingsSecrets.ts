@@ -1,5 +1,4 @@
 import {
-  AntigravitySettings,
   ClaudeSettings,
   CloudSpeechCredentials,
   CodexSettings,
@@ -14,12 +13,6 @@ import {
   secretSettingsFields,
 } from "@orbiwork/contracts";
 import { acpRegistryClient } from "@orbiwork/provider-acp-registry/client";
-import { cursorClient } from "@orbiwork/provider-cursor/client";
-import { grokClient } from "@orbiwork/provider-grok/client";
-import { kiroClient } from "@orbiwork/provider-kiro/client";
-import { museClient } from "@orbiwork/provider-muse/client";
-import { openCodeClient } from "@orbiwork/provider-opencode/client";
-import { piClient } from "@orbiwork/provider-pi/client";
 import {
   readSecretFieldValues,
   SOURCE_CONTROL_HOST_SECRET_FIELDS,
@@ -32,19 +25,7 @@ export const SECRET_REDACTED = "\u2022\u2022\u2022\u2022\u2022\u2022";
 const providerSecretFields = new Map([
   ["codex", secretSettingsFields(CodexSettings)],
   ["claudeAgent", secretSettingsFields(ClaudeSettings)],
-  ["antigravity", secretSettingsFields(AntigravitySettings)],
-  ...[
-    cursorClient,
-    grokClient,
-    kiroClient,
-    museClient,
-    openCodeClient,
-    piClient,
-    acpRegistryClient,
-  ].map(
-    (definition) =>
-      [definition.driverKind, secretSettingsFields(definition.settingsSchema)] as const,
-  ),
+  [acpRegistryClient.driverKind, secretSettingsFields(acpRegistryClient.settingsSchema)],
 ]);
 const usageLimitSecretFields = secretSettingsFields(UsageLimitSourceConfig);
 const textGeneratorSecretFields = secretSettingsFields(TextGeneratorConfig);

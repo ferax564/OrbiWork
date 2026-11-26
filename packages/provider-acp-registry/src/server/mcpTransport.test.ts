@@ -7,7 +7,7 @@ import { prefersHttpMcpTransport } from "./mcpTransport.ts";
 const decodeSettings = Schema.decodeSync(AcpRegistrySettings);
 
 const local = (commandPath: string, commandArgs: string[] = []) =>
-  decodeSettings({ source: "local", commandPath, commandArgs });
+  decodeSettings({ commandPath, commandArgs });
 
 describe("prefersHttpMcpTransport", () => {
   it("uses HTTP for the vendored Command Code launcher", () => {
@@ -43,11 +43,5 @@ describe("prefersHttpMcpTransport", () => {
     ).toBe(false);
     expect(prefersHttpMcpTransport(local("C:\\tools\\claude-agent-acp.exe"))).toBe(false);
     expect(prefersHttpMcpTransport(local("C:\\tools\\command-code\\runner.mjs"))).toBe(false);
-  });
-
-  it("keeps the stdio bridge for registry agents", () => {
-    expect(
-      prefersHttpMcpTransport(decodeSettings({ source: "registry", agentId: "claude-acp" })),
-    ).toBe(false);
   });
 });

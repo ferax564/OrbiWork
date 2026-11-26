@@ -34,29 +34,34 @@ const decodeServerSettingsPatch = Schema.decodeUnknownSync(ServerSettingsPatch);
 const FOLDED_SERVER_SETTINGS = { ...DEFAULT_SERVER_SETTINGS, projectSettingsFolded: true };
 
 describe("fallbackTextGenerationModelSelection", () => {
-  it("uses Big Pickle when only OpenCode is enabled", () => {
+  it("prefers the thread default's custom model and falls back to the driver default", () => {
     expect(
-      fallbackTextGenerationModelSelection({}, (instanceId) => instanceId === "opencode"),
-    ).toEqual({ instanceId: "opencode", model: "opencode/big-pickle" });
+      fallbackTextGenerationModelSelection({}, (instanceId) => instanceId === "claudeAgent"),
+    ).toEqual({ instanceId: "claudeAgent", model: "claude-haiku-5-5" });
     const threadDefault = {
-      instanceId: ProviderInstanceId.make("opencode"),
-      model: "opencode-go/glm-5.3",
+      instanceId: ProviderInstanceId.make("claudeAgent"),
+      model: "custom-claude",
     };
     const providerInstances = {
       [threadDefault.instanceId]: {
-        driver: ProviderDriverKind.make("opencode"),
+        driver: ProviderDriverKind.make("claudeAgent"),
         config: { customModels: [threadDefault.model] },
       },
     };
-    // An exhausted Go quota leaves the custom model unusable but Big Pickle still works.
     expect(
       fallbackTextGenerationModelSelection(
         providerInstances,
-        (instanceId, _driver, model) =>
-          instanceId === "opencode" && !model.startsWith("opencode-go/"),
+        (instanceId) => instanceId === "claudeAgent",
         { defaultModelSelection: threadDefault },
       ),
-    ).toEqual({ instanceId: "opencode", model: "opencode/big-pickle" });
+    ).toEqual(threadDefault);
+    expect(
+      fallbackTextGenerationModelSelection(
+        providerInstances,
+        (instanceId, _driver, model) => instanceId === "claudeAgent" && model !== "custom-claude",
+        { defaultModelSelection: threadDefault },
+      ),
+    ).toEqual({ instanceId: "claudeAgent", model: "claude-haiku-5-5" });
   });
 
   it("replaces and clears the fallback without carrying model options", () => {
@@ -343,13 +348,13 @@ describe("serverSettings helpers", () => {
     expect(
       applyServerSettingsPatch(current, {
         textGenerationModelSelection: {
-          instanceId: ProviderInstanceId.make("opencode"),
-          model: "openai/gpt-5",
+          instanceId: ProviderInstanceId.make("claudeAgent"),
+          model: "claude-haiku-5-5",
         },
       }).textGenerationModelSelection,
     ).toEqual({
-      instanceId: "opencode",
-      model: "openai/gpt-5",
+      instanceId: "claudeAgent",
+      model: "claude-haiku-5-5",
     });
   });
 

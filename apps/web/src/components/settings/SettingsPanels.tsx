@@ -116,8 +116,6 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { useSearchableSetting } from "./settingsSearch";
-import { nativeLanguageName, SYSTEM_LANGUAGE } from "@orbiwork/client-runtime/locales";
-import { SUPPORTED_LOCALES } from "../../i18n/locales";
 import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
 import { AdvancedSettings } from "./AdvancedSettings";
 import { PullRequestLinksOpenInAppSetting } from "./IntegrationsSettings";
@@ -498,7 +496,6 @@ export function useSettingsRestore(onRestored?: () => void) {
     DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode
       ? [gt("Environment identification")]
       : []),
-    ...(settings.language !== DEFAULT_UNIFIED_SETTINGS.language ? [gt("Language")] : []),
     ...(settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat
       ? [gt("Time format")]
       : []),
@@ -685,7 +682,6 @@ export function useSettingsRestore(onRestored?: () => void) {
       htmlPreviewWidth: DEFAULT_UNIFIED_SETTINGS.htmlPreviewWidth,
       effortDisplay: DEFAULT_UNIFIED_SETTINGS.effortDisplay,
       mathRenderingEnabled: DEFAULT_UNIFIED_SETTINGS.mathRenderingEnabled,
-      language: DEFAULT_UNIFIED_SETTINGS.language,
       timestampFormat: DEFAULT_UNIFIED_SETTINGS.timestampFormat,
       notificationMode: DEFAULT_UNIFIED_SETTINGS.notificationMode,
       inAppNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
@@ -822,9 +818,6 @@ export function GeneralSettingsPanel() {
   const lastEnabledProjectGroupingMode = useRef<SidebarProjectGroupingMode>(
     readLastEnabledProjectGroupingMode(),
   );
-  const languageValue = SUPPORTED_LOCALES.includes(settings.language)
-    ? settings.language
-    : SYSTEM_LANGUAGE;
 
   return (
     <SettingsPageContainer>
@@ -1106,50 +1099,6 @@ export function GeneralSettingsPanel() {
       </SettingsSection>
 
       <SettingsSection id="display" title={gt("Display")}>
-        <SettingsRow
-          {...setting("language")}
-          description={<T>System default follows your browser or OS language.</T>}
-          resetAction={
-            settings.language !== DEFAULT_UNIFIED_SETTINGS.language ? (
-              <SettingResetButton
-                ariaLabel={gt("Reset language to default")}
-                onClick={() =>
-                  updateSettings({
-                    language: DEFAULT_UNIFIED_SETTINGS.language,
-                  })
-                }
-              />
-            ) : null
-          }
-          control={
-            <Select
-              value={languageValue}
-              onValueChange={(value) => {
-                if (value) {
-                  updateSettings({ language: value });
-                }
-              }}
-            >
-              <SelectTrigger size="sm" className="w-full sm:w-40" aria-label={gt("Language")}>
-                <SelectValue>
-                  {languageValue === SYSTEM_LANGUAGE
-                    ? m(TIMESTAMP_FORMAT_LABELS.locale)
-                    : nativeLanguageName(languageValue)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectPopup align="end" alignItemWithTrigger={false}>
-                <SelectItem hideIndicator value={SYSTEM_LANGUAGE}>
-                  {m(TIMESTAMP_FORMAT_LABELS.locale)}
-                </SelectItem>
-                {SUPPORTED_LOCALES.map((locale) => (
-                  <SelectItem hideIndicator key={locale} value={locale}>
-                    {nativeLanguageName(locale)}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
-          }
-        />
         <SettingsRow
           {...setting("time-format")}
           description={<T>System default follows your browser or OS clock preference.</T>}

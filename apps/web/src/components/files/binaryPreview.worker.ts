@@ -1,24 +1,18 @@
-import type { Database } from "sql.js";
-
 import { boundedZip } from "@orbiwork/client-runtime/zip/bounded-zip";
 import {
   ARCHIVE_ENTRY_MAX_BYTES,
   ARCHIVE_MAX_ENTRIES,
   ARCHIVE_MAX_RATIO,
   BINARY_PREVIEW_MAX_BYTES,
-  SQLITE_PAGE_SIZE,
   type ArchiveEntry,
   type BinaryWorkerRequest,
   type BinaryWorkerResult,
 } from "./binaryPreviewProtocol";
 import { PreviewError, previewFailure } from "./previewFailure";
 
-let database: Database | null = null;
-let tables: string[] = [];
 // Entries over the preview limit keep only their size, so their payload is never copied.
 let files = new Map<string, Uint8Array<ArrayBuffer> | number>();
 const reply = (result: BinaryWorkerResult) => self.postMessage(result, { transfer: [] });
-const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 
 async function gunzip(bytes: ArrayBuffer) {
   const reader = new Blob([bytes])
@@ -164,96 +158,38 @@ async function handle(input: BinaryWorkerRequest) {
     reply({ type: "entry", path: input.path, bytes });
     return;
   }
-  if (input.type === "rows") {
-    if (
-      !database ||
-      !tables.includes(input.table) ||
-      !Number.isSafeInteger(input.page) ||
-      input.page < 0
-    )
-      throw new PreviewError({ code: "table-unavailable" });
-    const columns =
-      database
-        .exec(`PRAGMA table_xinfo(${quote(input.table)})`)[0]
-        ?.values.filter((row) => row[6] !== 1)
-        .map((row) => String(row[1]))
-        .slice(0, 50) ?? [];
-    const fields = columns.map((name) => {
-      const field = quote(name);
-      return `CASE WHEN typeof(${field}) = 'blob' THEN '[blob: ' || length(${field}) || ' bytes]' ELSE substr(CAST(${field} AS TEXT), 1, 1024) END`;
-    });
-    const result = database.exec(
-      `SELECT ${fields.join(",")} FROM ${quote(input.table)} LIMIT ${SQLITE_PAGE_SIZE} OFFSET ${input.page * SQLITE_PAGE_SIZE}`,
-    )[0];
-    reply({
-      type: "rows",
-      table: input.table,
-      page: input.page,
-      columns,
-      rows:
-        result?.values.map((row) => row.map((cell) => (cell === null ? "NULL" : String(cell)))) ??
-        [],
-    });
-    return;
-  }
   if (input.bytes.byteLength > BINARY_PREVIEW_MAX_BYTES)
     throw new PreviewError({ code: "file-too-large" });
-  if (input.kind === "sqlite") {
-    const [{ default: initSqlJs }, { default: wasmUrl }] = await Promise.all([
-      import("sql.js"),
-      import("sql.js/dist/sql-wasm.wasm?url"),
-    ]);
-    const SQL = await initSqlJs({ locateFile: () => wasmUrl });
-    database = new SQL.Database(new Uint8Array(input.bytes));
-    database.run("PRAGMA query_only=ON; PRAGMA trusted_schema=OFF;");
-    tables =
-      database
-        .exec(
-          "SELECT name FROM sqlite_schema WHERE type='table' AND substr(name, 1, 7) != 'sqlite_' AND sql NOT LIKE 'CREATE VIRTUAL TABLE%' ORDER BY name LIMIT 101",
-        )[0]
-        ?.values.map((row) => String(row[0])) ?? [];
-    if (tables.length > 100) throw new PreviewError({ code: "database-too-many-tables" });
-    reply({
-      type: "sqlite",
-      tables: tables.map((name) => ({
-        name,
-        count: Number(
-          database!.exec(`SELECT count(*) FROM ${quote(name)}`)[0]?.values[0]?.[0] ?? 0,
-        ),
-      })),
+  files = new Map();
+  let entries: ArchiveEntry[];
+  if (
+    /\.(zip|jar)$/i.test(input.name) ||
+    (input.bytes.byteLength >= 4 &&
+      [0x04034b50, 0x06054b50].includes(new DataView(input.bytes).getUint32(0, true)))
+  ) {
+    const archive = await boundedZip(input.bytes, BINARY_PREVIEW_MAX_BYTES);
+    entries = [...archive].map(([path, file]) => {
+      files.set(path, file.bytes);
+      return {
+        path,
+        size: file.bytes.length,
+        directory: file.directory,
+        modified: Number.isNaN(file.date.getTime()) ? null : file.date.toISOString(),
+      };
     });
-  } else {
-    files = new Map();
-    let entries: ArchiveEntry[];
-    if (
-      /\.(zip|jar)$/i.test(input.name) ||
-      (input.bytes.byteLength >= 4 &&
-        [0x04034b50, 0x06054b50].includes(new DataView(input.bytes).getUint32(0, true)))
-    ) {
-      const archive = await boundedZip(input.bytes, BINARY_PREVIEW_MAX_BYTES);
-      entries = [...archive].map(([path, file]) => {
-        files.set(path, file.bytes);
-        return {
-          path,
-          size: file.bytes.length,
-          directory: file.directory,
-          modified: Number.isNaN(file.date.getTime()) ? null : file.date.toISOString(),
-        };
-      });
-    } else if (/\.(gz|tgz)$/i.test(input.name) || new Uint8Array(input.bytes)[0] === 0x1f) {
-      const bytes = await gunzip(input.bytes);
-      if (/\.(tar\.gz|tgz)$/i.test(input.name)) entries = tarEntries(bytes);
+  } else if (/\.(gz|tgz)$/i.test(input.name) || new Uint8Array(input.bytes)[0] === 0x1f) {
+    const bytes = await gunzip(input.bytes);
+    if (/\.(tar\.gz|tgz)$/i.test(input.name)) entries = tarEntries(bytes);
+    else {
+      const path = input.name.replace(/\.gz$/i, "") || "contents";
+      if (/\.tar$/i.test(path)) entries = tarEntries(bytes);
       else {
-        const path = input.name.replace(/\.gz$/i, "") || "contents";
-        if (/\.tar$/i.test(path)) entries = tarEntries(bytes);
-        else {
-          files.set(path, bytes);
-          entries = [{ path, size: bytes.length, directory: false, modified: null }];
-        }
+        files.set(path, bytes);
+        entries = [{ path, size: bytes.length, directory: false, modified: null }];
       }
-    } else entries = tarEntries(new Uint8Array(input.bytes));
-    reply({ type: "archive", entries });
-  }
+    }
+  } else entries = tarEntries(new Uint8Array(input.bytes));
+  reply({ type: "archive", entries });
 }
 
 self.addEventListener("message", (event: MessageEvent<BinaryWorkerRequest>) => {

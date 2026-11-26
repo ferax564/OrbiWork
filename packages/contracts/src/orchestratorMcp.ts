@@ -57,7 +57,7 @@ export const OrchestratorMcpClientRequestId = TrimmedNonEmptyString.check(Schema
   )
   .annotate({ description: "Reuse it to retry the same call. A new call gets a new key." });
 
-// OpenCode 1.15 serializes nested MCP union objects as JSON strings; decode that form at the boundary.
+// Some agents serialize nested MCP union objects as JSON strings; decode that form at the boundary.
 const OrchestratorMcpScheduleFromJsonString = Schema.fromJsonString(
   ScheduledTaskUpsertSchedule,
 ).annotate({

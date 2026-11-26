@@ -82,57 +82,6 @@ export const DESCRIPTOR_PRESETS_BY_KIND: Partial<
     { id: "fastMode", label: msg("Fast Mode", { $context: "model option name" }), type: "boolean" },
     { id: "thinking", label: msg("Thinking", { $context: "model option name" }), type: "boolean" },
   ],
-  [ProviderDriverKind.make("cursor")]: [
-    {
-      id: "reasoning",
-      label: msg("Reasoning", { $context: "model option name" }),
-      type: "select",
-      choices: EFFORT_CHOICES,
-    },
-    { id: "fastMode", label: msg("Fast Mode", { $context: "model option name" }), type: "boolean" },
-    { id: "thinking", label: msg("Thinking", { $context: "model option name" }), type: "boolean" },
-  ],
-  [ProviderDriverKind.make("grok")]: [
-    {
-      id: "reasoningEffort",
-      label: msg("Reasoning", { $context: "model option name" }),
-      type: "select",
-      choices: EFFORT_CHOICES,
-    },
-  ],
-  [ProviderDriverKind.make("pi")]: [
-    {
-      id: "thinking",
-      label: msg("Thinking", { $context: "model option name" }),
-      type: "select",
-      choices: [
-        { id: "off", label: msg("Off", { $context: "reasoning level" }) },
-        { id: "minimal", label: msg("Minimal", { $context: "reasoning level" }) },
-        { id: "low", label: msg("Low", { $context: "reasoning level" }) },
-        { id: "medium", label: msg("Medium", { $context: "reasoning level" }), isDefault: true },
-        { id: "high", label: msg("High", { $context: "reasoning level" }) },
-        { id: "xhigh", label: msg("Extra High", { $context: "reasoning level" }) },
-        { id: "max", label: msg("Max", { $context: "reasoning level" }) },
-      ],
-    },
-  ],
-  [ProviderDriverKind.make("opencode")]: [
-    {
-      id: "variant",
-      label: msg("Reasoning", { $context: "model option name" }),
-      type: "select",
-      choices: EFFORT_CHOICES,
-    },
-    {
-      id: "agent",
-      label: msg("Agent", { $context: "model option name" }),
-      type: "select",
-      choices: [
-        { id: "build", label: msg("Build", { $context: "OpenCode agent name" }), isDefault: true },
-        { id: "plan", label: msg("Plan", { $context: "OpenCode agent name" }) },
-      ],
-    },
-  ],
 };
 
 let nextKey = 0;

@@ -23,11 +23,7 @@ import {
   ProviderCompatibilityPolicy,
   resolveProviderCompatibility,
 } from "./providerCompatibility.ts";
-import bundledManifest from "./model-manifest.json" with { type: "json" };
 
-const decodeCompatibilityPolicies = Schema.decodeUnknownSync(
-  Schema.Array(ProviderCompatibilityPolicy),
-);
 const driver = ProviderDriverKind.make("codex");
 const policy: ProviderCompatibilityPolicy = {
   driver,
@@ -57,53 +53,35 @@ const provider: ServerProvider = {
 };
 
 describe("provider compatibility", () => {
-  it("keeps releases before V2 on the OpenCode 1 policy they shipped with", () => {
-    // Older builds fetch main's manifest; their V1 orchestrator cannot drive OpenCode 2.
-    const opencode = ProviderDriverKind.make("opencode");
-    for (const [version, expected] of [
-      ["1.14.19", "supported"],
-      ["2.0.18", "broken"],
-      ["1.14.18", "broken"],
-    ] as const) {
-      const advisory = resolveProviderCompatibility(
-        ModelManifest.BUNDLED_MODEL_MANIFEST.compatibility,
-        opencode,
-        version,
-        "0.0.45",
-      );
-      assert.strictEqual(advisory?.status, expected, `OpenCode ${version} on 0.0.45`);
-      assert.strictEqual(advisory?.recommendedVersion, "1.14.19");
-    }
-    // The current policy rates a prerelease or build by its base version.
-    for (const [version, expected] of [
-      ["1.13.0-beta.1", "broken"],
-      ["1.13.0+abc123", "broken"],
-      ["2.1.0-rc.1", "supported"],
-    ] as const) {
-      assert.strictEqual(
-        resolveProviderCompatibility(
-          ModelManifest.BUNDLED_MODEL_MANIFEST.compatibility,
-          opencode,
-          version,
-        )?.status,
-        expected,
-        `OpenCode ${version}`,
-      );
-    }
+  it("picks the bundled policy for the running OrbiWork version", () => {
+    const codex = ProviderDriverKind.make("codex");
+    const compatibility = ModelManifest.BUNDLED_MODEL_MANIFEST.compatibility;
+    assert.strictEqual(
+      resolveProviderCompatibility(compatibility, codex, "0.156.0", "0.0.43")?.recommendedRange,
+      ">=0.156.0",
+    );
+    assert.strictEqual(
+      resolveProviderCompatibility(compatibility, codex, "0.156.0", "0.0.45")?.recommendedRange,
+      ">=0.159.0",
+    );
+    assert.strictEqual(
+      resolveProviderCompatibility(compatibility, codex, "0.148.0", "0.0.45")?.status,
+      "broken",
+    );
     assert.isUndefined(
       resolveProviderCompatibility(
-        ModelManifest.BUNDLED_MODEL_MANIFEST.compatibility,
-        ProviderDriverKind.make("pi"),
+        compatibility,
+        ProviderDriverKind.make("acpRegistry"),
         "1.0.0",
         "0.0.45",
       ),
     );
   });
 
-  it("compares Cursor build dates without treating semver prereleases as stable", () => {
-    const cursor = ProviderDriverKind.make("cursor");
-    const cursorPolicy: ProviderCompatibilityPolicy = {
-      driver: cursor,
+  it("compares build dates without treating semver prereleases as stable", () => {
+    const dated = ProviderDriverKind.make("acpRegistry");
+    const datedPolicy: ProviderCompatibilityPolicy = {
+      driver: dated,
       orbiWorkRange: policy.orbiWorkRange,
       versionPattern: "^(\\d{4}\\.\\d{2}\\.\\d{2})-[a-f0-9]+$",
       ranges: [
@@ -119,38 +97,13 @@ describe("provider compatibility", () => {
       ["2026.05.09-beta.1", "unknown"],
     ] as const) {
       assert.strictEqual(
-        resolveProviderCompatibility([cursorPolicy], cursor, version)?.status,
+        resolveProviderCompatibility([datedPolicy], dated, version)?.status,
         expected,
       );
     }
     assert.strictEqual(
       resolveProviderCompatibility([policy], driver, "2.0.0-a1b2c3d")?.status,
       "unknown",
-    );
-  });
-
-  it("marks Antigravity below 1.5 broken and recommends 1.5.12 in the bundled manifest", () => {
-    const policies = decodeCompatibilityPolicies(bundledManifest.compatibility);
-    const antigravity = ProviderDriverKind.make("antigravity");
-    for (const version of [
-      "1.1.1",
-      "1.3.0",
-      "1.4.1",
-      "1.4.5",
-      "1.4.9",
-      "agy_acp_server_1.4.5",
-      "1.4.5-beta",
-    ]) {
-      const advisory = resolveProviderCompatibility(policies, antigravity, version);
-      assert.strictEqual(advisory?.status, "broken", version);
-    }
-    const supported = resolveProviderCompatibility(policies, antigravity, "1.5.11");
-    assert.strictEqual(supported?.status, "supported");
-    assert.strictEqual(supported?.recommendedRange, ">=1.5.12 <2");
-    // Stable releases before 0.1.10 cannot install the CLI, so they keep the policy they shipped with.
-    assert.strictEqual(
-      resolveProviderCompatibility(policies, antigravity, "1.4.5", "0.1.9")?.status,
-      "supported",
     );
   });
 

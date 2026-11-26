@@ -50,14 +50,7 @@ describe("providerAccentForegroundColor", () => {
 });
 
 describe("shouldShowInstanceBadge", () => {
-  it("hides badges for distinct ACP agents sharing the registry driver", () => {
-    const mistral = { driverKind: acpRegistry, acpRegistryAgentId: "mistral-vibe", enabled: true };
-    const devin = { driverKind: acpRegistry, acpRegistryAgentId: "devin", enabled: true };
-    expect(shouldShowInstanceBadge(mistral, [mistral, devin])).toBe(false);
-    expect(shouldShowInstanceBadge(devin, [mistral, devin])).toBe(false);
-  });
-
-  it("distinguishes registry instances whose agent identity is unavailable", () => {
+  it("distinguishes ACP agent instances sharing the driver", () => {
     const entry = { driverKind: acpRegistry, enabled: true };
     expect(shouldShowInstanceBadge(entry, [entry, { ...entry }])).toBe(true);
   });

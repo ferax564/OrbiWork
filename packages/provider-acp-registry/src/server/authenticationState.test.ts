@@ -10,7 +10,7 @@ import * as Schema from "effect/Schema";
 
 import { makeAcpRegistryAuthenticationState } from "./authenticationState.ts";
 
-const settings = Schema.decodeSync(AcpRegistrySettings)({ agentId: "devin" });
+const settings = Schema.decodeSync(AcpRegistrySettings)({ commandPath: "devin" });
 
 it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("ACP sign-in confirmation", (it) => {
   it.effect("restores explicit sign-in across driver recreation and server restart", () =>
@@ -52,7 +52,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("ACP sign-in conf
           processEnvironment: { HOME: "/home/test" },
         };
         for (const change of [
-          { settings: { ...settings, agentId: "other-agent" } },
+          { settings: { ...settings, commandArgs: ["--other"] } },
           { settings: { ...settings, authMethodId: "enterprise" } },
           { settings: { ...settings, commandPath: "/other/devin" } },
           { environment: [{ name: "DEVIN_TOKEN", value: "different-token", sensitive: true }] },

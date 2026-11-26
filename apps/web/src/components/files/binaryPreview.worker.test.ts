@@ -62,9 +62,7 @@ it.each([ARCHIVE_ENTRY_MAX_BYTES, ARCHIVE_ENTRY_MAX_BYTES + 1])(
           worker.dispatchEvent(new MessageEvent("message", { data: input }));
         });
       using copies = vi.spyOn(Uint8Array.prototype, "slice");
-      expect(
-        await request({ type: "open", kind: "archive", name: "mixed.tar", bytes: bytes.buffer }),
-      ).toEqual({
+      expect(await request({ type: "open", name: "mixed.tar", bytes: bytes.buffer })).toEqual({
         type: "archive",
         entries: entries.map((entry) => ({
           path: entry.path,

@@ -1718,13 +1718,6 @@ export function createServerEnvironmentAtoms<R, E>(
       refreshIntervalMs: 5_000,
       idleTtlMs: 0,
     }),
-    searchAcpRegistry: createEnvironmentRpcQueryAtomFamily(runtime, {
-      label: "environment-data:server:acp-registry:search",
-      tag: WS_METHODS.serverSearchAcpRegistry,
-      // Reopening Add provider reuses recent results. Submitting the same search asks the
-      // server again, which reuses a Registry index fetched in the last five minutes.
-      staleTimeMs: 5 * 60_000,
-    }),
     configProjection,
     welcome,
     updateOutcome: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
@@ -1839,22 +1832,6 @@ export function createServerEnvironmentAtoms<R, E>(
     }),
     updateSettings,
     mutateProviderInstance: updateSettings,
-    prepareAcpRegistryAgent: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:server:acp-registry:prepare",
-      tag: WS_METHODS.serverPrepareAcpRegistryAgent,
-      concurrency: {
-        mode: "singleFlight",
-        key: ({ environmentId, input }) => `${environmentId}:${input.agentId}`,
-      },
-    }),
-    uninstallAcpRegistryManagedBinary: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:server:acp-registry:uninstall-managed-binary",
-      tag: WS_METHODS.serverUninstallAcpRegistryManagedBinary,
-      concurrency: {
-        mode: "singleFlight",
-        key: ({ environmentId, input }) => `${environmentId}:${input.agentId}`,
-      },
-    }),
     acceptAcpRegistryUrlAuth: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:acp-registry:accept-url-auth",
       tag: WS_METHODS.serverAcceptAcpRegistryUrlAuth,

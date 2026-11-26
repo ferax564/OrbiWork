@@ -19,4 +19,4 @@ beforeEach(async () => {
 });
 
 // The app initializes GT at startup; components using its hooks need the same here.
-initializeI18n(() => {});
+initializeI18n();

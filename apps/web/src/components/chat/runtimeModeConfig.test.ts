@@ -4,11 +4,11 @@ import { draftSupportedRuntimeModes, resolveCompatibleRuntimeMode } from "./runt
 
 describe("draftSupportedRuntimeModes", () => {
   const supervisedOnly = {
-    instanceId: "fx",
+    instanceId: "acp_supervised",
     supportedRuntimeModes: ["approval-required"],
   } as const;
   const noAuto = {
-    instanceId: "muse",
+    instanceId: "acp_no_auto",
     supportedRuntimeModes: ["approval-required", "full-access"],
   } as const;
   const everyMode = { instanceId: "codex" };

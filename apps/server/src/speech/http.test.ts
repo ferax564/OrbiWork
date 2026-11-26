@@ -395,7 +395,7 @@ effectIt.effect.each([
 
 effectIt.effect("tells the client why transcript cleanup failed", () =>
   Effect.gen(function* () {
-    const detail = "OpenCode returned invalid structured output.";
+    const detail = "The provider returned invalid structured output.";
     const failingCleanup = Layer.mergeAll(
       dependencies,
       Layer.succeed(

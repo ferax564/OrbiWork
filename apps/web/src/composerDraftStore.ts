@@ -1062,9 +1062,7 @@ function composerModelIdentity(
     input.providers
       .find((provider) => provider.instanceId === instanceId)
       ?.models.some((entry) => entry.slug === model && entry.isCustom) ||
-    readInstanceCustomModels(input.settings, instanceId, input.selectedProvider).some(
-      (entry) => entry.slug === model,
-    );
+    readInstanceCustomModels(input.settings, instanceId).some((entry) => entry.slug === model);
   return isCustom ? model : normalizeModelSlug(model, input.selectedProvider);
 }
 
@@ -1103,8 +1101,6 @@ export function deriveEffectiveComposerModelState(input: {
           { preserveUnavailableSelection: preserveThreadModel },
         )
       : null) ??
-    // Antigravity has no static model or cross-account catalog fallback.
-    (input.selectedProvider === "antigravity" && input.selectedInstanceId ? "" : null) ??
     resolveAppModelSelection(
       input.selectedProvider,
       input.settings,
@@ -1134,7 +1130,6 @@ export function deriveEffectiveComposerModelState(input: {
         activeSelection.model,
         { preserveUnavailableSelection: true },
       ) ??
-      (input.selectedProvider === "antigravity" ? "" : null) ??
       resolveAppModelSelection(
         input.selectedProvider,
         input.settings,

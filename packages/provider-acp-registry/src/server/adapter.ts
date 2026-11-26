@@ -1,24 +1,3 @@
-import {
-  extractClaudeSubagentUpdate,
-  extractClaudeSubagentSessionEvent,
-  isClaudeProvisionalSubagentTool,
-} from "./claudeAcp.ts";
-import {
-  normalizeDevinSessionUpdate,
-  normalizeDevinToolCall,
-  extractDevinSubagentUpdate,
-  devinAnswerablePermissionOptions,
-} from "./devinAcp.ts";
-import { extractDroidElicitationForm } from "./droidAcp.ts";
-import { makeKimiPromptOutcomeWatch } from "./kimiAcp.ts";
-import { extractOmpElicitationForm } from "./ompAcp.ts";
-import { extractOpenCodeElicitationForm } from "./opencodeAcp.ts";
-import {
-  copilotClientCapabilitiesMeta,
-  extractCopilotSubagentUpdate,
-  isCopilotLostSessionError,
-  makeCopilotSubagentRouting,
-} from "./copilotAcp.ts";
 import { prefersHttpMcpTransport } from "./mcpTransport.ts";
 import { defaultInstanceIdForDriver, ProviderDriverKind } from "@orbiwork/contracts";
 import { readCustomModelEntries } from "@orbiwork/shared/model";
@@ -34,7 +13,6 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
-import type * as EffectAcpSchema from "effect-acp/compat";
 import * as EffectAcpErrors from "effect-acp/errors";
 
 import * as McpProviderSessions from "@orbiwork/provider-core/server/McpProviderSessions";
@@ -155,7 +133,7 @@ function makeAcpRegistryRuntime(
           Effect.mapError(
             (cause) =>
               new EffectAcpErrors.AcpSpawnError({
-                command: options.settings.agentId || ACP_REGISTRY_PROVIDER,
+                command: options.settings.commandPath || ACP_REGISTRY_PROVIDER,
                 cause,
               }),
           ),
@@ -193,157 +171,30 @@ export const makeAcpRegistryAdapterV2 = Effect.fn("makeAcpRegistryAdapterV2")(fu
   const runtimeCoordinator = Option.getOrUndefined(
     yield* Effect.serviceOption(AcpRegistryRuntimeCoordinator.AcpRegistryRuntimeCoordinator),
   );
-  const registryAgentId = options.settings.source === "local" ? "" : options.settings.agentId;
-  const startupKey =
-    options.settings.source === "local" ? `local:${options.instanceId}` : registryAgentId;
-  const isDevin = registryAgentId === "devin";
-  const isAntigravityCli =
-    options.settings.source === "local" &&
-    /^agy(\.exe|\.cmd)?$/i.test(options.settings.commandPath.split(/[\\/]/).pop() ?? "");
-  const isOmp =
-    options.settings.source === "local" &&
-    /^omp(\.exe|\.cmd)?$/i.test(options.settings.commandPath.split(/[\\/]/).pop() ?? "");
-  const isOpenCode =
-    registryAgentId === "opencode" ||
-    registryAgentId === "opencode-v2" ||
-    (options.settings.source === "local" &&
-      /^opencode(?:-v2)?(\.exe|\.cmd)?$/i.test(
-        options.settings.commandPath.split(/[\\/]/).pop() ?? "",
-      ));
-  // Local installs launch the `copilot` binary directly with no registry id.
-  const isCopilot =
-    registryAgentId === "github-copilot-cli" ||
-    (options.settings.source === "local" &&
-      /^copilot(\.exe|\.cmd)?$/i.test(options.settings.commandPath.split(/[\\/]/).pop() ?? ""));
-  const isKimi =
-    registryAgentId === "kimi-code" ||
-    (options.settings.source === "local" &&
-      /^kimi(\.exe|\.cmd)?$/i.test(options.settings.commandPath.split(/[\\/]/).pop() ?? ""));
-  const isClaude =
-    registryAgentId === "claude-acp" ||
-    (options.settings.source === "local" &&
-      /^claude-agent-acp(\.exe|\.cmd)?$/i.test(
-        options.settings.commandPath.split(/[\\/]/).pop() ?? "",
-      ));
-  const isDroid =
-    registryAgentId === "factory-droid" ||
-    (options.settings.source === "local" &&
-      /^(?:factory-)?droid(\.exe|\.cmd)?$/i.test(
-        options.settings.commandPath.split(/[\\/]/).pop() ?? "",
-      ));
-  const isGlm =
-    registryAgentId === "glm-acp-agent" ||
-    (options.settings.source === "local" &&
-      /^glm(?:-acp-agent)?(\.exe|\.cmd)?$/i.test(
-        options.settings.commandPath.split(/[\\/]/).pop() ?? "",
-      ));
-  const isVibe =
-    registryAgentId === "mistral-vibe" ||
-    (options.settings.source === "local" &&
-      /^(?:mistral-)?vibe(?:-acp)?(\.exe|\.cmd)?$/i.test(
-        options.settings.commandPath.split(/[\\/]/).pop() ?? "",
-      ));
-  const runtimeOptions = isClaude
-    ? {
-        ...options,
-        environment: {
-          ...options.environment,
-          CLAUDE_AGENT_ACP_EXPERIMENTAL_V2:
-            options.environment.CLAUDE_AGENT_ACP_EXPERIMENTAL_V2 ?? "1",
-        },
-      }
-    : options;
-  const watchKimiPromptOutcome = isKimi
-    ? yield* makeKimiPromptOutcomeWatch(options.environment.KIMI_CODE_HOME)
-    : undefined;
-  const copilotRouting = isCopilot ? makeCopilotSubagentRouting() : undefined;
-  // Copilot CLI 1.0.105 rejects stdio MCP servers from the client, and Command Code cannot
-  // start the stdio bridge on Windows (it spawns MCP commands through cmd.exe, which splits
-  // the unquoted "OrbiWork (Beta).exe" path). Both take Orbi's MCP endpoint over ACP HTTP.
-  const useHttpMcpServers =
-    copilotRouting !== undefined || prefersHttpMcpTransport(options.settings);
+  const startupKey = `local:${options.instanceId}`;
+  const executableName = options.settings.commandPath.split(/[\\/]/).pop() ?? "";
+  const isAntigravityCli = /^agy(\.exe|\.cmd)?$/i.test(executableName);
+  const isGlm = /^glm(?:-acp-agent)?(\.exe|\.cmd)?$/i.test(executableName);
+  const isVibe = /^(?:mistral-)?vibe(?:-acp)?(\.exe|\.cmd)?$/i.test(executableName);
   const flavor: AcpAdapterV2Flavor = {
     driver: ACP_REGISTRY_PROVIDER,
-    // Cancelling a Copilot prompt also kills the background agents it started.
-    capabilities: isCopilot
-      ? {
-          ...AcpProviderCapabilitiesV2,
-          turns: { ...AcpProviderCapabilitiesV2.turns, supportsSteeringByInterruptRestart: false },
-        }
-      : AcpProviderCapabilitiesV2,
+    capabilities: AcpProviderCapabilitiesV2,
     customModels: readCustomModelEntries(options.settings.customModels).map((entry) => entry.slug),
     compactViaAdvertisedCommand: true,
     ...(isAntigravityCli ? { wakeOnDetachedRequest: true, replyEndsWithUsageUpdate: true } : {}),
-    promptFailure: (cause) =>
-      acpRegistryPromptFailure(isVibe ? "mistral-vibe" : registryAgentId, cause),
-    ...(isDroid
-      ? { extractElicitationForm: extractDroidElicitationForm }
-      : isOmp
-        ? { extractElicitationForm: extractOmpElicitationForm }
-        : isOpenCode
-          ? { extractElicitationForm: extractOpenCodeElicitationForm }
-          : {}),
+    promptFailure: (cause) => acpRegistryPromptFailure(isVibe ? "mistral-vibe" : "", cause),
     // glm-acp-agent is the one agent whose per-turn usage a live probe has verified.
     ...(isGlm ? { reportsPerTurnPromptUsage: true } : {}),
-    ...(watchKimiPromptOutcome === undefined
-      ? {}
-      : {
-          watchPromptOutcome: (sessionId: string) =>
-            Effect.map(
-              watchKimiPromptOutcome(sessionId),
-              (check) => (result: EffectAcpSchema.PromptResponse) =>
-                Effect.map(check(result), (failure) =>
-                  failure === undefined
-                    ? undefined
-                    : { failure, threadDisposition: "reusable" as const },
-                ),
-            ),
-        }),
     ...(isVibe ? { registerExtensions: registerMistralVibeAcpExtensions } : {}),
-    ...(isClaude
-      ? {
-          followAgentWorkState: true,
-          extractSubagentUpdate: extractClaudeSubagentUpdate,
-          isProvisionalSubagentTool: isClaudeProvisionalSubagentTool,
-          extractSubagentSessionEvent: extractClaudeSubagentSessionEvent,
-        }
-      : {}),
     // Hermes replies on the root session when a background process it started exits; no
     // prompt response follows, so the continuation ends on the deferred-finalize debounce.
-    // Hermes is not in the public registry and may run through a wrapper, so only its
-    // initialize reply identifies it. agy does the same and is known by its command.
+    // Hermes may run through a wrapper, so only its initialize reply identifies it. agy does the same and is known by its command.
     enablePostSettleContinuation: (initializeResult) =>
       isAntigravityCli || isHermes(initializeResult),
     deferFinalizeForBackgroundWork: (initializeResult) =>
       isAntigravityCli || isHermes(initializeResult),
-    ...(isDevin
-      ? {
-          clientCapabilitiesMeta: {
-            "cognition.ai/subagentSupport": true,
-            "cognition.ai/messageGrouping": true,
-          },
-          normalizeSessionUpdate: normalizeDevinSessionUpdate,
-          normalizeToolCall: normalizeDevinToolCall,
-          extractSubagentUpdate: extractDevinSubagentUpdate,
-          answerablePermissionOptions: devinAnswerablePermissionOptions,
-        }
-      : {}),
-    ...(copilotRouting === undefined
-      ? {}
-      : {
-          clientCapabilitiesMeta: copilotClientCapabilitiesMeta,
-          deferMcpTools: true,
-          registerExtensions: copilotRouting.registerExtensions,
-          normalizeSessionUpdate: copilotRouting.normalizeSessionUpdate,
-          extractSubagentUpdate: extractCopilotSubagentUpdate,
-          restartRuntimeAfterPromptError: isCopilotLostSessionError,
-          // A finished background agent wakes the root after assistant.idle settled the run.
-          enablePostSettleContinuation: true,
-          // session/new reports a built-in default, not the model Copilot runs (github/copilot-cli#5363).
-          alwaysSetModel: true,
-        }),
-    mcpOverHttp: useHttpMcpServers,
-    makeRuntime: options.makeRuntime ?? makeAcpRegistryRuntime(runtimeOptions, catalog),
+    mcpOverHttp: prefersHttpMcpTransport(options.settings),
+    makeRuntime: options.makeRuntime ?? makeAcpRegistryRuntime(options, catalog),
     ...(runtimeCoordinator === undefined
       ? {}
       : {
@@ -352,28 +203,6 @@ export const makeAcpRegistryAdapterV2 = Effect.fn("makeAcpRegistryAdapterV2")(fu
               options.instanceId,
               normalizeAcpRegistryCommands(commands),
             ),
-          // A new Copilot session starts at its own effort, not the one the composer shows.
-          ...(isCopilot
-            ? {
-                unsetOptionDefaults: runtimeCoordinator
-                  .getLiveConfiguration(options.instanceId)
-                  .pipe(
-                    Effect.map(
-                      Option.match({
-                        onNone: () => [],
-                        onSome: ({ configOptions }) =>
-                          configOptions.flatMap((descriptor) =>
-                            descriptor.type === "select" &&
-                            descriptor.role === "reasoning" &&
-                            descriptor.currentValue !== undefined
-                              ? [{ id: descriptor.id, value: descriptor.currentValue }]
-                              : [],
-                          ),
-                      }),
-                    ),
-                  ),
-              }
-            : {}),
           onSessionConfigurationUpdate: (configOptions, modeState, modelState) =>
             runtimeCoordinator.publishLiveConfiguration(
               options.instanceId,
@@ -402,15 +231,6 @@ export const makeAcpRegistryAdapterV2 = Effect.fn("makeAcpRegistryAdapterV2")(fu
     ...(options.continuationRequests === undefined
       ? {}
       : { continuationRequests: options.continuationRequests }),
-    // Devin runs commands through client terminals and has no ask mode over ACP to fall back on.
-    ...(isDevin
-      ? {
-          clientTerminals: {
-            environment: options.environment,
-            shellCommands: true,
-          },
-        }
-      : {}),
     ...(options.nativeLogging === undefined ? {} : { nativeLogging: options.nativeLogging }),
   });
 });
@@ -460,7 +280,7 @@ export const AcpRegistryAdapterV2Driver: ProviderAdapterDriver<
             new ProviderAdapterDriverCreateError({
               driver: ACP_REGISTRY_PROVIDER,
               instanceId: input.instanceId,
-              detail: "Failed to create ACP Registry adapter.",
+              detail: "Failed to create ACP agent adapter.",
               cause,
             }),
         ),

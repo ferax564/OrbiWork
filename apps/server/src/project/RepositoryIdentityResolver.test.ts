@@ -10,7 +10,6 @@ import * as HostProcess from "@orbiwork/shared/HostProcess";
 import { vi } from "vite-plus/test";
 
 import * as ProcessRunner from "../processRunner.ts";
-import { sourceControlDefinitions } from "../sourceControl/sourceControlDefinitions.ts";
 import * as RepositoryIdentityResolver from "./RepositoryIdentityResolver.ts";
 
 const normalizePathSeparators = (value: string) => value.replaceAll("\\", "/");
@@ -166,30 +165,6 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       expect(shorthandIdentity?.canonicalKey).toBe("github.com/ferax564/orbiwork");
       expect(shorthandIdentity?.provider).toBe("github");
       expect(shorthandIdentity?.locator.remoteUrl).toBe("https://github.com/Ferax564/orbiwork.git");
-    }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
-  );
-
-  it.effect("keeps a literal .git in an Azure DevOps repository name", () =>
-    Effect.gen(function* () {
-      const fileSystem = yield* FileSystem.FileSystem;
-      const cwd = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "orbi-repository-identity-azure-git-suffix-test-",
-      });
-
-      yield* git(cwd, ["init"]);
-      yield* git(cwd, [
-        "remote",
-        "add",
-        "origin",
-        "https://dev.azure.com/Acme/Platform/_git/Tool.git",
-      ]);
-
-      const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
-      const identity = yield* resolver.resolve(cwd);
-
-      expect(identity?.displayName).toBe("Acme/Platform/_git/Tool.git");
-      expect(identity?.name).toBe("Tool.git");
-      expect(sourceControlDefinitions.repositorySelector(identity)).toBe("Tool.git");
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
 

@@ -1,5 +1,4 @@
 import {
-  ANTIGRAVITY_DEFAULT_MODEL,
   DEFAULT_TEXT_GENERATION_MODEL,
   DEFAULT_SERVER_SETTINGS,
   ProjectId,
@@ -395,29 +394,9 @@ describe("instance-scoped model selection", () => {
 
   describe.each([
     {
-      driverName: "pi",
-      availableModel: "default",
-      missingModel: "anthropic/claude-sonnet-4",
-    },
-    {
       driverName: "acpRegistry",
       availableModel: "default",
       missingModel: "gateway/chosen-model",
-    },
-    {
-      driverName: "opencode",
-      availableModel: "opencode/big-pickle",
-      missingModel: "opencode/kimi-k3",
-    },
-    {
-      driverName: "antigravity",
-      availableModel: "gemini-3.1-pro",
-      missingModel: "gemini-3.1-pro-high",
-    },
-    {
-      driverName: "cursor",
-      availableModel: "auto-smart",
-      missingModel: "claude-opus-5-5",
     },
   ])("$driverName catalog gaps", ({ driverName, availableModel, missingModel }) => {
     it("preserves a selected model when a catalog refresh no longer contains it", () => {
@@ -494,7 +473,7 @@ describe("instance-scoped model selection", () => {
     });
   });
 
-  it("falls back from an explicit non-OpenCode draft with a missing model", () => {
+  it("falls back from an explicit draft with a missing model", () => {
     const instanceId = ProviderInstanceId.make("codex");
     const driver = ProviderDriverKind.make("codex");
     const providers = [provider({ provider: driver, instanceId, models: ["gpt-5.6-sol"] })];
@@ -526,13 +505,13 @@ describe("instance-scoped model selection", () => {
     expect(dispatch.modelOptionsForDispatch).toBeUndefined();
   });
 
-  it("sends a Cursor thread's stored model and options when the catalog lacks them", () => {
-    const instanceId = ProviderInstanceId.make("cursor");
-    const driver = ProviderDriverKind.make("cursor");
+  it("sends a thread's stored model and options when the runtime catalog lacks them", () => {
+    const instanceId = ProviderInstanceId.make("acpRegistry");
+    const driver = ProviderDriverKind.make("acpRegistry");
     const stored = createModelSelection(instanceId, "claude-opus-5-5", [
       { id: "effort", value: "medium" },
     ]);
-    const providers = [provider({ provider: driver, instanceId, models: ["auto-smart"] })];
+    const providers = [provider({ provider: driver, instanceId, models: ["agent-model"] })];
     const state = deriveEffectiveComposerModelState({
       threadStarted: false,
       draft: null,
@@ -555,9 +534,9 @@ describe("instance-scoped model selection", () => {
     ).toEqual(stored);
   });
 
-  it("preserves an explicit draft OpenCode selection while the catalog is empty", () => {
-    const instanceId = ProviderInstanceId.make("opencode_work");
-    const driver = ProviderDriverKind.make("opencode");
+  it("preserves an explicit draft selection while the runtime catalog is empty", () => {
+    const instanceId = ProviderInstanceId.make("acp_work");
+    const driver = ProviderDriverKind.make("acpRegistry");
     const draftSelection = createModelSelection(instanceId, "openrouter/kimi-k3", [
       { id: "variant", value: "max" },
       { id: "agent", value: "build" },
@@ -581,101 +560,7 @@ describe("instance-scoped model selection", () => {
     expect(state.modelOptions?.[instanceId]).toEqual(draftSelection.options);
   });
 
-  it("preserves the Antigravity model in drafts and existing threads after sign-out", () => {
-    const instanceId = ProviderInstanceId.make("antigravity_work");
-    const driver = ProviderDriverKind.make("antigravity");
-    const saved = createModelSelection(instanceId, "gemini-3.1-pro-high");
-    const providers = [
-      {
-        ...provider({ provider: driver, instanceId, models: [] }),
-        status: "error" as const,
-        auth: { status: "unauthenticated" as const },
-      },
-    ];
-    for (const draft of [
-      null,
-      { activeProvider: instanceId, modelSelectionByProvider: { [instanceId]: saved } },
-    ]) {
-      const state = deriveEffectiveComposerModelState({
-        threadStarted: false,
-        draft,
-        providers,
-        selectedProvider: driver,
-        selectedInstanceId: instanceId,
-        threadModelSelection: saved,
-        projectModelSelection: null,
-        settings: settingsWithProviderInstances(),
-      });
-      expect(state.selectedModel).toBe(saved.model);
-    }
-  });
-
-  it("does not borrow a default model while a new Antigravity account has no catalog", () => {
-    const driver = ProviderDriverKind.make("antigravity");
-    const instanceId = ProviderInstanceId.make("antigravity_work");
-    const providers = [
-      provider({ instanceId: "codex", models: ["gpt-5.6-sol"] }),
-      provider({ provider: driver, instanceId: "antigravity", models: ["gemini-other-account"] }),
-      provider({ provider: driver, instanceId, models: [] }),
-    ];
-
-    const otherAccountId = ProviderInstanceId.make("antigravity");
-    for (const draft of [
-      null,
-      {
-        activeProvider: instanceId,
-        modelSelectionByProvider: {
-          [otherAccountId]: createModelSelection(otherAccountId, "gemini-other-account"),
-        },
-      },
-    ]) {
-      const state = deriveEffectiveComposerModelState({
-        threadStarted: false,
-        draft,
-        providers,
-        selectedProvider: driver,
-        selectedInstanceId: instanceId,
-        threadModelSelection: null,
-        projectModelSelection: createModelSelection(
-          ProviderInstanceId.make("codex"),
-          "gpt-5.6-sol",
-        ),
-        settings: settingsWithProviderInstances(),
-      });
-      expect(state.selectedModel).toBe("");
-    }
-  });
-
-  it("offers only account catalog models for Antigravity despite custom model settings", () => {
-    const driver = ProviderDriverKind.make("antigravity");
-    const customId = ProviderInstanceId.make("antigravity_work");
-    const nativeModel = "gemini-3.1-pro";
-    const settings: UnifiedSettings = {
-      ...DEFAULT_UNIFIED_SETTINGS,
-      providerInstances: {
-        [ProviderInstanceId.make("antigravity")]: {
-          driver,
-          config: { customModels: ["api-only-model"] },
-        },
-        [customId]: { driver, config: { customModels: ["unknown-model"] } },
-      },
-    };
-    const entries = deriveProviderInstanceEntries([
-      provider({ provider: driver, instanceId: "antigravity", models: [nativeModel] }),
-      provider({ provider: driver, instanceId: customId, models: [nativeModel] }),
-    ]);
-
-    for (const entry of entries) {
-      expect(getAppModelOptionsForInstance(settings, entry).map((model) => model.slug)).toEqual([
-        nativeModel,
-      ]);
-    }
-  });
-
-  it.each([
-    { driver: "antigravity", marker: ANTIGRAVITY_DEFAULT_MODEL, nativeModel: "gemini-3.1-pro" },
-    { driver: "acpRegistry", marker: "default", nativeModel: "agent-model" },
-  ])(
+  it.each([{ driver: "acpRegistry", marker: "default", nativeModel: "agent-model" }])(
     "resolves the $driver default marker without creating an unavailable model",
     ({ driver, marker, nativeModel }) => {
       const instanceId = ProviderInstanceId.make(`${driver}_work`);
@@ -689,7 +574,6 @@ describe("instance-scoped model selection", () => {
         models: base.models.map((model) => ({
           ...model,
           isDefault: true,
-          ...(driver === "antigravity" ? { aliases: [marker] } : {}),
         })),
       };
       const settings = settingsWithProviderInstances();
@@ -729,10 +613,10 @@ describe("instance-scoped model selection", () => {
   );
 
   it("preserves saved options through dispatch when the model is absent from the catalog", () => {
-    const instanceId = ProviderInstanceId.make("opencode");
-    const driver = ProviderDriverKind.make("opencode");
-    const providers = [provider({ provider: driver, instanceId, models: ["opencode/big-pickle"] })];
-    const saved = createModelSelection(instanceId, "opencode/kimi-k3", [
+    const instanceId = ProviderInstanceId.make("acpRegistry");
+    const driver = ProviderDriverKind.make("acpRegistry");
+    const providers = [provider({ provider: driver, instanceId, models: ["gateway/big-pickle"] })];
+    const saved = createModelSelection(instanceId, "gateway/kimi-k3", [
       { id: "variant", value: "max" },
       { id: "agent", value: "build" },
     ]);
@@ -931,15 +815,15 @@ describe("instance-scoped model selection", () => {
   });
 
   it("keeps the default instance's draft model off a custom instance of the same driver", () => {
-    const driver = ProviderDriverKind.make("opencode");
-    const defaultInstanceId = ProviderInstanceId.make("opencode");
+    const driver = ProviderDriverKind.make("acpRegistry");
+    const defaultInstanceId = ProviderInstanceId.make("acpRegistry");
     const kimiInstanceId = ProviderInstanceId.make("kimi_api");
     const kimiModel = "kimi-code-plan-global/k3.1-pro";
     const providers = [
       provider({
         provider: driver,
         instanceId: defaultInstanceId,
-        models: ["opencode-go/kimi-k3.1-pro"],
+        models: ["gateway/kimi-k3.1-pro"],
       }),
       provider({ provider: driver, instanceId: kimiInstanceId, models: [kimiModel] }),
     ];
@@ -948,7 +832,7 @@ describe("instance-scoped model selection", () => {
       draft: {
         activeProvider: kimiInstanceId,
         modelSelectionByProvider: {
-          [defaultInstanceId]: createModelSelection(defaultInstanceId, "opencode-go/kimi-k3.1-pro"),
+          [defaultInstanceId]: createModelSelection(defaultInstanceId, "gateway/kimi-k3.1-pro"),
         },
       },
       providers,
@@ -1006,10 +890,10 @@ describe("instance-scoped model selection", () => {
   });
 
   it("does not select a provider that cannot generate system text", () => {
-    const instanceId = ProviderInstanceId.make("antigravity");
+    const instanceId = ProviderInstanceId.make("acp_gemini");
     const unsupported = {
       ...provider({
-        provider: ProviderDriverKind.make("antigravity"),
+        provider: ProviderDriverKind.make("acpRegistry"),
         instanceId,
         models: ["gemini-3.1-pro"],
       }),
@@ -1030,15 +914,15 @@ describe("instance-scoped model selection", () => {
   });
 
   it("excludes customized extension models while preserving unknown custom and thread models", () => {
-    const pi = provider({
-      provider: ProviderDriverKind.make("pi"),
-      instanceId: "pi",
+    const acp = provider({
+      provider: ProviderDriverKind.make("acpRegistry"),
+      instanceId: "acpRegistry",
       models: ["default", "demo/demo-model"],
     });
     const providers = [
       {
-        ...pi,
-        models: pi.models.map((model) =>
+        ...acp,
+        models: acp.models.map((model) =>
           model.slug === "demo/demo-model" ? { ...model, supportsTextGeneration: false } : model,
         ),
       },
@@ -1046,8 +930,8 @@ describe("instance-scoped model selection", () => {
     const settings: UnifiedSettings = {
       ...DEFAULT_UNIFIED_SETTINGS,
       providerInstances: {
-        [pi.instanceId]: {
-          driver: ProviderDriverKind.make("pi"),
+        [acp.instanceId]: {
+          driver: ProviderDriverKind.make("acpRegistry"),
           config: {
             customModels: [
               { slug: "demo/demo-model", name: "My extension model" },
@@ -1056,39 +940,44 @@ describe("instance-scoped model selection", () => {
           },
         },
       },
-      textGenerationModelSelection: createModelSelection(pi.instanceId, "demo/demo-model"),
+      textGenerationModelSelection: createModelSelection(acp.instanceId, "demo/demo-model"),
     };
     const supported = providers.filter((provider) => provider.supportsTextGeneration !== false);
     expect(
-      getTextGenerationModelOptionsByInstance(settings, supported, pi.instanceId, "demo/demo-model")
-        .get(pi.instanceId)
+      getTextGenerationModelOptionsByInstance(
+        settings,
+        supported,
+        acp.instanceId,
+        "demo/demo-model",
+      )
+        .get(acp.instanceId)
         ?.map((option) => option.slug),
     ).toEqual(["default", "unknown/model"]);
     expect(resolveAppModelSelectionState(settings, supported)).toEqual(
-      createModelSelection(pi.instanceId, "default"),
+      createModelSelection(acp.instanceId, "default"),
     );
     expect(
       resolveAppModelSelectionState(
         {
           ...settings,
-          textGenerationModelSelection: createModelSelection(pi.instanceId, "unknown/model"),
+          textGenerationModelSelection: createModelSelection(acp.instanceId, "unknown/model"),
         },
         supported,
       ).model,
     ).toBe("unknown/model");
     expect(
       getCustomModelOptionsByInstance(settings, providers)
-        .get(pi.instanceId)
+        .get(acp.instanceId)
         ?.map((option) => option.slug),
     ).toEqual(["default", "demo/demo-model", "unknown/model"]);
   });
 });
 
-describe("resolveAppModelSelectionState with the opencode plan agent", () => {
-  const instanceId = ProviderInstanceId.make("opencode");
-  const model = "opencode/gpt-5.4";
-  const opencode: ServerProvider = {
-    ...provider({ provider: ProviderDriverKind.make("opencode"), instanceId: "opencode" }),
+describe("resolveAppModelSelectionState with a stored agent option", () => {
+  const instanceId = ProviderInstanceId.make("acpRegistry");
+  const model = "gateway/gpt-5.4";
+  const acp: ServerProvider = {
+    ...provider({ provider: ProviderDriverKind.make("acpRegistry"), instanceId: "acpRegistry" }),
     models: [
       {
         slug: model,
@@ -1119,7 +1008,7 @@ describe("resolveAppModelSelectionState with the opencode plan agent", () => {
   };
 
   it("keeps a stored plan agent this device did not pick", () => {
-    expect(resolveAppModelSelectionState(settings, [opencode])).toEqual(
+    expect(resolveAppModelSelectionState(settings, [acp])).toEqual(
       createModelSelection(instanceId, model, [{ id: "agent", value: "plan" }]),
     );
   });
@@ -1129,7 +1018,7 @@ describe("default model settings and new-thread composer parity", () => {
   it.each([
     ["hidden", "claudeAgent", "claude-opus-5", "claude-opus-5-5", "medium"],
     ["visible", "claudeAgent", "claude-opus-5", "claude-opus-5", "max"],
-    ["unavailable", "opencode", "openrouter/kimi-k3", "openrouter/kimi-k3", null],
+    ["unavailable", "acpRegistry", "openrouter/kimi-k3", "openrouter/kimi-k3", null],
   ] as const)(
     "resolves the %s default and its traits",
     (visibility, kind, model, expectedModel, effort) => {
@@ -1438,32 +1327,6 @@ describe("composer fallback to another instance of the same driver", () => {
       });
 
       expect(state.selectedModel).toBe("5.4");
-      expect(traits.modelOptionsForDispatch).toBeUndefined();
-    });
-
-    it("does not carry options through an alias that names another model per instance", () => {
-      // "antigravity-default" is each Antigravity instance's current model.
-      const antigravity = ProviderDriverKind.make("antigravity");
-      const disabledAntigravity = ProviderInstanceId.make("antigravity");
-      const current = { isDefault: true, aliases: [ANTIGRAVITY_DEFAULT_MODEL] };
-      const { state, traits } = composerFor({
-        providers: [
-          {
-            ...provider({ provider: antigravity, instanceId: disabledAntigravity }),
-            enabled: false,
-            models: [reasoningModel("gemini-3-pro", "thinking", current)],
-          },
-          {
-            ...provider({ provider: antigravity, instanceId: "antigravity_work" }),
-            models: [reasoningModel("claude-sonnet-4-6", "thinking", current)],
-          },
-        ],
-        threadModelSelection: createModelSelection(disabledAntigravity, ANTIGRAVITY_DEFAULT_MODEL, [
-          { id: "thinking", value: "high" },
-        ]),
-      });
-
-      expect(state.selectedModel).toBe("claude-sonnet-4-6");
       expect(traits.modelOptionsForDispatch).toBeUndefined();
     });
   });

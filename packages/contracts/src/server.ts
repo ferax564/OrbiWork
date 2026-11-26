@@ -92,7 +92,7 @@ export const ServerProviderModel = Schema.Struct({
 });
 export type ServerProviderModel = typeof ServerProviderModel.Type;
 
-/** A backend a provider's models run on, such as one of fx's. */
+/** A backend a provider's models run on. */
 export const ServerProviderSubProvider = Schema.Struct({
   name: TrimmedNonEmptyString,
   /** Why none of its models can run now, such as a signed-out backend. */
@@ -233,8 +233,6 @@ export const ServerProvider = Schema.Struct({
   driver: ProviderDriverKind,
   displayName: Schema.optional(TrimmedNonEmptyString),
   accentColor: Schema.optional(TrimmedNonEmptyString),
-  // Validate driver-supplied remote icons against the driver's trusted origin.
-  iconUrl: Schema.optional(TrimmedNonEmptyString.check(Schema.isMaxLength(2_048))),
   badgeLabel: Schema.optional(TrimmedNonEmptyString),
   continuation: Schema.optional(ServerProviderContinuation),
   showInteractionModeToggle: Schema.optional(Schema.Boolean),
@@ -703,7 +701,6 @@ export type ServerEventLoopStall = typeof ServerEventLoopStall.Type;
 /** The boolean `ORBIWORK_FEATURE_FLAGS` a server started with. Unset flags are off. */
 export const ServerFeatureFlags = Schema.Struct({
   secretProviders: Schema.optionalKey(Schema.Boolean),
-  tanstackSource: Schema.optionalKey(Schema.Boolean),
 });
 export type ServerFeatureFlags = typeof ServerFeatureFlags.Type;
 

@@ -74,14 +74,15 @@ In order of value for effort:
 3. Upstream CI (29 workflows, most on runners a fork does not have) replaced by one job:
    format, lint, typecheck, unused-code check, tests.
 4. `evals/`, marketing site, release and packaging scripts tied to upstream services.
-5. Providers: keep Claude and Codex, generic ACP optional. Drop the rest, including a 16.7 MB
-   SDK patch. Prune the generated Codex schema (56k lines) to reachable methods; keep one ACP
-   schema version.
-6. Source control: keep git and GitHub; GitLab optional. Drop six forges and commit no SDL schemas.
+5. Done: providers are Claude, Codex and a generic ACP agent started by a local command. Eight
+   others, the hosted ACP registry and a 16.7 MB SDK patch are gone. Open: prune the generated
+   Codex schema (56k lines) to reachable methods; keep one ACP schema version; remove vendor
+   workarounds left in the shared ACP adapter.
+6. Done: source control is git, GitHub and GitLab. Six forges are gone.
 7. Server features: device simulators, triage, HTML render, speech; make workflows,
    pull-request review, usage and peer links lazy and default-off.
-8. Web: nine non-English catalogs, office/PDF/SQLite viewers, 3D device viewer, theme import,
-   and the settings pages for everything removed above.
+8. Done: the UI is English-only; office, PDF, SQLite and notebook viewers, the 3D device viewer
+   and theme search are gone. Open: settings pages for server features still to be removed.
 9. Desktop: browser cookie import and its native helper, screen-capture backends, passkeys.
 10. Old-data compatibility: the V1 import layer, 94 migrations squashed to one baseline (new state
     directory), legacy draft migrations, older-client gating.
@@ -92,7 +93,9 @@ Each item needs a before and after number.
 
 Baseline (M-series Mac, empty state, three runs): server cold start 1.15 to 1.22 s; idle server
 about 450 MB RSS, 171 MB heap, 0.4% CPU; web boot path 190 chunks, 1.6 MB gzip JS; 144 chunks
-are emitted twice.
+are emitted twice. All web JS: 45.9 MB raw, 13.1 MB gzip.
+
+After the Phase 3 cuts (providers, forges, catalogs, viewers): all web JS 31.8 MB raw, 8.4 MB gzip.
 
 - Startup: lazy CLI command imports; build optional server layers on first use; lazy desktop
   subsystems; fewer always-mounted hosts in the web root route. Measure with

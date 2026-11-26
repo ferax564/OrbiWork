@@ -252,13 +252,6 @@ describe("AssetAccess", () => {
         ["recording.mp4", "video/mp4"],
         ["recording.webm", "video/webm"],
         ["report.html", "text/html"],
-        ["report.pdf", "application/pdf"],
-        ["notes.odt", "application/vnd.oasis.opendocument.text"],
-        ["budget.ods", "application/vnd.oasis.opendocument.spreadsheet"],
-        ["slides.odp", "application/vnd.oasis.opendocument.presentation"],
-        ["notes.rtf", "application/rtf"],
-        ["book.epub", "application/epub+zip"],
-        ["analysis.ipynb", "application/x-ipynb+json"],
         ["tone.wav", "audio/wav"],
         ["tone.webm-audio", "audio/webm"],
         ["archive.zip", "application/zip"],
@@ -266,9 +259,6 @@ describe("AssetAccess", () => {
         ["archive.tar", "application/x-tar"],
         ["archive.gz", "application/gzip"],
         ["archive.tgz", "application/gzip"],
-        ["data.sqlite", "application/vnd.sqlite3"],
-        ["data.sqlite3", "application/vnd.sqlite3"],
-        ["data.db", "application/vnd.sqlite3"],
       ] as const) {
         const filePath = path.join(outside, name);
         yield* fs.writeFileString(filePath, "media");
@@ -758,13 +748,13 @@ describe("AssetAccess", () => {
           yield* fs.makeTempDirectoryScoped({ prefix: "orbi-link-" }),
         );
         yield* fs.writeFileString(path.join(root, "page.xhtml"), "<html/>");
-        yield* fs.writeFileString(path.join(root, "real.pdf"), "%PDF-1.4");
-        const link = path.join(root, "report.pdf");
+        yield* fs.writeFileString(path.join(root, "real.html"), "<html/>");
+        const link = path.join(root, "report.html");
         const issue = issueAssetUrl({
           resource: {
             _tag: "workspace-file",
             threadId: ThreadId.make("thread-1"),
-            path: "report.pdf",
+            path: "report.html",
           },
           workspaceRoot: root,
         });
@@ -778,10 +768,10 @@ describe("AssetAccess", () => {
         expect((yield* issue.pipe(Effect.flip))._tag).toBe("AssetPreviewTypeValidationError");
 
         yield* fs.remove(link);
-        yield* fs.symlink(path.join(root, "real.pdf"), link);
+        yield* fs.symlink(path.join(root, "real.html"), link);
         const issued = yield* issue;
         expect(yield* resolveIssued(issued.relativeUrl)).toMatchObject({
-          path: path.join(root, "real.pdf"),
+          path: path.join(root, "real.html"),
         });
 
         yield* fs.remove(link);
@@ -799,6 +789,8 @@ describe("AssetAccess", () => {
       yield* fs.makeDirectory(config.secretsDir, { recursive: true });
       yield* fs.writeFile(stateFile, new Uint8Array(32).fill(7));
       yield* fs.writeFileString(config.dbPath, "SQLite format 3");
+      // A previewable type, so only the state-file check can refuse it.
+      yield* fs.writeFileString(`${config.dbPath}.zip`, "PK");
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "orbi-media-state-" });
       const alias = path.join(root, "alias");
       yield* fs.symlink(stateFile, alias);
@@ -813,7 +805,7 @@ describe("AssetAccess", () => {
           disposition: "attachment",
         },
         { _tag: "media-file", threadId, path: config.dbPath },
-        { _tag: "draft-workspace-file", cwd: config.stateDir, path: "statev2.sqlite" },
+        { _tag: "draft-workspace-file", cwd: config.stateDir, path: "statev2.sqlite.zip" },
         {
           _tag: "draft-workspace-file",
           cwd: config.stateDir,
@@ -824,6 +816,11 @@ describe("AssetAccess", () => {
         const error = yield* issueAssetUrl({ resource }).pipe(Effect.flip);
         expect(error._tag).toBe("AssetWorkspaceAssetNotFoundError");
       }
+      // A bare database has no preview type, so it is refused before the state check.
+      const inlineDatabase = yield* issueAssetUrl({
+        resource: { _tag: "draft-workspace-file", cwd: config.stateDir, path: "statev2.sqlite" },
+      }).pipe(Effect.flip);
+      expect(inlineDatabase._tag).toBe("AssetPreviewTypeValidationError");
 
       const icon = path.join(config.baseDir, "icon.png");
       yield* fs.symlink(stateFile, icon);
@@ -1445,21 +1442,11 @@ describe("AssetAccess", () => {
         "private document",
       );
       for (const extension of [
-        "pdf",
-        "odt",
-        "ods",
-        "odp",
-        "rtf",
-        "epub",
-        "ipynb",
         "png",
         "bmp",
         "heic",
         "tif",
         "tiff",
-        "docx",
-        "xlsx",
-        "pptx",
         "ttf",
         "otf",
         "woff",
@@ -1469,9 +1456,6 @@ describe("AssetAccess", () => {
         "tar",
         "gz",
         "tgz",
-        "sqlite",
-        "sqlite3",
-        "db",
       ]) {
         const name = `preview.${extension}`;
         const filePath = path.join(assetsDirectory, name);
@@ -1512,16 +1496,6 @@ describe("AssetAccess", () => {
 
       for (const name of [
         "icon#v2.png",
-        "report#draft.pdf",
-        "report.docx",
-        "workbook.xlsx",
-        "slides.pptx",
-        "notes.odt",
-        "budget.ods",
-        "slides.odp",
-        "notes.rtf",
-        "book.epub",
-        "analysis.ipynb",
         "specimen.ttf",
         "specimen.otf",
         "specimen.woff",
@@ -1641,7 +1615,6 @@ describe("AssetAccess", () => {
       const path = yield* Path.Path;
       yield* fileSystem.makeDirectory(config.attachmentsDir, { recursive: true });
       for (const [extension, mimeType] of [
-        ["pdf", "application/pdf"],
         ["svg", "image/svg+xml"],
         ["bmp", "image/bmp"],
         ["ttf", "font/ttf"],
@@ -1654,9 +1627,6 @@ describe("AssetAccess", () => {
         ["tar", "application/x-tar"],
         ["gz", "application/gzip"],
         ["tgz", "application/gzip"],
-        ["sqlite", "application/vnd.sqlite3"],
-        ["sqlite3", "application/vnd.sqlite3"],
-        ["db", "application/vnd.sqlite3"],
       ] as const) {
         const attachmentId = `thread-1-00000000-0000-4000-8000-000000000001-${extension}`;
         const attachmentPath = path.join(config.attachmentsDir, `${attachmentId}.${extension}`);

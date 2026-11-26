@@ -401,7 +401,7 @@ describe("ProviderContinuationService", () => {
           ),
         );
 
-        // Muse forwards dispatch failures unchanged; clearIfCurrent must release its sticky wake flag.
+        // An adapter may forward dispatch failures unchanged; clearIfCurrent must release its sticky wake flag.
         const dispatchIfCurrent = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
           Effect.asSome(effect);
 

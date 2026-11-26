@@ -1329,7 +1329,7 @@ Review triggered.
 });
 
 describe("pullRequestWatchEndMessage", () => {
-  const url = "https://git.cafe/ferax564/orbiwork/pull/7";
+  const url = "https://github.com/ferax564/orbiwork/pull/7";
   const end = (overrides: Partial<Parameters<typeof pullRequestWatchEndMessage>[0]["detail"]>) =>
     pullRequestWatchEndMessage({
       number: 7,
@@ -1352,7 +1352,7 @@ describe("pullRequestWatchEndMessage", () => {
       outcome: "completed",
       summary: "#7: merged, stopped watching",
     });
-    // GitCafe reports a merge made on GitHub without who made it.
+    // A host may report a merge without who made it.
     assert.equal(
       end({ mergeCommitSha }).text,
       `Pull request #7 (${url}) was merged into main as 3b2f958, so OrbiWork stopped watching it.`,

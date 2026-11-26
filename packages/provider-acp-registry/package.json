@@ -33,7 +33,6 @@
     "test": "vp test run --config ../../vite.config.ts --dir ."
   },
   "dependencies": {
-    "@noble/hashes": "catalog:",
     "@orbiwork/contracts": "workspace:*",
     "@orbiwork/provider-acp": "workspace:*",
     "@orbiwork/provider-core": "workspace:*",

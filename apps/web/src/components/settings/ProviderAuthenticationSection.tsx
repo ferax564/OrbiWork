@@ -78,16 +78,11 @@ export function ProviderAuthenticationSection({
     !signedIn &&
     (provider.setup?.canAuthenticate === false ||
       (provider.driver === "acpRegistry" && auth?.methods?.length === 0));
-  const usesCredentials =
-    provider.driver === "antigravity" &&
-    (provider.auth.type === "gemini-api-key" || provider.auth.type === "agent-platform");
   const accountDescription = active
     ? auth?.phase === "starting"
-      ? (auth.message ?? (usesCredentials ? gt("Connecting…") : gt("Starting sign-in…")))
+      ? (auth.message ?? gt("Starting sign-in…"))
       : auth?.phase === "verifying"
-        ? usesCredentials
-          ? gt("Checking credentials and loading models…")
-          : gt("Checking your account…")
+        ? gt("Checking your account…")
         : interaction?.type === "terminal"
           ? gt("Complete sign-in in the terminal below.")
           : interaction?.type === "credentials"
@@ -99,9 +94,7 @@ export function ProviderAuthenticationSection({
         ? gt("Discovering sign-in methods…")
         : needsExternalSetup
           ? gt("No in-app sign-in advertised. Follow the provider's docs to finish setup.")
-          : usesCredentials
-            ? gt("Connect on {environment} to load models.", { environment: environmentLabel })
-            : gt("Sign in on {environment}.", { environment: environmentLabel });
+          : gt("Sign in on {environment}.", { environment: environmentLabel });
   const statusMessage = auth?.phase === "failed" ? auth.message : null;
   const disabled = readOnly || pending || query.error !== null || isDiscovering;
   const draftId = `${auth?.flowId ?? ""}:${interaction?.id ?? ""}`;
@@ -323,12 +316,8 @@ export function ProviderAuthenticationSection({
                 {signedIn
                   ? gt("Change account")
                   : auth?.phase === "failed" || auth?.phase === "cancelled"
-                    ? usesCredentials
-                      ? gt("Retry connection")
-                      : gt("Retry sign-in")
-                    : usesCredentials
-                      ? gt("Connect")
-                      : gt("Sign in")}
+                    ? gt("Retry sign-in")
+                    : gt("Sign in")}
               </Button>
             ) : null}
             {!active && signedIn && (provider.auth.canLogout ?? provider.setup?.canAuthenticate) ? (

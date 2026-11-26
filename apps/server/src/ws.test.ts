@@ -12,7 +12,6 @@ import {
   AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
   AuthProvidersManageScope,
-  type ManagedPolicySummary,
   type WorkflowRun,
   type WorkflowStep,
   AuthSessionId,
@@ -82,11 +81,9 @@ import * as AcpRegistryRuntimeCoordinator from "@orbiwork/provider-acp-registry/
 import * as AcpRegistrySupport from "@orbiwork/provider-acp-registry/server/AcpRegistrySupport";
 import * as AgentSessionImporter from "./project/AgentSessionImporter.ts";
 import * as AgentSessionScanner from "./project/AgentSessionScanner.ts";
-import * as AntigravityInstallation from "./provider/AntigravityInstallation.ts";
 import * as ProviderInstallation from "./provider/providerInstallation.ts";
 import * as BackgroundPolicy from "./background/BackgroundPolicy.ts";
 import * as CheckpointDiffQuery from "./checkpointing/CheckpointDiffQuery.ts";
-import * as NativeChildWorkQuery from "./orchestration-v2/NativeChildWorkQuery.ts";
 import * as CommandOutputHub from "./orchestration-v2/CommandOutputHub.ts";
 import * as ThreadViewers from "./orchestration-v2/ThreadViewers.ts";
 import * as CodexInstallation from "./provider/CodexInstallation.ts";
@@ -835,10 +832,8 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(AcpRegistrySessions.AcpRegistrySessions)({}),
   Layer.mock(AgentSessionImporter.AgentSessionImporter)({}),
   Layer.mock(AgentSessionScanner.AgentSessionScanner)({}),
-  Layer.mock(AntigravityInstallation.AntigravityInstallation)({ managedDirectory: "/unused" }),
   Layer.mock(BackgroundPolicy.BackgroundPolicy)({}),
   Layer.mock(CheckpointDiffQuery.CheckpointDiffQuery)({}),
-  Layer.mock(NativeChildWorkQuery.NativeChildWorkQuery)({}),
   Layer.mock(CommandOutputHub.CommandOutputHub)({}),
   ThreadViewers.layer,
   Layer.mock(CodexInstallation.CodexInstallation)({ managedDirectory: "/unused" }),
@@ -2490,7 +2485,6 @@ const acpSessionTags = [
   WS_METHODS.serverListAcpRegistrySessions,
   WS_METHODS.serverImportAcpRegistrySession,
   WS_METHODS.serverDeleteAcpRegistrySession,
-  WS_METHODS.serverPrepareAcpRegistryAgent,
 ] as const;
 const acpSessionRpcs = WsRpcGroup.omit(
   ...[...WsRpcGroup.requests.keys()].filter(
@@ -2863,12 +2857,11 @@ const layerWorkflowRpcTest = Layer.mergeAll(
   Layer.mock(ServerBrowser.ServerBrowser)({}),
 );
 
-/** A client for the ACP Registry RPCs; `calls` records what reached the agent or the catalog. */
+/** A client for the ACP session RPCs; `calls` records what reached the agent. */
 const makeAcpRegistryClient = Effect.fn("test.makeAcpRegistryClient")(function* (
   calls: Array<string>,
   options: {
     readonly nativeSessions?: { readonly canList: boolean };
-    readonly managedPolicy?: ManagedPolicySummary;
   },
 ) {
   const scopes = [AuthOrchestrationReadScope, AuthProvidersManageScope];
@@ -2887,13 +2880,7 @@ const makeAcpRegistryClient = Effect.fn("test.makeAcpRegistryClient")(function* 
     Layer.mock(ScratchThreadPromotion.ScratchThreadPromotion)({}),
     Layer.mock(ServerEnvironment.ServerEnvironment)({}),
     Layer.mock(EnvironmentAuth.EnvironmentAuth)({}),
-    ServerSettings.layerTest({}, options.managedPolicy),
-    Layer.mock(AcpRegistrySupport.AcpRegistryCatalog)({
-      prepare: ({ agentId }) =>
-        Effect.sync(() => calls.push(`prepare:${agentId}`)).pipe(
-          Effect.as({ agentId, version: "1.0.0", distribution: "npx", prepared: true } as const),
-        ),
-    }),
+    ServerSettings.layerTest({}),
     Layer.mock(AcpRegistrySessions.AcpRegistrySessions)({
       project: () => Effect.succeed({ workspaceRoot: "/workspace/acp" } as never),
       sessionManager: () =>
@@ -2943,43 +2930,6 @@ it.effect("listing ACP sessions reaches only an agent that advertises listing", 
     const probed = yield* makeAcpRegistryClient(calls, { nativeSessions: { canList: true } });
     yield* probed[WS_METHODS.serverListAcpRegistrySessions](input);
     assert.deepEqual(calls, ["listSessions"]);
-  }).pipe(Effect.provide(layerWorkflowRpcTest)),
-);
-
-it.effect("preparing an ACP Registry agent follows the policy's allowed providers", () =>
-  Effect.gen(function* () {
-    const calls: Array<string> = [];
-    const policy = (...allowedDrivers: ReadonlyArray<string>): ManagedPolicySummary => ({
-      organization: "Example Corp",
-      lockedSettings: [],
-      limits: {
-        providers: {
-          allowedDrivers: [
-            ProviderDriverKind.make("codex"),
-            ...allowedDrivers.map((driver) => ProviderDriverKind.make(driver)),
-          ],
-          lockedInstanceFields: {},
-        },
-      },
-    });
-
-    const excluded = yield* makeAcpRegistryClient(calls, { managedPolicy: policy() });
-    const refused = yield* excluded[WS_METHODS.serverPrepareAcpRegistryAgent]({
-      agentId: "example-agent",
-    }).pipe(Effect.flip);
-    assert.strictEqual(
-      refused._tag === "AcpRegistryOperationError" ? refused.message : refused._tag,
-      "Example Corp's policy does not allow the ACP Registry provider.",
-    );
-    assert.deepEqual(calls, []);
-
-    const included = yield* makeAcpRegistryClient(calls, {
-      managedPolicy: policy("acpRegistry"),
-    });
-    yield* included[WS_METHODS.serverPrepareAcpRegistryAgent]({ agentId: "example-agent" });
-    const unmanaged = yield* makeAcpRegistryClient(calls, {});
-    yield* unmanaged[WS_METHODS.serverPrepareAcpRegistryAgent]({ agentId: "example-agent" });
-    assert.deepEqual(calls, ["prepare:example-agent", "prepare:example-agent"]);
   }).pipe(Effect.provide(layerWorkflowRpcTest)),
 );
 

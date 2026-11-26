@@ -39,7 +39,7 @@ describe("Orbi device instructions", () => {
     );
   });
 
-  it("reach OpenCode and Cursor only when the session holds device access", () => {
+  it("reach device instructions only when the session holds device access", () => {
     assert.include(orbiOrchestrationSystemPrompt(true, true), ORBIWORK_DEVICE_TOOL_INSTRUCTIONS);
     assert.notInclude(orbiOrchestrationSystemPrompt(true, false), "## OrbiWork devices");
     assert.isUndefined(orbiOrchestrationSystemPrompt(false, true));

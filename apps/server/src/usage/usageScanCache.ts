@@ -267,16 +267,7 @@ export function decodeScanCache(
         ...(version >= 7 && unresolvedServiceTierTurnId != null
           ? { unresolvedServiceTierTurnId }
           : {}),
-        dedupeKey:
-          typeof dedupeKey !== "string"
-            ? null
-            : // Saved copies of moved transcripts must still match the re-parsed v17 key.
-              provider === "grok" &&
-                version < 17 &&
-                dedupeKey.endsWith(`:${model}`) &&
-                !dedupeKey.endsWith(`:${timestampMs}:${model}`)
-              ? `${dedupeKey.slice(0, -model.length)}${timestampMs}:${model}`
-              : dedupeKey,
+        dedupeKey: typeof dedupeKey !== "string" ? null : dedupeKey,
       });
     }
     return records;
@@ -323,10 +314,8 @@ export function decodeScanCache(
     // Keep history for deleted rollouts, but re-parse incompatible reducer state.
     // v13 adds Claude 1-hour cache writes; v14 uses Codex request ledgers.
     // v15 repairs skipped Codex requests whose counters rewound; clean v14 entries stay served.
-    // v17 keys Grok turns by time, restoring turns previously dropped as repeats.
     const legacy =
       (entry.p === "claude" && version < 13) ||
-      (entry.p === "grok" && version < 17) ||
       (format.state !== undefined &&
         (version < 6 ||
           (entry.p === "codex" && (version < 14 || (version < 15 && malformedCount > 0)))));

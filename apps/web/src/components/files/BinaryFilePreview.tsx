@@ -7,7 +7,6 @@ const BinaryViewer = lazy(() => import("./BinaryViewer"));
 export function BinaryFilePreview(props: {
   readonly src: string;
   readonly name: string;
-  readonly kind: "archive" | "sqlite";
   readonly onRetry?: () => void;
 }) {
   return (

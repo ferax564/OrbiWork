@@ -7,7 +7,6 @@ export {
   ARCHIVE_MAX_RATIO,
 } from "@orbiwork/client-runtime/zip/bounded-zip";
 export const BINARY_PREVIEW_MAX_BYTES = ARCHIVE_MAX_BYTES;
-export const SQLITE_PAGE_SIZE = 50;
 
 export interface ArchiveEntry {
   path: string;
@@ -17,13 +16,10 @@ export interface ArchiveEntry {
 }
 
 export type BinaryWorkerRequest =
-  | { type: "open"; kind: "archive" | "sqlite"; name: string; bytes: ArrayBuffer }
-  | { type: "entry"; path: string }
-  | { type: "rows"; table: string; page: number };
+  | { type: "open"; name: string; bytes: ArrayBuffer }
+  | { type: "entry"; path: string };
 
 export type BinaryWorkerResult =
   | ({ type: "error" } & PreviewFailure)
   | { type: "archive"; entries: ArchiveEntry[] }
-  | { type: "entry"; path: string; bytes: Uint8Array<ArrayBuffer> }
-  | { type: "sqlite"; tables: { name: string; count: number }[] }
-  | { type: "rows"; table: string; page: number; columns: string[]; rows: string[][] };
+  | { type: "entry"; path: string; bytes: Uint8Array<ArrayBuffer> };

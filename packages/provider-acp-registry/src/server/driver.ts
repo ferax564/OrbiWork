@@ -1,7 +1,5 @@
 import {
-  officialAcpRegistryIconUrlForAgentId,
   ProviderDriverKind,
-  resolveOfficialAcpRegistryIconUrl,
   TextGenerationError,
   type AcpRegistryOperationError,
   type AcpRegistryProbeModel,
@@ -95,12 +93,11 @@ interface AcpRegistryEnrichmentCache {
 export function isAcpRegistryCacheValid(
   entry: NonNullable<AcpRegistryEnrichmentCache["entry"]>,
   inspectedVersion: string | null,
-  local: boolean,
   now: number,
 ): boolean {
   return (
     entry.expiresAt > now &&
-    ((local && inspectedVersion === null) || entry.provider.version === inspectedVersion)
+    (inspectedVersion === null || entry.provider.version === inspectedVersion)
   );
 }
 
@@ -147,7 +144,7 @@ const makeUnsupportedTextGeneration = (): ProviderTextGeneration => {
     Effect.fail(
       new TextGenerationError({
         operation,
-        detail: "ACP Registry instances do not provide application text generation.",
+        detail: "ACP agent instances do not provide application text generation.",
       }),
     );
   return {
@@ -233,39 +230,14 @@ function acpRegistrySnapshotReadiness(
         installed: false,
         version: null,
         status: "warning",
-        message:
-          "Select an ACP Registry agent or configure a local ACP executable before starting a thread.",
-      };
-    case "not_found":
-      return {
-        installed: false,
-        version: null,
-        status: "error",
-        message: `ACP Registry does not contain agent '${inspection.agentId}'.`,
-      };
-    case "unsupported":
-      return {
-        installed: false,
-        version: inspection.version,
-        status: "error",
-        message: `ACP Registry agent '${inspection.agentId}' has no compatible distribution for this environment.`,
+        message: "Configure a local ACP executable before starting a thread.",
       };
     case "missing_runner":
       return {
         installed: false,
         version: inspection.version,
         status: "error",
-        message:
-          inspection.distribution === "local"
-            ? "Local ACP executable is not available on this environment's PATH."
-            : `ACP executable '${inspection.runner}' is not available on this environment's PATH.`,
-      };
-    case "unprepared":
-      return {
-        installed: false,
-        version: inspection.version,
-        status: "warning",
-        message: `ACP Registry agent '${inspection.agentId}' has not been prepared on this environment.`,
+        message: "Local ACP executable is not available on this environment's PATH.",
       };
     case "failed":
       return {
@@ -298,17 +270,11 @@ function baseSnapshot(
     readonly probeError?: AcpRegistryOperationError;
   },
 ): ServerProvider {
-  const iconUrl =
-    input.settings.source === "local"
-      ? null
-      : (resolveOfficialAcpRegistryIconUrl(input.probe?.probe.icon) ??
-        officialAcpRegistryIconUrlForAgentId(input.settings.agentId));
   return {
     instanceId: input.instanceId,
     driver: DRIVER_KIND,
     ...(input.displayName ? { displayName: input.displayName } : {}),
     ...(input.accentColor ? { accentColor: input.accentColor } : {}),
-    ...(iconUrl ? { iconUrl } : {}),
     continuation: { groupKey: input.continuationKey },
     supportsTextGeneration: false,
     enabled: input.settings.enabled,
@@ -324,9 +290,7 @@ function baseSnapshot(
         input.installed &&
         (input.probe
           ? input.probe.probe.authMethods.length > 0
-          : input.settings.source === "local"
-            ? (input.probeError?.authMethods?.length ?? 0) > 0
-            : input.settings.agentId.length > 0),
+          : (input.probeError?.authMethods?.length ?? 0) > 0),
     },
     ...(input.message ? { message: input.message } : {}),
     models: modelsFromDiscovery(input.probe?.probe, input.settings.customModels),
@@ -449,8 +413,8 @@ const buildInitialAcpRegistrySnapshot = Effect.fn("AcpRegistryDriver.buildInitia
       status: "warning",
       auth: { status: "unknown" },
       message: input.settings.enabled
-        ? "Checking ACP Registry agent readiness..."
-        : "ACP Registry is disabled in OrbiWork settings.",
+        ? "Checking ACP agent readiness..."
+        : "ACP agent is disabled in OrbiWork settings.",
     });
   },
 );
@@ -484,14 +448,8 @@ export function buildCheckedAcpRegistrySnapshot(
     : undefined;
   return baseSnapshot({
     ...input,
-    ...(input.inspection.status === "ready" && input.inspection.documentationUrl
-      ? { documentationUrl: input.inspection.documentationUrl }
-      : {}),
     installed: readiness.installed,
-    version:
-      input.settings.source === "local"
-        ? (input.probe?.probe.agentVersion ?? readiness.version)
-        : readiness.version,
+    version: input.probe?.probe.agentVersion ?? readiness.version,
     // Failed discovery is a warning: an installed agent may still run real turns.
     status: probeFailed ? "warning" : readiness.status,
     auth: input.probe
@@ -543,7 +501,7 @@ export const checkAcpRegistryProviderStatus = Effect.fn("AcpRegistryDriver.check
         checkedAt,
         inspection: {
           status: "failed",
-          message: `Could not inspect ACP Registry agent: ${inspected.failure.message}`,
+          message: `Could not inspect ACP agent: ${inspected.failure.message}`,
         },
       });
     }
@@ -611,7 +569,7 @@ export const checkAcpRegistryProviderReadiness = Effect.fn(
     inspection: Result.isFailure(inspected)
       ? {
           status: "failed",
-          message: `Could not inspect ACP Registry agent: ${inspected.failure.message}`,
+          message: `Could not inspect ACP agent: ${inspected.failure.message}`,
         }
       : inspected.success,
   });
@@ -631,7 +589,7 @@ export type AcpRegistryDriverEnv =
 export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryDriverEnv> = {
   driverKind: DRIVER_KIND,
   metadata: {
-    displayName: "ACP Registry",
+    displayName: "ACP agent",
     supportsMultipleInstances: true,
     hasDefaultInstance: false,
   },
@@ -692,7 +650,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
           new ProviderDriverError({
             driver: DRIVER_KIND,
             instanceId,
-            detail: "Failed to build ACP Registry orchestration adapter.",
+            detail: "Failed to build ACP agent orchestration adapter.",
             cause,
           }),
       ),
@@ -836,15 +794,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
       const now = yield* Clock.currentTimeMillis;
       const cacheState = yield* Ref.get(enrichmentCache);
       const cached = cacheState.entry;
-      if (
-        cached !== null &&
-        isAcpRegistryCacheValid(
-          cached,
-          baseSnapshot.version,
-          effectiveConfig.source === "local",
-          now,
-        )
-      ) {
+      if (cached !== null && isAcpRegistryCacheValid(cached, baseSnapshot.version, now)) {
         return {
           provider: { ...cached.provider, checkedAt: baseSnapshot.checkedAt },
           generation: cacheState.generation,
@@ -853,7 +803,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
       const remember = Effect.fn("AcpRegistryDriver.rememberEnrichment")(function* (
         enriched: ServerProvider,
       ) {
-        if (effectiveConfig.source === "local" && enriched.status === "ready") {
+        if (enriched.status === "ready") {
           yield* Ref.set(reportedLocalVersion, enriched.version);
         }
         if (enriched.status === "ready") {
@@ -887,7 +837,6 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
       getSettings: snapshotSettings.getSettings,
       streamSettings: snapshotSettings.streamSettings,
       haveSettingsChanged: haveProviderSnapshotSettingsChanged,
-      // Inspection may fetch the registry when its disk cache is missing; creation must not wait on that.
       initialSnapshot: () => buildInitialAcpRegistrySnapshot(readinessInput),
       checkProvider,
       enrichSnapshot: Effect.fn("enrichSnapshot")(function ({
@@ -915,12 +864,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
         const enrichment = enrichProviderCached(snapshot, publishEnriched);
         const publishEnrichment = (
           Option.isSome(runtimeCoordinator)
-            ? runtimeCoordinator.value.runBackgroundProbe(
-                effectiveConfig.source === "local"
-                  ? `local:${instanceId}`
-                  : effectiveConfig.agentId,
-                enrichment,
-              )
+            ? runtimeCoordinator.value.runBackgroundProbe(`local:${instanceId}`, enrichment)
             : enrichment.pipe(Effect.asSome)
         ).pipe(
           Effect.flatMap(
@@ -998,7 +942,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
           new ProviderDriverError({
             driver: DRIVER_KIND,
             instanceId,
-            detail: "Failed to build the ACP Registry provider snapshot.",
+            detail: "Failed to build the ACP agent provider snapshot.",
             cause,
           }),
       ),

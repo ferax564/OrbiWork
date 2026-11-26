@@ -2,7 +2,7 @@
 
 OrbiWork shows a Welcome page when you open a new installation. Existing
 workspaces skip it. It shows what OrbiWork found on the computer you are using,
-on one page: your agents and projects from your Claude Code, Codex, and Pi
+on one page: your agents and projects from your Claude Code and Codex
 history. Only an agent is needed to start chatting.
 
 To see the page again, go to **Settings → About → Welcome page** and select
@@ -36,7 +36,7 @@ is found, it reads **Set up an agent** and opens by itself:
   when it can.
 - Other agents, and agents that could not load, open their page in
   **Settings → Providers**.
-- **Browse** opens the ACP Registry for more agents.
+- **Configure manually** adds an agent from a local ACP command.
 
 On the desktop app, when the folder of the `orbi` command is not on your `PATH`,
 **Add to PATH** adds one line to your shell's startup file.
@@ -50,7 +50,7 @@ without one. Checked projects are still imported.
 
 ## Projects
 
-OrbiWork finds directories that Claude Code, Codex or Pi has used. Git repositories
+OrbiWork finds directories that Claude Code or Codex has used. Git repositories
 are listed first, newest activity on top. When the remote is on GitHub, the
 group shows the repository as `owner/name`. Clones with the same remote share
 one group. Directories that are not git repositories sit under "Other folders".
@@ -68,13 +68,8 @@ anything under `Downloads` are not offered.
 A large or malformed history can reach the scan limit. OrbiWork keeps the
 projects it found and warns when projects or conversations may be missing.
 
-Imported projects include Claude, Codex and Pi conversations active within the last
-30 days. You can continue those conversations in OrbiWork. Pi is off by default:
-open **Add more agents** and select **Turn on** next to Pi, and the page looks for
-its sessions too. Pi sessions
-are read from each enabled Pi provider's session directory, which follows
-`PI_CODING_AGENT_SESSION_DIR` and `PI_CODING_AGENT_DIR` in its environment. A
-Pi conversation imports its active branch, the one Pi reopens.
+Imported projects include Claude and Codex conversations active within the last
+30 days. You can continue those conversations in OrbiWork.
 
 Conversation import is best effort. OrbiWork keeps the first user prompt and the
 newest remaining visible user and assistant messages, with 200 messages total.

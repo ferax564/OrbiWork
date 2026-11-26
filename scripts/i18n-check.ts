@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // @effect-diagnostics nodeBuiltinImport:off globalConsole:off - A one-shot CI check; synchronous Node APIs keep it small.
-// Fails when a committed GT catalog drifts from the source: `gt generate` would write a different
-// en.json, or a locale catalog's keys differ from en.json. Needs no GT credentials or network.
+// Fails when a committed GT source catalog drifts from the source: `gt generate` would write a
+// different en.json. Needs no GT credentials or network.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
@@ -17,8 +17,6 @@ const APPS = Object.keys(GENERATE);
 // JSX entries (`<T>`) are arrays and objects, so values compare by their JSON text.
 type Catalog = Record<string, unknown>;
 const readJson = (file: string) => JSON.parse(NodeFS.readFileSync(file, "utf8"));
-const missingFrom = (from: Catalog, catalog: Catalog) =>
-  Object.keys(from).filter((key) => !Object.hasOwn(catalog, key));
 
 const root = NodePath.resolve(import.meta.dirname, "..");
 const problems: string[] = [];
@@ -55,29 +53,17 @@ for (const [app, [command, ...args]] of Object.entries(GENERATE)) {
         );
       }
     }
-    for (const key of missingFrom(source, generated)) {
+    for (const key of Object.keys(source).filter((key) => !Object.hasOwn(generated, key))) {
       problems.push(`${app}: ${key} ${JSON.stringify(source[key])} in en.json is stale`);
     }
   } finally {
     NodeFS.rmSync(tmp, { recursive: true, force: true });
   }
-
-  for (const locale of config.locales) {
-    const catalog: Catalog = readJson(NodePath.join(catalogDir, `${locale}.json`));
-    for (const key of missingFrom(source, catalog)) {
-      problems.push(`${app}: ${locale}.json is missing ${key} ${JSON.stringify(source[key])}`);
-    }
-    for (const key of missingFrom(catalog, source)) {
-      problems.push(`${app}: ${locale}.json has ${key}, which en.json lacks`);
-    }
-  }
 }
 
 if (problems.length > 0) {
   console.error(problems.join("\n"));
-  console.error(
-    "\nRun `vp run i18n:generate` in the app, then translate any new keys in every locale catalog.",
-  );
+  console.error("\nRun `vp run i18n:generate` in the app.");
   process.exitCode = 1;
 } else {
   console.log(`i18n catalogs match the source in ${APPS.join(", ")}.`);

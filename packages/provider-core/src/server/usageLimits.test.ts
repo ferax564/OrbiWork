@@ -42,8 +42,8 @@ describe("applyUsageLimitsUpdate", () => {
       },
     });
     expect(next).toBe(published);
-    const scoped = { checkedAt, windows: [{ ...weekly, modelIds: ["opencode/a"] }] };
-    const providerScoped = { checkedAt, windows: [{ ...weekly, providerIds: ["opencode"] }] };
+    const scoped = { checkedAt, windows: [{ ...weekly, modelIds: ["hub/a"] }] };
+    const providerScoped = { checkedAt, windows: [{ ...weekly, providerIds: ["hub"] }] };
     expect(
       applyUsageLimitsUpdate({
         previous: providerScoped,
@@ -55,16 +55,16 @@ describe("applyUsageLimitsUpdate", () => {
       applyUsageLimitsUpdate({
         previous: scoped,
         checkedAt,
-        update: { windows: [{ ...weekly, modelIds: ["opencode/a"] }] },
+        update: { windows: [{ ...weekly, modelIds: ["hub/a"] }] },
       }),
     ).toBe(scoped);
     expect(
       applyUsageLimitsUpdate({
         previous: scoped,
         checkedAt,
-        update: { windows: [{ ...weekly, modelIds: ["opencode/b"] }] },
+        update: { windows: [{ ...weekly, modelIds: ["hub/b"] }] },
       })?.windows[0]?.modelIds,
-    ).toEqual(["opencode/b"]);
+    ).toEqual(["hub/b"]);
   });
 
   it("upserts by id and keeps the reset a percent-only update omits", () => {

@@ -21,8 +21,8 @@ import {
 /**
  * Which tracker an issue lives in. Git hosts reuse their `SourceControlProviderKind` spelling
  * (`github`, `gitlab`); standalone trackers get their own (`linear`, `jira`). Branded apart from
- * the source control kind because the two sets are not the same: Bitbucket is a git host with no
- * tracker, and Linear is a tracker with no git host.
+ * the source control kind because the two sets are not the same: Linear is a tracker with no
+ * git host.
  */
 export const IssueTrackerKind = TrimmedNonEmptyString.check(
   Schema.isMaxLength(64),

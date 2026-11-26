@@ -47,7 +47,6 @@ import {
   newestPullRequestCommitAt,
   mergePullRequestThreadComments,
   orderPullRequestComments,
-  pullRequestCheckoutCommand,
   checkoutFailureDescription,
   readPullRequestDetailSnapshot,
   resolveDisplayedPullRequestDetail,
@@ -65,20 +64,6 @@ import {
 import type { ReviewCommentContext } from "~/reviewCommentContext";
 
 describe("pull request checkout commands", () => {
-  it("quotes shell metacharacters in Forgejo repository URLs", () => {
-    expect(
-      pullRequestCheckoutCommand(
-        SourceControlProviderKind.make("forgejo"),
-        42,
-        "feature",
-        null,
-        "https://forgejo.local/maria/repo'$(echo nope)",
-      ),
-    ).toBe(
-      "git fetch 'https://forgejo.local/maria/repo'\\''$(echo nope)' refs/pull/42/head && git checkout -B pulls/42 FETCH_HEAD",
-    );
-  });
-
   const reference = (host?: string): PullRequestRef => ({
     projectId: ProjectId.make("project-1"),
     ...(host === undefined ? {} : { host }),
@@ -1947,29 +1932,6 @@ describe("cached pull request detail", () => {
     ).toBeNull();
   });
 
-  it("keeps Forgejo ports isolated when recovering legacy snapshots", () => {
-    const storage = makeStorage();
-    const cached = detail({
-      provider: SourceControlProviderKind.make("forgejo"),
-      url: "https://forge.example:8443/acme/web/pulls/7",
-    });
-    writePullRequestDetailSnapshot(storage, "env-1", reference, cached);
-    const resolved = { ...reference, host: "forge.example:8443" };
-    expect(readPullRequestDetailSnapshot(storage, "env-1", resolved)?.title).toBe(cached.title);
-    expect(
-      readPullRequestDetailSnapshot(storage, "env-1", {
-        ...reference,
-        host: "forge.example:9443",
-      }),
-    ).toBeNull();
-    expect(
-      readPullRequestDetailSnapshot(storage, "env-1", {
-        ...reference,
-        host: "forge.example",
-      }),
-    ).toBeNull();
-  });
-
   // regression: #12168 cached PR details were missed across entry points on custom ports
   it.each(["github", "gitlab"] as const)(
     "retains portless %s snapshot identities for custom web ports",
@@ -2079,11 +2041,7 @@ describe("seenPullRequestHead", () => {
 
 describe("readableFailure", () => {
   it("replaces a host tool's bare failure with the hint, for every host", () => {
-    for (const message of [
-      "GitHub CLI failed.",
-      "Azure DevOps API failed",
-      "Forgejo command failed",
-    ]) {
+    for (const message of ["GitHub CLI failed.", "GitLab API failed", "GitLab command failed"]) {
       expect(readableFailure(new Error(message), "Try again.")).toBe("Try again.");
     }
     expect(readableFailure(new Error("Branch is protected."), "Try again.")).toBe(

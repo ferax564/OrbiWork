@@ -88,8 +88,6 @@ describe("add project shared logic", () => {
       "https://gitlab.com/acme/tools/src/branch/worker.git",
       "https://scm.example.test/acme/tools/src/branch/worker.git",
       "https://scm.example.test/acme/tools/src/branch/worker",
-      "https://scm.example.test/team/repo/src/branch/main/-/README.md",
-      "https://forgejo.example.test/a/b/src/branch/mount/team/repo.git",
     ]) {
       expect(normalizePastedCloneUrl(gitlabProject)).toBe(gitlabProject);
     }
@@ -99,7 +97,6 @@ describe("add project shared logic", () => {
     for (const [pageUrl, pageRoute, repository] of [
       ["https://github.com/ferax564/orbiwork/tree/main", "/tree/", "orbiwork"],
       ["https://gitlab.com/gitlab-org/gitlab-runner/-/tree/main", "/-/", "gitlab-runner"],
-      ["https://git.cafe/ferax564/orbiwork/tree/main", "/tree/", "orbiwork"],
       ["https://gitlab.example.test/g/p/-/blob/main/src/branch/x", "/-/", "p"],
       ["https://code.company.test/g/p/-/tree/main", "/-/", "p"],
       ["https://github.com/ferax564/orbiwork/tree/release.git", "/tree/", "orbiwork"],
@@ -108,9 +105,6 @@ describe("add project shared logic", () => {
       expect(cloneUrl).not.toContain(pageRoute);
       expect(getCloneDirectoryName(cloneUrl)).toBe(repository);
     }
-    expect(
-      normalizePastedCloneUrl("https://alice:example@bitbucket.org/workspace/repo/src/master/"),
-    ).toBe("https://alice:example@bitbucket.org/workspace/repo");
   });
 
   it("uses HTTPS for repositories selected through a provider", () => {
@@ -123,11 +117,11 @@ describe("add project shared logic", () => {
     ).toBe("https://github.com/imputnet/helium");
     expect(
       getDefaultCloneUrl({
-        provider: SourceControlProviderKind.make("forgejo"),
-        url: "https://forgejo.example.test:8443/owner/repo.git",
-        sshUrl: "ssh://git@forgejo.example.test:2222/owner/repo.git",
+        provider: SourceControlProviderKind.make("gitlab"),
+        url: "https://gitlab.com/group/repo.git",
+        sshUrl: "git@gitlab.com:group/repo.git",
       }),
-    ).toBe("https://forgejo.example.test:8443/owner/repo.git");
+    ).toBe("git@gitlab.com:group/repo.git");
   });
 
   it("derives the clone folder name from any pasted clone URL", () => {

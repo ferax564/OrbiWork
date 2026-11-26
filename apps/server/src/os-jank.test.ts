@@ -167,7 +167,7 @@ effectIt.effect(
               "/opt/homebrew/opt/openjdk@17",
               "__ORBIWORK_ENV_JAVA_HOME_END__",
               "__ORBIWORK_ENV_ORBIWORK_FEATURE_FLAGS_START__",
-              "tanstack_source",
+              "secret_providers",
               "__ORBIWORK_ENV_ORBIWORK_FEATURE_FLAGS_END__",
             ].join("\n"),
           ),
@@ -192,7 +192,7 @@ effectIt.effect(
 
           assert.equal(missing.JAVA_HOME, "/opt/homebrew/opt/openjdk@17");
           assert.equal(explicit.JAVA_HOME, "/custom/jdk");
-          assert.equal(missing.ORBIWORK_FEATURE_FLAGS, "tanstack_source");
+          assert.equal(missing.ORBIWORK_FEATURE_FLAGS, "secret_providers");
           assert.equal(explicit.ORBIWORK_FEATURE_FLAGS, "");
         }),
       (probe) => Effect.sync(() => probe.mockRestore()),
@@ -218,7 +218,7 @@ effectIt.effect("replaces a Path-spelled Windows PATH instead of adding a second
 effectIt.effect("adds a directory an installer wrote to the registry after launch", () =>
   Effect.gen(function* () {
     const env: NodeJS.ProcessEnv = { Path: "C:\\Tools;C:\\Windows" };
-    const installed = "C:\\Users\\me\\AppData\\Local\\cursor-agent";
+    const installed = "C:\\Users\\me\\AppData\\Local\\codex";
 
     yield* refreshWindowsPath().pipe(
       Effect.provideService(HostProcess.Platform, "win32"),

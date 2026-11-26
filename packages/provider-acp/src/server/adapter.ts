@@ -1220,7 +1220,7 @@ function makeProviderThread(input: {
 }
 
 /** Stop reasons where the agent ended without finishing. ACP asks clients to show refusals. */
-export function acpUnfinishedStopMessage(
+function acpUnfinishedStopMessage(
   stopReason: EffectAcpSchema.StopReason | null | undefined,
 ): string | undefined {
   switch (stopReason) {
@@ -1947,7 +1947,7 @@ function acpPostSettleMonitorPromptShouldSuppress(
   return mutation?.status === "running";
 }
 
-export function acpCompletedTurnShouldTerminalizeTool(
+function acpCompletedTurnShouldTerminalizeTool(
   tool: AcpToolCallState & { readonly backgroundCommandTaskId?: string },
   flavor: Pick<AcpAdapterV2Flavor, "extractBackgroundTaskId" | "extractSubagentUpdate">,
 ): boolean {

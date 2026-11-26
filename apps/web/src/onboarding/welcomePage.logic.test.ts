@@ -44,10 +44,10 @@ describe("groupWelcomeAgents", () => {
       [
         provider("Zeta", { auth: { status: "unauthenticated" }, status: "error" }),
         provider("Codex"),
-        provider("Pi", { enabled: false, status: "disabled" }),
-        provider("Grok", { installed: false, status: "error", auth: { status: "unknown" } }),
+        provider("Gemini", { enabled: false, status: "disabled" }),
+        provider("Devin", { installed: false, status: "error", auth: { status: "unknown" } }),
         provider("Claude"),
-        provider("Cursor", { installed: false, status: "warning", auth: { status: "unknown" } }),
+        provider("Amp", { installed: false, status: "warning", auth: { status: "unknown" } }),
       ],
       undefined,
       nameOf,
@@ -55,8 +55,8 @@ describe("groupWelcomeAgents", () => {
     );
 
     expect(names(groups.found)).toEqual(["Claude", "Codex", "Zeta"]);
-    // Cursor is still being checked; it stays listed instead of disappearing.
-    expect(names(groups.available)).toEqual(["Cursor", "Grok", "Pi"]);
+    // Amp is still being checked; it stays listed instead of disappearing.
+    expect(names(groups.available)).toEqual(["Amp", "Devin", "Gemini"]);
     expect(groups.checking).toBe(true);
     expect(groups.readyCount).toBe(2);
   });
@@ -65,19 +65,22 @@ describe("groupWelcomeAgents", () => {
     const acpRegistry = ProviderDriverKind.make("acpRegistry");
     const settings: Pick<ServerSettings, "providerInstances" | "projectSettingsOverrides"> = {
       providerInstances: {
-        [ProviderInstanceId.make("pi")]: { driver: ProviderDriverKind.make("pi") },
+        [ProviderInstanceId.make("gemini")]: {
+          driver: ProviderDriverKind.make("gemini"),
+          enabled: false,
+        },
         [ProviderInstanceId.make("registry")]: { driver: acpRegistry },
       },
       projectSettingsOverrides: {
         [ProjectId.make("project-a")]: {
-          providerInstances: { [ProviderInstanceId.make("pi")]: { enabled: true } },
+          providerInstances: { [ProviderInstanceId.make("gemini")]: { enabled: true } },
         },
       },
     };
     const groups = groupWelcomeAgents(
       [
-        // The server checks Pi because project A turns it on; new projects still cannot use it.
-        provider("Pi"),
+        // The server checks Gemini because project A turns it on; new projects still cannot use it.
+        provider("Gemini"),
         provider("Broken", {
           enabled: false,
           installed: false,
@@ -108,7 +111,7 @@ describe("groupWelcomeAgents", () => {
     );
 
     expect(names(groups.found)).toEqual(["Broken", "Codex", "Registry"]);
-    expect(names(groups.available)).toEqual(["Pi"]);
+    expect(names(groups.available)).toEqual(["Gemini"]);
     expect(groups.readyCount).toBe(0);
     expect(groups.checking).toBe(false);
   });
@@ -177,11 +180,14 @@ describe("cliTerminalStep", () => {
 
 describe("turnedOnInstance", () => {
   it("turns an agent on even when older settings keep it off inside its config", () => {
-    const pi = ProviderDriverKind.make("pi");
-    expect(resolveProviderInstanceEnabled(turnedOnInstance({ driver: pi }))).toBe(true);
-    const migrated = turnedOnInstance({ driver: pi, config: { enabled: false, binaryPath: "pi" } });
+    const codex = ProviderDriverKind.make("codex");
+    expect(resolveProviderInstanceEnabled(turnedOnInstance({ driver: codex }))).toBe(true);
+    const migrated = turnedOnInstance({
+      driver: codex,
+      config: { enabled: false, binaryPath: "codex" },
+    });
     expect(resolveProviderInstanceEnabled(migrated)).toBe(true);
-    expect(migrated.config).toEqual({ enabled: true, binaryPath: "pi" });
+    expect(migrated.config).toEqual({ enabled: true, binaryPath: "codex" });
   });
 });
 

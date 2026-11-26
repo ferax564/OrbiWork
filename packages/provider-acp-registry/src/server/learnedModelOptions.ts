@@ -71,11 +71,8 @@ export const makeAcpRegistryLearnedModelOptionsStore = Effect.fn(
     `acp-model-options-${yield* hash(input.instanceId)}.json`,
   );
   const binding = yield* hash({
-    source: input.settings.source,
-    agentId: input.settings.agentId,
     commandPath: input.settings.commandPath,
     commandArgs: input.settings.commandArgs,
-    distribution: input.settings.distribution,
   });
   const saved = yield* fs.readFileString(filePath).pipe(
     Effect.flatMap(decodeStored),

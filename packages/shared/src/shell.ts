@@ -981,49 +981,6 @@ export function gitForWindowsBash(
     .find(isFile);
 }
 
-// npm cmd-shim format for native executables.
-const NPM_EXECUTABLE_SHIM_PREFIX = [
-  "@ECHO off",
-  "GOTO start",
-  ":find_dp0",
-  "SET dp0=%~dp0",
-  "EXIT /b",
-  ":start",
-  "SETLOCAL",
-  "CALL :find_dp0",
-];
-const NPM_EXECUTABLE_SHIM_RUN = /^"%dp0%\\([^"%]+\.exe)" +%\*$/;
-
-function readFileSyncOrUndefined(filePath: string): string | undefined {
-  try {
-    return NodeFS.readFileSync(filePath, "utf8");
-  } catch {
-    return undefined;
-  }
-}
-
-/** Resolve shims that only launch native executables so direct spawning keeps them in libuv's kill-on-close job. */
-export function npmShimExecutable(
-  shimPath: string,
-  readFile: (filePath: string) => string | undefined = readFileSyncOrUndefined,
-  isFile: (filePath: string) => boolean = isFileSync,
-): string | undefined {
-  const path = NodePath.win32;
-  if (path.extname(shimPath).toLowerCase() !== ".cmd") return undefined;
-  // Match exactly because preserved SET whitespace can select a different file.
-  const lines = readFile(shimPath)
-    ?.split(/\r?\n/)
-    .filter((line) => line.length > 0);
-  if (lines?.length !== NPM_EXECUTABLE_SHIM_PREFIX.length + 1) return undefined;
-  if (NPM_EXECUTABLE_SHIM_PREFIX.some((expected, index) => lines[index] !== expected)) {
-    return undefined;
-  }
-  const target = NPM_EXECUTABLE_SHIM_RUN.exec(lines.at(-1)!)?.[1];
-  if (target === undefined) return undefined;
-  const executable = path.join(path.dirname(shimPath), target);
-  return isFile(executable) ? executable : undefined;
-}
-
 export type XcodeGitLocator = (env: NodeJS.ProcessEnv) => string | undefined;
 
 // xcrun honors DEVELOPER_DIR and the `xcode-select` choice, as the shim does.
@@ -1100,11 +1057,6 @@ const resolveMacosGit = Effect.fnUntraced(function* (
   return realGit ?? "git";
 });
 
-export interface SpawnCommandOptions extends CommandAvailabilityOptions {
-  /** Bypass npm cmd-shims; see npmShimExecutable for process-lifetime semantics. */
-  readonly bypassNpmShim?: boolean;
-}
-
 // `*` is one argument that is not an option. These forms read refs or config
 // only, so git starts no hook, helper, pager, editor or lazy fetch for them.
 const CONSOLE_FREE_GIT_READS = [
@@ -1150,7 +1102,7 @@ export function runsGitWithoutConsole(
 export const resolveSpawnCommand = Effect.fnUntraced(function* (
   command: string,
   args: ReadonlyArray<string>,
-  options: SpawnCommandOptions = {},
+  options: CommandAvailabilityOptions = {},
 ): Effect.fn.Return<ResolvedSpawnCommand> {
   const platform = yield* HostProcess.Platform;
   const isMacosGit = platform === "darwin" && command === "git";
@@ -1203,11 +1155,6 @@ export const resolveSpawnCommand = Effect.fnUntraced(function* (
   if (extension !== ".cmd" && extension !== ".bat") {
     return { command: resolvedCommand, args: [...args], shell: false };
   }
-  const shimExecutable = options.bypassNpmShim ? npmShimExecutable(resolvedCommand) : undefined;
-  if (shimExecutable !== undefined) {
-    return { command: shimExecutable, args: [...args], shell: false };
-  }
-
   // Build the escaped command line without separate args to avoid Node DEP0190 with shell:true.
   return {
     command: [resolvedCommand, ...args].map(escapeWindowsShellArg).join(" "),

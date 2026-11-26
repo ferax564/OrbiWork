@@ -325,17 +325,17 @@ it.effect(
 
 it.effect("a launch steps an inherited mode down to the provider's, and refuses one it lacks", () =>
   Effect.gen(function* () {
-    // Pi offers no Auto; a mode a provider lacks would run as Supervised.
-    const pi = ProviderInstanceId.make("pi");
-    const launchPi = Effect.fn("test.launchPi")(function* (runtimeMode?: RuntimeMode) {
+    // This ACP agent offers no Auto; a mode a provider lacks would run as Supervised.
+    const acp = ProviderInstanceId.make("acpRegistry");
+    const launchAcp = Effect.fn("test.launchAcp")(function* (runtimeMode?: RuntimeMode) {
       const launched: Array<ThreadLaunch.ThreadLaunchInput> = [];
       const { projectId, dependencies } = clientLaunchHarness({
         runtimeModeCeiling: "auto",
         launched,
         providers: [
           {
-            instanceId: pi,
-            driver: ProviderDriverKind.make("pi"),
+            instanceId: acp,
+            driver: ProviderDriverKind.make("acpRegistry"),
             enabled: true,
             installed: true,
             status: "ready",
@@ -360,21 +360,21 @@ it.effect("a launch steps an inherited mode down to the provider's, and refuses 
         .handle("orbi_thread_launch", {
           projectId,
           title: "Fix",
-          modelSelection: { instanceId: pi, model: "pi-model" },
+          modelSelection: { instanceId: acp, model: "acp-model" },
           ...(runtimeMode === undefined ? {} : { runtimeMode }),
         })
         .pipe(Stream.unwrap, Stream.runCollect, Effect.provide(dependencies));
       return { result: result.at(-1)?.result, launched };
     });
 
-    const inherited = yield* launchPi();
+    const inherited = yield* launchAcp();
     expect(inherited.launched[0]?.runtimeMode).toBe("auto-accept-edits");
 
-    const requested = yield* launchPi("auto");
+    const requested = yield* launchAcp("auto");
     expect(requested.result).toMatchObject({ code: "invalid_request" });
     expect(requested.launched).toHaveLength(0);
 
-    const offered = yield* launchPi("approval-required");
+    const offered = yield* launchAcp("approval-required");
     expect(offered.launched[0]?.runtimeMode).toBe("approval-required");
   }),
 );

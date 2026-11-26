@@ -364,8 +364,8 @@ const make = Effect.gen(function* () {
     });
     const host = input.host?.trim().toLowerCase();
     const limit = input.limit ?? DEFAULT_LIST_LIMIT;
-    // Worktrees of one repository are separate projects, and every repository of an Azure
-    // DevOps project shares its work items; read each scope once.
+    // Worktrees of one repository are separate projects, and a host's issue scope can span
+    // several repositories; read each scope once.
     const scopes = new Map<string, SupportedProject>();
     for (const project of supported) {
       if (host !== undefined && project.host !== host) continue;

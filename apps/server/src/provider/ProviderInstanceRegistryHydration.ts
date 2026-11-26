@@ -206,7 +206,7 @@ export const layer: Layer.Layer<
         ManagedProviders.disallowedDriverReason(serverSettings.managedPolicy, driver),
     }).pipe(
       Layer.provide(ProviderOrchestrationAdapterInfrastructure.layer),
-      Layer.provide(AcpRegistrySupport.layerFromHost),
+      Layer.provide(AcpRegistrySupport.layer),
       Layer.provide(providerHostLayer),
       Layer.provide(Layer.succeed(HostProcess.Environment, hostEnvironment)),
       Layer.provide(SecretResolver.layer),

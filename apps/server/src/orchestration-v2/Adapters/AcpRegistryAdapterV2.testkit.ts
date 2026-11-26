@@ -29,7 +29,7 @@ import {
 import * as AcpRegistrySupport from "@orbiwork/provider-acp-registry/server/AcpRegistrySupport";
 
 const REPLAY_SETTINGS = Schema.decodeSync(AcpRegistrySettings)({
-  agentId: "replay-agent",
+  commandPath: "replay-agent",
   authMethodId: "replay",
 });
 

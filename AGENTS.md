@@ -1,6 +1,6 @@
 # OrbiWork
 
-OrbiWork is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro, Pi, Muse Code, fx) and serves web and desktop clients. Phones use the web UI in a browser.
+OrbiWork is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, and generic ACP agents) and serves web and desktop clients. Phones use the web UI in a browser.
 
 You can think of OrbiWork as an open source "bring-your-own-subscription" alternative to apps like Claude Desktop, Codex App, Cursor Glass and Conductor.
 
@@ -24,9 +24,9 @@ The architecture of OrbiWork's websocket layer (`orbi`) enables a lot of awesome
 
 OrbiWork has 2 key app surfaces: **web** and **desktop**. Phones use the web UI in a browser, over the user's own network or Tailscale.
 
-**Web** is kind of two surfaces, as we have the public facing "app.orbiwork.invalid" as well as locally hosting the web app through the `orbi` command. Both need to be supported by all new features where reasonable.
+**Web** is hosted locally through the `orbi` command. There is no hosted web app.
 
-**Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing remote connections from app.orbiwork.invalid or a phone browser.
+**Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing remote connections from another browser or a phone.
 
 ## A note from Theo
 
@@ -60,7 +60,7 @@ The most common defect in this repo is a change that works on the path you teste
 - **Contracts.** Wire changes go in `packages/contracts` so server, web, and desktop follow.
 - **Reverse states.** Every way in needs a way out and a way to see it (snooze/unsnooze, close/reopen). A one-way door is a bug.
 - **Connection modes.** Local, LAN pairing, Tailscale, and SSH; multi-device and multi-environment.
-- **Languages.** Translate user-facing copy in `apps/web/src/i18n/translations` (`vp run i18n:generate` / `vp run i18n:check`) and `apps/marketing/src/i18n`. See [14_i18n.md](docs/internals/14_i18n.md).
+- **Copy.** The UI is English-only. Wrap user-facing copy with the GT helpers and run `vp run i18n:generate` in the app (`vp run i18n:check` in CI). See [14_i18n.md](docs/internals/14_i18n.md).
 - **Docs.** Check whether the change makes existing guidance inaccurate. Follow [Documentation](#documentation).
 
 ## Dev servers and test data
@@ -129,7 +129,7 @@ Read the matching doc before changing code in that area; code review enforces th
 | Server updates & crash recovery            | [07_server-updates.md](docs/internals/07_server-updates.md)                                              |
 | Client connection & sync runtime           | [09_connection-runtime.md](docs/internals/09_connection-runtime.md)                                      |
 | Web UI primitives, styles & React Compiler | [10_web-ui.md](docs/internals/10_web-ui.md)                                                              |
-| Translations & UI copy                     | [14_i18n.md](docs/internals/14_i18n.md)                                                                  |
+| UI copy                                    | [14_i18n.md](docs/internals/14_i18n.md)                                                                  |
 | Writing & reviewing tests                  | [15_testing.md](docs/internals/15_testing.md)                                                            |
 | Wire budgets, server metrics & perf        | [16_performance-regressions.md](docs/internals/16_performance-regressions.md)                            |
 | Repo & package scripts                     | [17_scripts.md](docs/internals/17_scripts.md)                                                            |

@@ -240,16 +240,16 @@ it.effect("takes a hub's reset for an unreset usage_limit, then refreshes the sn
     const adapter = yield* ProviderAdapter.ProviderAdapterV2.pipe(
       Effect.provide(
         Layer.mock(ProviderAdapter.ProviderAdapterV2)({
-          instanceId: ProviderInstanceId.make("cursor-work"),
-          driver: ProviderDriverKind.make("cursor"),
+          instanceId: ProviderInstanceId.make("acp-work"),
+          driver: ProviderDriverKind.make("acpRegistry"),
         }),
       ),
     );
     const instance: ProviderInstance = {
-      instanceId: ProviderInstanceId.make("cursor-work"),
-      driverKind: ProviderDriverKind.make("cursor"),
+      instanceId: ProviderInstanceId.make("acp-work"),
+      driverKind: ProviderDriverKind.make("acpRegistry"),
       continuationIdentity: {
-        driverKind: ProviderDriverKind.make("cursor"),
+        driverKind: ProviderDriverKind.make("acpRegistry"),
         continuationKey: "work",
       },
       enabled: true,
@@ -335,7 +335,7 @@ it.effect("takes a hub's reset for an unreset usage_limit, then refreshes the sn
         }
       }
       assert.deepEqual(lookups, [instance.instanceId, instance.instanceId]);
-      assert.deepEqual(hubLookups, [["cursor", "http://hub.test:8317", "gpt-5.4"]]);
+      assert.deepEqual(hubLookups, [["acpRegistry", "http://hub.test:8317", "gpt-5.4"]]);
       yield* Deferred.await(refreshed);
     }).pipe(
       Effect.provide(makeLayerTest(layerTestEventSink, instances)),
@@ -363,7 +363,7 @@ it.effect(
       const threadEvent = yield* threadCreatedEvent(now);
       const threadId = threadEvent.threadId;
       yield* eventSink.write({ events: [threadEvent] });
-      const providerInstanceId = ProviderInstanceId.make("pi");
+      const providerInstanceId = ProviderInstanceId.make("acp");
       const providerSessionId = yield* idAllocator.allocate.providerSession({
         providerInstanceId,
         threadId,
@@ -390,7 +390,7 @@ it.effect(
       } satisfies OrchestrationV2TurnItem;
       const event = {
         type: "turn_item.updated",
-        driver: ProviderDriverKind.make("pi"),
+        driver: ProviderDriverKind.make("acpRegistry"),
         turnItem: item,
       } satisfies ProviderAdapter.ProviderAdapterV2Event;
       const input = { providerSessionId, providerInstanceId, threadId, event };

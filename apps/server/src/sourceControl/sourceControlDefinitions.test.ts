@@ -33,14 +33,6 @@ it.each([
     "group/sub/web",
     "7",
   ],
-  ["https://codeberg.org/acme/web/issues/3", "forgejo", "codeberg.org", "acme/web", "3"],
-  [
-    "https://dev.azure.com/acme/Web%20App/_workitems/edit/9",
-    "azure-devops",
-    "dev.azure.com",
-    "acme/web app",
-    "9",
-  ],
 ] as const)("reads %s as an issue on its host", (url, kind, host, scope, key) => {
   const parsed = sourceControlDefinitions.parseIssueUrl(url);
   expect(parsed?.definition.kind).toBe(kind);
@@ -51,6 +43,7 @@ it.each([
   "https://github.com/acme/web/pull/42",
   "https://example.test/acme/web/issues/42",
   "https://github.com/acme/web/issues/0",
+  "https://dev.azure.com/acme/Web%20App/_workitems/edit/9",
 ])("does not read %s as an issue", (url) => {
   expect(sourceControlDefinitions.parseIssueUrl(url)).toBeNull();
 });
@@ -67,9 +60,7 @@ it.each([
   ["gh pr merge --squash --match-head-commit 3b2f958 #19", [19]],
   ["gh pr close https://github.com/o/r/pull/19 && gh pr merge 20", [19, 20]],
   ["glab mr merge https://gitlab.com/o/r/-/merge_requests/7", [7]],
-  ["sleep 30; cafe pr merge 26271", [26271]],
-  ["az repos pr update --id 19 --status completed", [19]],
-  ["az repos pr update --id=19 --status=abandoned", [19]],
+  ["sleep 30; gh pr merge 26271", [26271]],
   ["gh pr merge --squash", "any"],
   ["gh stack merge", "any"],
   ["gh pr merge 19 && gh pr merge --auto", "any"],

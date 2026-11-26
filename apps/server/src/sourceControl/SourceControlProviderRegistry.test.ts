@@ -44,9 +44,6 @@ const linkSubject = (host: string) => () =>
 const PROVIDERS = [
   fakeSourceControlProvider("github", { resolveLink: linkSubject("github") }),
   fakeSourceControlProvider("gitlab", { resolveLink: linkSubject("gitlab") }),
-  fakeSourceControlProvider("forgejo"),
-  fakeSourceControlProvider("bitbucket"),
-  fakeSourceControlProvider("azure-devops"),
 ];
 
 /** A host CLI that claims every server it is signed in to, as `glab` does. */
@@ -202,7 +199,8 @@ it.effect("leaves a remote no integration claims unknown, with its server's addr
 it.effect.each([
   ["github.com:team/project.git", "github"],
   ["gitlab.com:team/project.git", "gitlab"],
-  ["bitbucket.org:team/project.git", "bitbucket"],
+  // A host OrbiWork no longer integrates with reads as unknown, as any other server does.
+  ["bitbucket.org:team/project.git", "unknown"],
   ["code.example.test:team/project.git", "unknown"],
 ] as const)(
   "reads the host of an SSH remote that leaves its user to ssh config: %s",
@@ -245,12 +243,12 @@ it.effect("refines the caller-selected remote instead of choosing another config
 it.effect("falls back to a non-origin remote when origin is not configured", () =>
   Effect.gen(function* () {
     const registry = yield* makeRegistry({
-      remotes: [{ name: "upstream", url: "https://dev.azure.com/acme/project/_git/repo" }],
+      remotes: [{ name: "upstream", url: "https://gitlab.com/acme/project.git" }],
     });
 
     const provider = yield* registry.resolve({ cwd: "/repo" });
 
-    assert.strictEqual(provider.kind, "azure-devops");
+    assert.strictEqual(provider.kind, "gitlab");
   }),
 );
 
@@ -515,8 +513,8 @@ it.effect("answers discovery without waiting on a hosting API that stalls", () =
         claimingCli("gitlab"),
         {
           type: "api",
-          kind: kind("bitbucket"),
-          label: "Bitbucket",
+          kind: kind("github"),
+          label: "GitHub",
           installHint: "unused",
           probeAuth: Effect.never,
         },
@@ -525,9 +523,9 @@ it.effect("answers discovery without waiting on a hosting API that stalls", () =
     const discovering = yield* registry.discover.pipe(Effect.forkChild);
     yield* TestClock.adjust("3 seconds");
     const items = yield* Fiber.join(discovering);
-    const bitbucket = items.find((item) => item.kind === "bitbucket");
-    assert.strictEqual(bitbucket?.status, "available");
-    assert.strictEqual(bitbucket?.auth.status, "unknown");
+    const github = items.find((item) => item.kind === "github");
+    assert.strictEqual(github?.status, "available");
+    assert.strictEqual(github?.auth.status, "unknown");
     assert.strictEqual(items.find((item) => item.kind === "gitlab")?.status, "available");
   }),
 );

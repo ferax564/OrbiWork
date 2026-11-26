@@ -12,7 +12,7 @@ clients read declared capabilities, never provider names.
   to a provider instance so two accounts on the same driver cannot share mutable state. Strip
   ambient credentials the instance did not configure.
 - **Strict ACP compliance for non-first-party agents.** Generic
-  [ACP Registry](../user/providers-acp.md) and local ACP commands follow the ACP specification
+  [ACP agents](../user/providers-acp.md) launched from a local command follow the ACP specification
   strictly—never deviate from the spec or add agent-id checks, vendor extensions, or
   driver-specific workarounds in the shared ACP adapter for non-first-party agents. If an upstream
   ACP agent deviates from or lacks part of the spec, let orchestration degrade through capabilities
@@ -20,7 +20,7 @@ clients read declared capabilities, never provider names.
   reserved for first-party drivers that need behavior outside the ACP spec; native
   `ProviderAdapterV2` adapters are only for non-ACP protocols.
 - **Package boundaries.** Providers live in `packages/provider-<name>` (see
-  [Pi](../../packages/provider-pi) as reference). Server code imports only
+  [the generic ACP driver](../../packages/provider-acp-registry) as reference). Server code imports only
   `@orbiwork/provider-core/server/*`, contracts, and shared, reaching host capabilities through
   `ProviderHost` rather than `apps/server`. Client definitions (`./client`) must stay browser-safe.
 

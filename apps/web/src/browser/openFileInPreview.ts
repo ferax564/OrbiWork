@@ -35,7 +35,7 @@ import { msg } from "gt-react";
 import { m } from "~/i18n/messages";
 
 export const isBrowserPreviewFile = (path: string): boolean =>
-  /\.(?:html?|pdf)$/i.test(path.split(/[?#]/, 1)[0] ?? "");
+  /\.html?$/i.test(path.split(/[?#]/, 1)[0] ?? "");
 
 export class BrowserPreviewUnavailableError extends Schema.TaggedError<BrowserPreviewUnavailableError>()(
   "BrowserPreviewUnavailableError",

@@ -1111,9 +1111,9 @@ function acpMcpFallbackInput(value: string | undefined): Record<string, unknown>
   return undefined;
 }
 
-// Known Orbi inventory gates matches, so server-name separators can stay loose. Kiro titles "@orbiwork/<tool>".
+// Known Orbi inventory gates matches, so server-name separators can stay loose.
 const ORBI_MCP_TITLE_CALL =
-  /^(?:@|mcp[-_]{1,2})?orbi[-_ ]?work[-_.:/ ]{1,3}(?<tool>[A-Za-z0-9][A-Za-z0-9_.-]*)(?::.*)?$/i;
+  /^(?:mcp[-_]{1,2})?orbi[-_ ]?work[-_.:/ ]{1,3}(?<tool>[A-Za-z0-9][A-Za-z0-9_.-]*)(?::.*)?$/i;
 
 const ORBI_MCP_TITLE_SUFFIX_CALL =
   /^(?<tool>[A-Za-z0-9][A-Za-z0-9_.-]*?)(?: \(orbi[-_ ]?work MCP Server\)(?::|$)|[-_.]orbi[-_ ]?work$)/i;
@@ -1124,9 +1124,6 @@ const ORBI_MCP_TITLE_SUFFIX_CALL =
  * impersonate an inventory entry.
  */
 const ORBI_MCP_BARE_TITLE_CALL = /^(?<tool>[A-Za-z0-9_]+)(?::\s*\{|$)/;
-
-// Antigravity titles calls "Running <tool>" or, from agy 1.5.8, "Run mcp_<server>_<tool>"; prompts end in "?".
-const ANTIGRAVITY_TOOL_TITLE = /^Run(?:ning)? (?<name>[^\s?]+)\??$/;
 
 /** ACP lacks typed MCP calls; recognize provider metadata and terminal fallback commands. */
 export function extractMcpToolCallIdentity(
@@ -1141,26 +1138,6 @@ export function extractMcpToolCallIdentity(
   const tool = typeof rawInput?.tool === "string" ? rawInput.tool.trim() : "";
   if (meta?.is_mcp_tool_call === true && server.length > 0 && tool.length > 0) {
     return { server, tool };
-  }
-  // Antigravity reaches MCP tools its context budget left out through call_mcp_tool, an execute
-  // call titled "MCP Tool <tool>" whose rawInput names the server, tool, and arguments.
-  const proxiedServer = typeof rawInput?.ServerName === "string" ? rawInput.ServerName.trim() : "";
-  const proxiedTool = typeof rawInput?.ToolName === "string" ? rawInput.ToolName.trim() : "";
-  if (proxiedServer.length > 0 && proxiedTool.length > 0) {
-    const input = isRecord(rawInput?.Arguments) ? rawInput.Arguments : undefined;
-    return { server: proxiedServer, tool: proxiedTool, ...(input === undefined ? {} : { input }) };
-  }
-  // Kiro names the server in `_meta.kiro.serverName` and the call in `rawInput.tool_id`
-  // ("<server>::<tool>"), with the tool's own input under `rawInput.arguments`.
-  const kiroServer = isRecord(meta?.kiro) ? meta.kiro.serverName : undefined;
-  const kiroToolId = typeof rawInput?.tool_id === "string" ? rawInput.tool_id.trim() : "";
-  if (
-    typeof kiroServer === "string" &&
-    kiroServer.length > 0 &&
-    kiroToolId.startsWith(`${kiroServer}::`) &&
-    kiroToolId.length > kiroServer.length + 2
-  ) {
-    return { server: kiroServer, tool: kiroToolId.slice(kiroServer.length + 2) };
   }
   const claudeCode = isRecord(meta?.claudeCode) ? meta.claudeCode : undefined;
   const gooseToolCall = isRecord(meta?.goose)
@@ -1227,11 +1204,10 @@ export function extractMcpToolCallIdentity(
     }
     if (qualified?.[1] && qualified[2] && !/^orbi[-_ ]?work$/i.test(qualified[1]))
       return { server: qualified[1], tool: qualified[2] };
-    const name = ANTIGRAVITY_TOOL_TITLE.exec(trimmed)?.groups?.name ?? trimmed;
     const match =
-      ORBI_MCP_TITLE_CALL.exec(name) ??
-      ORBI_MCP_TITLE_SUFFIX_CALL.exec(name) ??
-      ORBI_MCP_BARE_TITLE_CALL.exec(name);
+      ORBI_MCP_TITLE_CALL.exec(trimmed) ??
+      ORBI_MCP_TITLE_SUFFIX_CALL.exec(trimmed) ??
+      ORBI_MCP_BARE_TITLE_CALL.exec(trimmed);
     const candidateTool = match?.groups?.tool;
     if (candidateTool !== undefined && ORBI_MCP_TOOL_NAMES.has(candidateTool)) {
       return { server: "orbiwork", tool: candidateTool };
@@ -1239,7 +1215,6 @@ export function extractMcpToolCallIdentity(
   }
   const commands = [
     ...(toolCall.command === undefined ? [] : [toolCall.command]),
-    // pi-acp reports the exec command line only as the verbatim title.
     ...(typeof toolCall.data.title === "string" ? [toolCall.data.title] : []),
     ...(options?.embeddedTerminalCommands ?? []),
   ];

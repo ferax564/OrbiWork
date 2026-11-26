@@ -584,7 +584,7 @@ export const layerWithOptions = (
         readonly mcpCredentialId: string | undefined;
         readonly issued: boolean;
       }
-      /** ACP and OpenCode consume credentials during openSession; reserve them against revocation until publication. */
+      /** ACP adapters consume credentials during openSession; reserve them against revocation until publication. */
       const mcpCredentialReservations = new Map<string, number>();
       const mcpReservationKey = (threadId: ThreadId, mcpCredentialId: string) =>
         `${threadId}\0${mcpCredentialId}`;
@@ -970,8 +970,8 @@ export const layerWithOptions = (
       });
 
       // Read the session's provider threads as soon as it leaves the live map, before a
-      // replacement reports its own tasks. Keep OpenCode's background work: its background
-      // subagents share a server and can outlive the session.
+      // replacement reports its own tasks. Background work that does not end with the process
+      // can outlive the session, so it is kept.
       const readReleasedProviderThreads = Effect.fn(
         "ProviderSessionManager.readReleasedProviderThreads",
       )(
@@ -2601,7 +2601,7 @@ export const layerWithOptions = (
           );
         return {
           ...runtime,
-          // Pi replaces its session snapshot as metadata changes.
+          // Some adapters replace their session snapshot as metadata changes.
           get providerSession() {
             return runtime.providerSession;
           },
@@ -2827,7 +2827,7 @@ export const layerWithOptions = (
         const runningRetries = new Map<ProviderTurnId, ProviderRetryItem>();
         const stalledRetries = new Map<ProviderTurnId, ProviderRetryItem>();
         const stallTimers = new Map<ProviderTurnId, Fiber.Fiber<void>>();
-        // Claude and Pi keep the retry row running while a recovered reply streams, so any
+        // Claude keeps the retry row running while a recovered reply streams, so any
         // event on the retry's thread counts as the provider being alive.
         const activeSinceCheck = new Set<ProviderTurnId>();
         const noteThreadActivity = (event: ProviderAdapter.ProviderAdapterV2Event) => {

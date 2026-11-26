@@ -2642,7 +2642,7 @@ it.layer(
     { name: "Volta's script shim", script: "@echo off\r\nvolta run %~n0 %*\r\n", owned: true },
     {
       name: "a fixed-target wrapper",
-      script: '#!/bin/bash\nvolta run node /other/opencode/index.js "$@"\n',
+      script: '#!/bin/bash\nvolta run node /other/tool/index.js "$@"\n',
       owned: false,
     },
     {

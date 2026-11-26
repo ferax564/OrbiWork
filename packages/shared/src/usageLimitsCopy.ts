@@ -9,8 +9,6 @@ import type { MFunctionType } from "gt-i18n/types";
 
 import {
   collectExternalUsageLinks as collectExternalUsageLinksWith,
-  cursorUsageWindowDetails as cursorUsageWindowDetailsBase,
-  type LimitPool,
   type LimitPresentations,
   providersWithLimits,
   type ResetCreditChoice,
@@ -21,39 +19,6 @@ import {
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-
-const CURSOR_USAGE_WINDOW_COPY: Readonly<
-  Record<string, { readonly label: string; readonly description: string }>
-> = {
-  totalPercentUsed: {
-    label: msg("Overall", { $context: "usage limit covering the whole plan" }),
-    description: msg("All usage on your plan this billing cycle."),
-  },
-  autoPercentUsed: {
-    label: msg("Cursor Models"),
-    description: msg("Grok, Composer, and Auto use this allowance."),
-  },
-  apiPercentUsed: {
-    label: msg("Other Models"),
-    description: msg("Usage allowance for third-party models such as Claude, GPT, and Gemini."),
-  },
-};
-
-/** @public */
-export function cursorUsageWindowDetails(
-  id: string,
-  pool: LimitPool,
-  resolve: MFunctionType = mFallback,
-) {
-  const details = cursorUsageWindowDetailsBase(id, pool);
-  const copy = CURSOR_USAGE_WINDOW_COPY[id];
-  if (!details || !copy) return details;
-  return {
-    ...details,
-    label: details.label === null ? null : resolve(copy.label),
-    description: details.description === undefined ? undefined : resolve(copy.description),
-  };
-}
 
 /** @public */
 export function collectExternalUsageLinks(

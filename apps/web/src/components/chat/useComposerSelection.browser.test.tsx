@@ -55,13 +55,13 @@ function setup() {
 }
 
 const environmentId = EnvironmentId.make("environment-local");
-const cursor = ProviderInstanceId.make("cursor");
-const stored = createModelSelection(cursor, "claude-opus-5-5", [{ id: "effort", value: "medium" }]);
+const agent = ProviderInstanceId.make("acpRegistry");
+const stored = createModelSelection(agent, "claude-opus-5-5", [{ id: "effort", value: "medium" }]);
 
 const providers: ReadonlyArray<ServerProvider> = [
   {
-    instanceId: cursor,
-    driver: ProviderDriverKind.make("cursor"),
+    instanceId: agent,
+    driver: ProviderDriverKind.make("acpRegistry"),
     enabled: true,
     installed: true,
     version: null,
@@ -75,7 +75,7 @@ const providers: ReadonlyArray<ServerProvider> = [
 ];
 
 // The hook reads only the thread's identity and stored selection.
-function cursorThread(id: string) {
+function agentThread(id: string) {
   return { environmentId, id: ThreadId.make(id), modelSelection: stored } as EnvironmentThreadShell;
 }
 
@@ -107,7 +107,7 @@ function Picker(props: {
   return (
     <button
       type="button"
-      onClick={() => onProviderModelSelectStable(cursor, props.model ?? stored.model)}
+      onClick={() => onProviderModelSelectStable(agent, props.model ?? stored.model)}
     >
       Pick the model
     </button>
@@ -116,7 +116,7 @@ function Picker(props: {
 
 it("keeps a Cursor thread's stored model and options when the user re-picks its unavailable row", async () => {
   setup();
-  const thread = cursorThread("thread-cursor");
+  const thread = agentThread("thread-agent");
   await using _screen = await render(<Picker thread={thread} runtime={null} />);
   await page.getByRole("button", { name: "Pick the model" }).click();
 
@@ -124,13 +124,13 @@ it("keeps a Cursor thread's stored model and options when the user re-picks its 
     const draft = useComposerDraftStore
       .getState()
       .getComposerDraft(scopeThreadRef(environmentId, thread.id));
-    expect(draft?.modelSelectionByProvider[cursor] ?? thread.modelSelection).toEqual(stored);
+    expect(draft?.modelSelectionByProvider[agent] ?? thread.modelSelection).toEqual(stored);
   });
 });
 
 it("switches back to the thread's stored model while the session runs on another instance", async () => {
   setup();
-  const thread = cursorThread("thread-cursor-handoff");
+  const thread = agentThread("thread-agent-handoff");
   const runtime = { providerInstanceId: ProviderInstanceId.make("codex") } as Parameters<
     typeof useComposerSelection
   >[0]["activeRuntime"];
@@ -141,19 +141,19 @@ it("switches back to the thread's stored model while the session runs on another
     const draft = useComposerDraftStore
       .getState()
       .getComposerDraft(scopeThreadRef(environmentId, thread.id));
-    expect(draft?.activeProvider).toBe(cursor);
+    expect(draft?.activeProvider).toBe(agent);
     expect(
       deriveEffectiveComposerModelState({
         draft,
         threadStarted: true,
         providers,
-        selectedProvider: ProviderDriverKind.make("cursor"),
-        selectedInstanceId: cursor,
+        selectedProvider: ProviderDriverKind.make("acpRegistry"),
+        selectedInstanceId: agent,
         threadModelSelection: thread.modelSelection,
         projectModelSelection: null,
         settings: DEFAULT_UNIFIED_SETTINGS,
       }),
-    ).toEqual({ selectedModel: stored.model, modelOptions: { [cursor]: stored.options } });
+    ).toEqual({ selectedModel: stored.model, modelOptions: { [agent]: stored.options } });
   });
 });
 
@@ -162,7 +162,7 @@ it("saves a re-picked model again when its first save failed", async () => {
   setModelSelection
     .mockResolvedValueOnce(AsyncResult.failure(Cause.fail(new Error("offline"))))
     .mockResolvedValue(AsyncResult.success(undefined));
-  const thread = cursorThread("thread-cursor-retry");
+  const thread = agentThread("thread-agent-retry");
   appAtomRegistry.set(shellAtom(thread.id), thread);
   await using _screen = await render(
     <AppAtomRegistryProvider>
@@ -177,7 +177,7 @@ it("saves a re-picked model again when its first save failed", async () => {
   const autoSave = expect.objectContaining({
     input: {
       threadId: thread.id,
-      modelSelection: expect.objectContaining({ instanceId: cursor, model: "auto-smart" }),
+      modelSelection: expect.objectContaining({ instanceId: agent, model: "auto-smart" }),
     },
   });
   await vi.waitFor(() => expect(setModelSelection.mock.calls).toEqual([[autoSave], [autoSave]]));
@@ -186,13 +186,13 @@ it("saves a re-picked model again when its first save failed", async () => {
 it("saves a pick of a seeded model the started thread does not show", async () => {
   const { setModelSelection } = setup();
   setModelSelection.mockResolvedValue(AsyncResult.success(undefined));
-  const thread = cursorThread("thread-cursor-seeded");
+  const thread = agentThread("thread-agent-seeded");
   appAtomRegistry.set(shellAtom(thread.id), thread);
   useComposerDraftStore
     .getState()
     .setModelSelection(
       scopeThreadRef(environmentId, thread.id),
-      createModelSelection(cursor, "auto-smart"),
+      createModelSelection(agent, "auto-smart"),
     );
   await using _screen = await render(
     <AppAtomRegistryProvider>
@@ -206,7 +206,7 @@ it("saves a pick of a seeded model the started thread does not show", async () =
       expect.objectContaining({
         input: {
           threadId: thread.id,
-          modelSelection: expect.objectContaining({ instanceId: cursor, model: "auto-smart" }),
+          modelSelection: expect.objectContaining({ instanceId: agent, model: "auto-smart" }),
         },
       }),
     ),
@@ -215,7 +215,7 @@ it("saves a pick of a seeded model the started thread does not show", async () =
 
 it("keeps a queued edit's model pick in its own draft", async () => {
   const { setModelSelection } = setup();
-  const thread = cursorThread("thread-queued-edit");
+  const thread = agentThread("thread-queued-edit");
   const threadRef = scopeThreadRef(environmentId, thread.id);
   const draftTarget = queuedRunEditDraftId(threadRef, RunId.make("queued-run"));
   await using _screen = await render(
@@ -223,7 +223,7 @@ it("keeps a queued edit's model pick in its own draft", async () => {
   );
   await page.getByRole("button", { name: "Pick the model" }).click();
   const store = useComposerDraftStore.getState();
-  expect(store.getComposerDraft(draftTarget)?.modelSelectionByProvider[cursor]?.model).toBe(
+  expect(store.getComposerDraft(draftTarget)?.modelSelectionByProvider[agent]?.model).toBe(
     "auto-smart",
   );
   expect(store.getComposerDraft(threadRef)).toBeNull();

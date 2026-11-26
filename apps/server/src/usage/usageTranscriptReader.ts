@@ -73,7 +73,7 @@ function fnv1a(buffer: Buffer): number {
   return hash >>> 0;
 }
 
-/** Skips Grok logs without usage; preserves readdir order for first-seen deduplication. */
+/** Skips logs without usage; preserves readdir order for first-seen deduplication. */
 export async function listTranscriptFiles(
   root: string,
   sinceMs: number,

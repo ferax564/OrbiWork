@@ -1,8 +1,4 @@
-import {
-  ProviderSetupError,
-  type ProviderAuthMethod,
-  type ProviderInstanceId,
-} from "@orbiwork/contracts";
+import { ProviderSetupError, type ProviderInstanceId } from "@orbiwork/contracts";
 import type { AcpRegistrySettings } from "../settings.ts";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as NodeUtil from "node:util";
@@ -84,8 +80,7 @@ export const makeAcpRegistryAuth = Effect.fn("makeAcpRegistryAuth")(function* (o
   const coordinator = yield* Effect.serviceOption(
     AcpRegistryRuntimeCoordinator.AcpRegistryRuntimeCoordinator,
   );
-  const agentKey =
-    options.settings.source === "local" ? `local:${options.instanceId}` : options.settings.agentId;
+  const agentKey = `local:${options.instanceId}`;
   const failure = (operation: string, detail: string, cause?: unknown) =>
     new ProviderSetupError({
       instanceId: options.instanceId,
@@ -134,9 +129,6 @@ export const makeAcpRegistryAuth = Effect.fn("makeAcpRegistryAuth")(function* (o
         ),
       ));
 
-  let knownMethods:
-    | { readonly version: string | null; readonly methods: ReadonlyArray<ProviderAuthMethod> }
-    | undefined;
   const discoverMethods = Effect.scoped(
     Effect.gen(function* () {
       const inspected = yield* catalog
@@ -147,10 +139,10 @@ export const makeAcpRegistryAuth = Effect.fn("makeAcpRegistryAuth")(function* (o
           ),
         );
       if (inspected.status !== "ready")
-        return yield* failure("methods", "Prepare this ACP agent before signing in.");
-      // Path overrides can change in place; cache discovery only for registry versions.
-      if (inspected.version !== null && knownMethods?.version === inspected.version)
-        return knownMethods.methods;
+        return yield* failure(
+          "methods",
+          "Configure an available ACP executable before signing in.",
+        );
       const resolved = yield* resolve;
       const runtime = yield* makeRuntime(resolved.spawn);
       const initialized = yield* runtime
@@ -171,7 +163,6 @@ export const makeAcpRegistryAuth = Effect.fn("makeAcpRegistryAuth")(function* (o
           description: method.description,
           type: method.type === "env_var" ? ("credentials" as const) : method.type,
         }));
-      knownMethods = { version: inspected.version, methods: advertised };
       return advertised;
     }),
   ).pipe(

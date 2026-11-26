@@ -69,7 +69,7 @@ describe("stripUnservedToolOutputImageBytes", () => {
     });
   });
 
-  it("strips ACP image shapes: Grok's native ImageContent and an MCP result behind an error", () => {
+  it("strips ACP image shapes: a native ImageContent and an MCP result behind an error", () => {
     const item = toolItem({
       rawOutput: { type: "ReadFile", ImageContent: { data: PNG_BASE64, mime_type: "image/png" } },
       failed: {
@@ -91,7 +91,7 @@ describe("stripUnservedToolOutputImageBytes", () => {
   });
 
   // regression: #16652 stop storing tool image bytes no client reads
-  it("strips a Cursor image part that names no mime type", () => {
+  it("strips an image part that names no mime type", () => {
     const item = toolItem({
       content: [{ text: { text: "captured" } }, { image: { data: PNG_BASE64 } }],
     });

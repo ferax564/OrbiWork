@@ -373,7 +373,7 @@ describe("source control host search items", () => {
   });
 
   it("finds the built-in hosts by their own words", () => {
-    expect(searchSettings("codeberg").map((item) => item.id)).toContain("source-control");
+    expect(searchSettings("codeberg").map((item) => item.id)).not.toContain("source-control");
     expect(searchSettings("ghes").map((item) => item.id)).toContain(
       sourceControlHostSettingsSearchId("github"),
     );

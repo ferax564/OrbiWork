@@ -9,12 +9,10 @@ import * as Electron from "electron";
 import { msg } from "gt-i18n";
 
 import { makeComponentLogger } from "../app/DesktopObservability.ts";
-import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
-import { applyLanguage, m, onLocaleChange } from "../i18n/messages.ts";
-import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
+import { m } from "../i18n/messages.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 import * as DesktopWindow from "./DesktopWindow.ts";
 
@@ -185,11 +183,8 @@ const handleCheckForUpdatesMenuClick = Effect.gen(function* () {
 export const make = Effect.gen(function* () {
   const electronMenu = yield* ElectronMenu.ElectronMenu;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
-  const electronApp = yield* ElectronApp.ElectronApp;
-  const clientSettings = yield* Effect.serviceOption(DesktopClientSettings.DesktopClientSettings);
   const context = yield* Effect.context<DesktopApplicationMenuRuntimeServices>();
   const runPromise = Effect.runPromiseWith(context);
-  const runFork = Effect.runForkWith(context);
   const runSync = Effect.runSyncWith(context);
 
   const runMenuEffect = <E>(
@@ -431,30 +426,7 @@ export const make = Effect.gen(function* () {
     yield* electronMenu.setApplicationMenu(template);
   }).pipe(Effect.withSpan("desktop.menu.configure"));
 
-  // Load the saved language before the first build so the menu never starts in English.
-  const applySavedLanguage = Effect.gen(function* () {
-    if (Option.isNone(clientSettings)) return;
-    const saved = yield* clientSettings.value.get.pipe(Effect.orElseSucceed(() => Option.none()));
-    if (Option.isSome(saved)) {
-      yield* applyLanguage(saved.value.language).pipe(
-        Effect.provideService(ElectronApp.ElectronApp, electronApp),
-      );
-    }
-  });
-
-  let rebuildsOnLocaleChange = false;
-  return DesktopApplicationMenu.of({
-    configure: applySavedLanguage.pipe(
-      Effect.andThen(configure),
-      Effect.tap(() =>
-        Effect.sync(() => {
-          if (rebuildsOnLocaleChange) return;
-          rebuildsOnLocaleChange = true;
-          onLocaleChange(() => runFork(configure));
-        }),
-      ),
-    ),
-  });
+  return DesktopApplicationMenu.of({ configure });
 });
 
 export const layer = Layer.effect(DesktopApplicationMenu, make);

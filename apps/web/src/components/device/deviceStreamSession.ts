@@ -16,24 +16,17 @@ import { refreshDeviceHubAccess } from "~/state/device";
 export interface DeviceStreamState {
   readonly status: DeviceStreamStatus;
   readonly detail: string | undefined;
-  /** A frame arrived during this session, so a reconnect can keep showing it. */
-  readonly hasFrame: boolean;
   readonly screen: DeviceScreenSize | null;
   readonly mjpegUrl: string | null;
   readonly mjpegGeneration: number;
   readonly input: { readonly connected: boolean; readonly detail?: string };
   readonly duoControl: DuoControlState;
-  readonly phoneUnavailable: boolean;
 }
 
 export interface DeviceStreamSession {
   readonly stream: DeviceStreamClient;
-  /** The stream draws here; the view mounts it and the 3D viewers sample it. */
+  /** The stream draws here; the view mounts it. */
   readonly canvas: HTMLCanvasElement;
-  readonly setFrameListener: (listener: (() => void) | null) => void;
-  /** Called when the hub rejects a Duo control, so the 3D viewer drops its optimistic pose. */
-  readonly setControlRejectedListener: (listener: (() => void) | null) => void;
-  readonly markPhoneUnavailable: () => void;
   readonly reconnect: () => void;
   readonly state: DeviceStreamState;
 }
@@ -53,13 +46,11 @@ export interface DeviceStreamKey {
 export const IDLE_DEVICE_STREAM_STATE: DeviceStreamState = {
   status: "connecting",
   detail: undefined,
-  hasFrame: false,
   screen: null,
   mjpegUrl: null,
   mjpegGeneration: 0,
   input: { connected: false },
   duoControl: { pending: false, requested: null, error: null },
-  phoneUnavailable: false,
 };
 
 export const deviceScreenKey = (environmentId: EnvironmentId, hostId: string, deviceId: string) =>
@@ -82,8 +73,6 @@ export const deviceStreamSessionAtom = Atom.family((key: DeviceStreamKey) =>
     canvas.style.display = "block";
     canvas.style.width = "100%";
     canvas.style.height = "100%";
-    let frameListener: (() => void) | null = null;
-    let controlRejectedListener: (() => void) | null = null;
     let state = IDLE_DEVICE_STREAM_STATE;
     let session: DeviceStreamSession;
     const update = (patch: Partial<DeviceStreamState>) => {
@@ -98,16 +87,10 @@ export const deviceStreamSessionAtom = Atom.family((key: DeviceStreamKey) =>
         access: key.access,
         serveSimOnly: key.serveSimOnly,
       },
-      createCanvasFrameSink(canvas, () => frameListener?.()),
+      createCanvasFrameSink(canvas),
       {
-        onDuoControl: (duoControl) => {
-          if (duoControl.error && duoControl.error !== state.duoControl.error)
-            controlRejectedListener?.();
-          update({ duoControl });
-        },
-        onDuoUnavailable: () => update({ phoneUnavailable: true }),
-        onStatus: (status, detail) =>
-          update({ status, detail, ...(status === "streaming" ? { hasFrame: true } : {}) }),
+        onDuoControl: (duoControl) => update({ duoControl }),
+        onStatus: (status, detail) => update({ status, detail }),
         onScreen: (screen) => {
           get.set(screenAtom, screen);
           update({ screen });
@@ -124,16 +107,8 @@ export const deviceStreamSessionAtom = Atom.family((key: DeviceStreamKey) =>
     session = {
       stream: client,
       canvas,
-      setFrameListener: (listener) => {
-        frameListener = listener;
-      },
-      setControlRejectedListener: (listener) => {
-        controlRejectedListener = listener;
-      },
-      markPhoneUnavailable: () => update({ phoneUnavailable: true }),
       reconnect: () => {
         client.stop();
-        update({ phoneUnavailable: false });
         client.start();
       },
       state,

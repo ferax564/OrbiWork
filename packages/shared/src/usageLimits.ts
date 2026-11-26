@@ -43,23 +43,6 @@ export function exhaustedUsageWindow(
   );
   if (model === undefined) return exhausted[0];
   switch (provider?.driver) {
-    case "cursor": {
-      const api = exhausted.find((window) => window.id === "apiPercentUsed");
-      const auto = exhausted.find((window) => window.id === "autoPercentUsed");
-      return /^(auto|default|grok|composer)/.test(model) ? auto && api : api;
-    }
-    case "antigravity": {
-      const family = model.match(/^(gemini|claude|gpt)-/)?.[1];
-      return exhausted.find((window) => {
-        const pool = window.id.match(/^(gemini|claude|gpt|3p)-/)?.[1];
-        return (
-          pool === undefined ||
-          family === undefined ||
-          pool === family ||
-          (pool === "3p" && (family === "claude" || family === "gpt"))
-        );
-      });
-    }
     case "codex": {
       // Seat-based plans spend credits only past their plan windows, so the credit cap blocks only plans without them.
       const hasPlanWindows = windows.some(
@@ -67,10 +50,6 @@ export function exhaustedUsageWindow(
       );
       return exhausted.find((window) => window.id !== "individual" || !hasPlanWindows);
     }
-    case "opencode":
-      return exhausted.find(
-        (window) => !window.id.startsWith("go_") || model.startsWith("opencode-go/"),
-      );
     default:
       return exhausted[0];
   }
@@ -126,37 +105,6 @@ export const CHATGPT_WORKSPACE_ADMIN_REQUEST =
 
 export function usesChatGptSharing(provider: ServerProvider | null | undefined): boolean {
   return provider?.auth.status === "authenticated" && provider.auth.subscriptionSharing === true;
-}
-
-export const CURSOR_USAGE_WINDOWS = [
-  {
-    id: "totalPercentUsed",
-    label: "Overall",
-    description: "All usage on your plan this billing cycle.",
-  },
-  {
-    id: "autoPercentUsed",
-    label: "Cursor Models",
-    description: "Grok, Composer, and Auto use this allowance.",
-  },
-  {
-    id: "apiPercentUsed",
-    label: "Other Models",
-    description: "Usage allowance for third-party models such as Claude, GPT, and Gemini.",
-  },
-] as const;
-
-export function cursorUsageWindowDetails(id: string, pool: LimitPool) {
-  const details = CURSOR_USAGE_WINDOWS.find((window) => window.id === id);
-  return details &&
-    ((pool.windows.length === 1 && id === "totalPercentUsed") || hasDuplicateCursorTotal(pool))
-    ? { ...details, label: null, description: undefined }
-    : details;
-}
-
-function cursorUsageWindowRank(id: string): number {
-  const rank = CURSOR_USAGE_WINDOWS.findIndex((window) => window.id === id);
-  return rank < 0 ? CURSOR_USAGE_WINDOWS.length : rank;
 }
 
 export function providersWithLimits(
@@ -514,44 +462,8 @@ export interface LimitPool {
   readonly windows: readonly LimitPoolWindow[];
 }
 
-function hasDuplicateCursorTotal(pool: LimitPool): boolean {
-  if (pool.windows.length !== 2) return false;
-  const total = pool.windows.find((window) => window.id === "totalPercentUsed");
-  const auto = pool.windows.find((window) => window.id === "autoPercentUsed");
-  return (
-    total !== undefined &&
-    auto !== undefined &&
-    total.members.length === auto.members.length &&
-    total.members.every(({ account, window }) =>
-      account.limits.windows.some(
-        (candidate) =>
-          candidate.id === auto.id &&
-          candidate.kind === auto.kind &&
-          candidate.usedPercent === window.usedPercent &&
-          candidate.resetsAt === window.resetsAt,
-      ),
-    )
-  );
-}
-
 export function displayLimitWindows(pool: LimitPool) {
-  if (pool.driver === "antigravity") {
-    return [...pool.windows].sort(
-      (left, right) =>
-        Number(!left.id.startsWith("gemini-")) - Number(!right.id.startsWith("gemini-")) ||
-        left.id
-          .replace(/-(5h|weekly|quota)$/, "")
-          .localeCompare(right.id.replace(/-(5h|weekly|quota)$/, "")) ||
-        WINDOW_KIND_ORDER[left.kind] - WINDOW_KIND_ORDER[right.kind],
-    );
-  }
-  if (pool.driver !== "cursor") return pool.windows;
-  const hasAuto = pool.windows.some((window) => window.id === "autoPercentUsed");
-  const hasApi = pool.windows.some((window) => window.id === "apiPercentUsed");
-  const hideTotal = (hasAuto && hasApi) || hasDuplicateCursorTotal(pool);
-  return pool.windows
-    .filter((window) => !hideTotal || window.id !== "totalPercentUsed")
-    .sort((left, right) => cursorUsageWindowRank(left.id) - cursorUsageWindowRank(right.id));
+  return pool.windows;
 }
 
 const WINDOW_KIND_ORDER: Record<ServerProviderUsageWindow["kind"], number> = {
@@ -898,24 +810,6 @@ export function instanceHubs(
 ): UsageLimitSourceSnapshots {
   const endpoint = provider.auth.endpoint;
   return endpoint === undefined ? [] : sources.filter((source) => source.origin === endpoint);
-}
-
-// Antigravity meters Gemini Argon, Gemini Carbon, other Gemini, and Claude/GPT models apart.
-function antigravityQuotaFamily(id: string) {
-  if (!id.startsWith("gemini")) return "shared";
-  return id.includes("argon") ? "argon" : id.includes("carbon") ? "carbon" : "gemini";
-}
-
-/** Each Antigravity quota blocks only the models it meters. */
-export function antigravityWindowLimitsModel(
-  window: Pick<ServerProviderUsageWindow, "id">,
-  model: string | null,
-): boolean {
-  // A hub can prefix model ids, such as "ag/gemini-3.1-pro".
-  const base = model?.slice(model.lastIndexOf("/") + 1);
-  // An alias such as "fast" may route to either quota, so both hold it back.
-  if (base === undefined || !/^(gemini|claude|gpt)/.test(base)) return true;
-  return antigravityQuotaFamily(window.id) === antigravityQuotaFamily(base);
 }
 
 /** The hub accounts that serve a model: those that list it, else every account of the driver. */

@@ -15,8 +15,7 @@ import * as Effect from "effect/Effect";
 
 import { ClaudeProviderCapabilitiesV2 } from "./Adapters/ClaudeAdapterV2.ts";
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
-import { CursorProviderCapabilitiesV2 } from "@orbiwork/provider-cursor/testing";
-import { makeGrokAcpAdapterFlavor } from "@orbiwork/provider-grok/testing";
+import { AcpProviderCapabilitiesV2 } from "@orbiwork/provider-acp/server/adapter";
 import * as CommandPolicy from "./CommandPolicy.ts";
 
 const commandId = CommandId.make("command-policy-test");
@@ -26,6 +25,24 @@ const activeAttemptId = RunAttemptId.make("command-policy-active-attempt");
 const userMessageId = MessageId.make("command-policy-user-message");
 
 const baseCapabilities: OrchestrationV2ProviderCapabilities = CodexProviderCapabilitiesV2;
+
+/** An ACP agent that reads steers at its next step instead of cancelling the running tool. */
+const interjectingAcpCapabilities: OrchestrationV2ProviderCapabilities = {
+  ...AcpProviderCapabilitiesV2,
+  turns: {
+    ...AcpProviderCapabilitiesV2.turns,
+    supportsActiveSteering: true,
+    activeSteeringInterruptsTools: false,
+    supportsSteeringByInterruptRestart: false,
+  },
+};
+
+/** Steers live turns but cannot fork natively. */
+const steeringWithoutForkCapabilities: OrchestrationV2ProviderCapabilities = {
+  ...baseCapabilities,
+  threads: { ...baseCapabilities.threads, canForkThread: false, canForkFromTurn: false },
+  turns: { ...baseCapabilities.turns, supportsActiveSteering: true },
+};
 
 function capabilities(
   override: (current: OrchestrationV2ProviderCapabilities) => OrchestrationV2ProviderCapabilities,
@@ -213,15 +230,10 @@ it("queues a steer for a provider that cannot steer either way", () => {
   );
 });
 
-// regression: #27014 a Grok follow-up cancels the foreground tool the user wanted to finish
-it("does not steer a Grok follow-up by interrupting its running turn", () => {
-  const grok = makeGrokAcpAdapterFlavor(
-    { makeRuntime: () => Effect.never } as unknown as Parameters<
-      typeof makeGrokAcpAdapterFlavor
-    >[0],
-    "/home/ada",
-  ).capabilities;
-  const projection = dispatchProjection(grok);
+// regression: #27014 a follow-up cancelled the foreground tool the user wanted to finish
+it("does not steer an interjecting ACP follow-up by interrupting its running turn", () => {
+  const acp = interjectingAcpCapabilities;
+  const projection = dispatchProjection(acp);
   for (const deliveryIntent of ["auto", "steer"] as const) {
     const mode = CommandPolicy.resolveMessageDispatchIntent(
       projection,
@@ -229,27 +241,22 @@ it("does not steer a Grok follow-up by interrupting its running turn", () => {
       deliveryIntent,
     );
     assert.isFalse(
-      mode.type === "steer_active" && !grok.turns.supportsActiveSteering,
+      mode.type === "steer_active" && !acp.turns.supportsActiveSteering,
       `${deliveryIntent} follow-up resolved to ${mode.type} by interrupt-restart`,
     );
   }
 });
 
-// regression: #37326 a steered Grok follow-up waits for the turn to end instead of interjecting
-it("steers a Grok follow-up into its running turn without restarting it", () => {
-  const grok = makeGrokAcpAdapterFlavor(
-    { makeRuntime: () => Effect.never } as unknown as Parameters<
-      typeof makeGrokAcpAdapterFlavor
-    >[0],
-    "/home/ada",
-  ).capabilities;
+// regression: #37326 a steered follow-up waited for the turn to end instead of interjecting
+it("steers an interjecting ACP follow-up into its running turn without restarting it", () => {
+  const acp = interjectingAcpCapabilities;
   const mode = CommandPolicy.resolveMessageDispatchIntent(
-    dispatchProjection(grok),
+    dispatchProjection(acp),
     { type: "start_immediately" },
     "steer",
   );
   assert.strictEqual(mode.type, "steer_active");
-  assert.isTrue(grok.turns.supportsActiveSteering);
+  assert.isTrue(acp.turns.supportsActiveSteering);
 });
 
 // regression: #32606 a slash command steered into a running turn replaced the task
@@ -312,28 +319,28 @@ it.each(["/compact", " /LOGOUT "])("queues a steer sent while %s runs", (text) =
 const layer = it.layer(CommandPolicy.layer);
 
 layer("CommandPolicyV2", (it) => {
-  it.effect("steers a live Cursor turn in place", () =>
+  it.effect("steers a live turn in place", () =>
     Effect.gen(function* () {
       const policy = yield* CommandPolicy.CommandPolicyV2;
       const result = yield* policy.decideSteeringExecution({
         commandId,
         threadId,
-        providerInstanceId: ProviderInstanceId.make("cursor"),
-        capabilities: CursorProviderCapabilitiesV2,
+        providerInstanceId: ProviderInstanceId.make("acpRegistry"),
+        capabilities: steeringWithoutForkCapabilities,
       });
       assert.equal(result, "active_steering");
     }),
   );
 
-  it.effect("falls back to portable context when Cursor cannot fork natively", () =>
+  it.effect("falls back to portable context when the provider cannot fork natively", () =>
     Effect.gen(function* () {
       const policy = yield* CommandPolicy.CommandPolicyV2;
 
       const result = yield* policy.decideForkExecution({
         commandId,
         threadId,
-        providerInstanceId: ProviderInstanceId.make("cursor"),
-        capabilities: CursorProviderCapabilitiesV2,
+        providerInstanceId: ProviderInstanceId.make("acpRegistry"),
+        capabilities: steeringWithoutForkCapabilities,
         sameProvider: true,
         hasStrongNativeSource: true,
         hasNativeTurnBoundary: false,

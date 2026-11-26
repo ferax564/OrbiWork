@@ -22,7 +22,6 @@ import {
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Dialog, DialogHeader, DialogPanel, DialogPopup, DialogTitle } from "../ui/dialog";
-import { ThemeSearchSection } from "./ThemeSearchSection";
 import { msg, T, useGT } from "gt-react";
 import { m } from "../../i18n/messages";
 
@@ -159,7 +158,7 @@ export function ThemeImportDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   // Each opening is a fresh session: its body remounts with clean state, and
-  // closing aborts every read, search, and install the session started.
+  // closing aborts every read the session started.
   const [session, setSession] = useState(() => ({
     open,
     id: 0,
@@ -178,7 +177,7 @@ export function ThemeImportDialog({
   // so StrictMode's replayed cleanup, undone by its replayed setup, keeps it alive.
   const { controller } = session;
   const mountedController = useRef<AbortController | null>(null);
-  // oxlint-disable-next-line orbiwork/no-unreasoned-state-sync -- unmounting must abort in-flight Open VSX installs
+  // oxlint-disable-next-line orbiwork/no-unreasoned-state-sync -- unmounting must abort in-flight theme file reads
   useEffect(() => {
     mountedController.current = controller;
     return () => {
@@ -438,22 +437,6 @@ function ThemeImportBody({
 
   return (
     <DialogPanel>
-      <ThemeSearchSection
-        onInstalled={(themes, context) => {
-          onImportedMany(themes, context);
-          onClose();
-        }}
-        signal={signal}
-      />
-
-      <div className="flex items-center gap-3" aria-hidden>
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-muted-foreground text-2xs uppercase tracking-wider">
-          <T>or import a file</T>
-        </span>
-        <div className="h-px flex-1 bg-border" />
-      </div>
-
       {(() => {
         const dropHandlers = {
           onDragEnter: (event: DragEvent<HTMLDivElement>) => {

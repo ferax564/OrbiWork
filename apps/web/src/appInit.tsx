@@ -58,7 +58,7 @@ import { environmentShell } from "./state/shell";
 import { installChatRouteCommands } from "./shortcuts/chatRouteCommands";
 import { startWorkspaceFocus } from "./lib/workspaceFocus";
 import { m } from "./i18n/messages";
-import { startI18n, subscribeI18n } from "./i18n/runtime";
+import { initializeI18n } from "./i18n/initializeI18n";
 import { guardDomAgainstPageTranslation } from "./lib/pageTranslationGuard";
 import { installCommandPaletteCommands } from "./shortcuts/commandPaletteCommands";
 import { registerOpenFavoriteEditorCommand } from "./components/chat/OpenInPickerShortcut";
@@ -208,7 +208,6 @@ function startDocumentTitle(router: AppRouter): void {
   appAtomRegistry.subscribe(primaryServerConfigAtom, write, { immediate: true });
   appAtomRegistry.subscribe(environmentProjects.projectsAtom, write);
   subscribeClientSettings(write);
-  subscribeI18n(write);
   router.subscribe("onResolved", updateOpenThread);
   useComposerDraftStore.subscribe(updateOpenThread);
 }
@@ -259,7 +258,7 @@ export function startAppServices(): AppRouter {
   guardDomAgainstPageTranslation();
 
   startClientAppearance();
-  startI18n();
+  initializeI18n();
   startDocumentTitle(router);
   startHostEnvironmentLookup();
   startEnvironmentThemeRepaint();

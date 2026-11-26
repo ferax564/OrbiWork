@@ -202,29 +202,6 @@ function makeService(input: {
 }
 
 describe("IssueService", () => {
-  it.effect("places a project where its host keeps its issues", () =>
-    Effect.gen(function* () {
-      const azure = IssueTrackerKind.make("azure-devops");
-      const service = yield* makeService({
-        projects: [
-          project({
-            id: "p",
-            provider: "azure-devops",
-            host: "dev.azure.com",
-            repository: "acme/Web App/_git/web",
-          }),
-        ],
-        trackers: [fakeTracker({ kind: azure })],
-      });
-      expect(yield* service.projectScope("p" as ProjectId)).toEqual({
-        projectId: "p",
-        tracker: "azure-devops",
-        host: "dev.azure.com",
-        scope: "acme/Web App",
-      });
-    }),
-  );
-
   it.effect("reads another repository on the same host but refuses to write to it", () =>
     Effect.gen(function* () {
       const writes: string[] = [];
@@ -255,30 +232,6 @@ describe("IssueService", () => {
       });
       expect(writes).toEqual(["acme/web#1"]);
 
-      // A link's port picks the server: the project bound with it, not a default-port namesake.
-      const ported = yield* makeService({
-        projects: [
-          project({ id: "plain", repository: "acme/web", provider: "forgejo", host: "gitea.test" }),
-          project({
-            id: "ported",
-            repository: "acme/web",
-            provider: "forgejo",
-            host: "gitea.test:8443",
-          }),
-        ],
-        trackers: [fakeTracker({ kind: IssueTrackerKind.make("forgejo") })],
-      });
-      expect(yield* ported.resolveUrl("https://gitea.test:8443/acme/web/issues/3")).toMatchObject({
-        projectId: "ported",
-        host: "gitea.test:8443",
-        key: "3",
-        writable: true,
-      });
-      expect(yield* ported.resolveUrl("https://gitea.test/acme/web/issues/3")).toMatchObject({
-        projectId: "plain",
-        host: "gitea.test",
-      });
-
       // A GitHub Enterprise Server's hostname need not say "github"; its project vouches for it.
       const enterprise = yield* makeService({
         projects: [project({ id: "ghes", repository: "acme/web", host: "code.acme.test" })],
@@ -287,24 +240,6 @@ describe("IssueService", () => {
       expect(
         yield* enterprise.resolveUrl("https://code.acme.test/acme/web/issues/7"),
       ).toMatchObject({ projectId: "ghes", host: "code.acme.test", key: "7", writable: true });
-
-      // The same holds for a self-hosted Forgejo.
-      const forgejo = yield* makeService({
-        projects: [
-          project({
-            id: "forge",
-            repository: "acme/web",
-            provider: "forgejo",
-            host: "code.acme.test",
-          }),
-        ],
-        trackers: [fakeTracker({ kind: IssueTrackerKind.make("forgejo") })],
-      });
-      expect(yield* forgejo.resolveUrl("https://code.acme.test/acme/web/issues/7")).toMatchObject({
-        projectId: "forge",
-        host: "code.acme.test",
-        key: "7",
-      });
 
       // A fork lists its upstream's issues and its own, counted once, and may write to both.
       const fork = project({ id: "fork", repository: "acme/web" });
@@ -368,39 +303,6 @@ describe("IssueService", () => {
           });
         }
       }),
-  );
-
-  it.effect("resolves both legacy Azure work item URLs through the bound project", () =>
-    Effect.gen(function* () {
-      const tracker = IssueTrackerKind.make("azure-devops");
-      const host = "acme.visualstudio.com";
-      const service = yield* makeService({
-        projects: [
-          project({ id: "api", repository: "Api/_git/api", provider: tracker, host }),
-          project({
-            id: "web",
-            repository: "DefaultCollection/Web/_git/web",
-            provider: tracker,
-            host,
-          }),
-        ],
-        trackers: [fakeTracker({ kind: tracker })],
-      });
-      for (const path of ["Web", "DefaultCollection/Web"]) {
-        const ref = yield* service.resolveUrl(
-          `https://${host}/${path}/_workitems/edit/9`,
-          "api" as ProjectId,
-        );
-        expect(ref).toEqual({
-          projectId: "web",
-          tracker,
-          host,
-          scope: "DefaultCollection/Web",
-          key: "9",
-          writable: true,
-        });
-      }
-    }),
   );
 
   it.effect("sends writes as interactive requests and reads as background ones", () =>

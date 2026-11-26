@@ -183,7 +183,7 @@ describe("ElectronProtocol", () => {
       "font-src 'self' orbiwork: data:",
       "worker-src 'self' blob:",
       "frame-src 'self' blob: http: https:",
-      "object-src http: https:",
+      "object-src 'none'",
       "base-uri 'none'",
       "form-action 'self'",
     ]);

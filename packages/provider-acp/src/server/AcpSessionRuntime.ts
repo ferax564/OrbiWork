@@ -91,7 +91,7 @@ const startupRequestTimeout = Duration.seconds(90);
 const defaultSessionLoadReplayIdleGap = Duration.seconds(2);
 const defaultCancelTimeout = Duration.seconds(15);
 const maxStartupMetadataUpdates = 32;
-// Antigravity can emit an accepted 16 KiB Google authorization URL on stderr.
+// Agents can emit long accepted authorization URLs on stderr.
 const maxStderrChunkLength = 32_768;
 
 export interface AcpSpawnInput {
@@ -103,7 +103,7 @@ export interface AcpSpawnInput {
   readonly shell?: false;
 }
 
-// A provided env is the complete child environment, as in OpenCodeRuntime. Extending it would
+// A provided env is the complete child environment. Extending it would
 // put back variables the AppImage scrub deleted, such as a mount-only LD_LIBRARY_PATH.
 const spawnExtendsEnv = (spawn: AcpSpawnInput): boolean =>
   spawn.extendEnv ?? spawn.env === undefined;
@@ -138,8 +138,6 @@ export interface AcpSessionRuntimeOptions {
     readonly version: string;
   };
   readonly authMethodId?: string;
-  /** Authenticate before opening: Antigravity selects its credential source from the method. */
-  readonly authenticateEagerly?: boolean;
   readonly mcpServers?: ReadonlyArray<EffectAcpSchema.McpServer>;
   /** Sent on every session/new, load, resume and fork; omitting them clears an agent's stored roots. */
   readonly additionalDirectories?: ReadonlyArray<string>;
@@ -2506,18 +2504,6 @@ export const make = Effect.fn("AcpSessionRuntime.make")(function* (
       return { sessionId, sessionSetupResult };
     });
 
-    if (options.authenticateEagerly === true) {
-      // The configured method is authoritative here: Antigravity accepts
-      // methods (API key, Vertex) it does not list in `initialize`.
-      const authenticatePayload = {
-        methodId: options.authMethodId ?? "",
-      } satisfies EffectAcpSchema.AuthenticateRequest;
-      yield* runLoggedRequest(
-        "authenticate",
-        authenticatePayload,
-        acp.agent.authenticate(authenticatePayload),
-      );
-    }
     const { sessionId, sessionSetupResult } = yield* setupSession.pipe(
       Effect.catchIf(
         (error) =>

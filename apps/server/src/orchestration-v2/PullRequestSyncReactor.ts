@@ -78,7 +78,7 @@ const createCommandCount = (code: string) =>
   CREATE_COMMANDS.reduce((count, { run }) => count + [...code.matchAll(run)].length, 0);
 // A push, directly or through a stack tool, that can start checks on a linked pull request.
 const PUSH_COMMAND = new RegExp(
-  `${COMMAND_START}(?:git(?:\\s+-[cC]\\s+\\S+)*\\s+push|gh\\s+stack\\s+(?:push|submit)|cafe\\s+stack\\s+submit|jj\\s+git\\s+push)(?=$|[\\s;&|)])`,
+  `${COMMAND_START}(?:git(?:\\s+-[cC]\\s+\\S+)*\\s+push|gh\\s+stack\\s+(?:push|submit)|jj\\s+git\\s+push)(?=$|[\\s;&|)])`,
   "u",
 );
 

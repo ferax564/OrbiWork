@@ -27,16 +27,7 @@ const REPLAY = { instanceId: "devReplay", model: "showcase" };
 // first enabled real provider, else its default, Codex. So every provider it could fall back to
 // is off and Codex is a command that only fails: no run reaches a paid model.
 // Mirror of TEXT_GENERATION_FALLBACK_DRIVERS in shared/serverSettings.
-const REAL_PROVIDERS = [
-  "codex",
-  "claudeAgent",
-  "cursor",
-  "grok",
-  "muse",
-  "pi",
-  "opencode",
-  "antigravity",
-];
+const REAL_PROVIDERS = ["codex", "claudeAgent"];
 
 /** Captures must not depend on, or show, the machine that made them. */
 /** Where a scenario serves a fake Linear API; nothing listens there unless one does. */

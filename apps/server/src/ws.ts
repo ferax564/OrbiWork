@@ -37,7 +37,6 @@ import {
   AuthTerminalOperateScope,
   AuthProvidersManageScope,
   type AuthEnvironmentScope,
-  ProviderDriverKind,
   type ScheduledTaskListResult,
   WorkflowRequestError,
   AuthSessionId,
@@ -111,7 +110,6 @@ import {
 import { RpcGroup, RpcSerialization, RpcServer } from "effect/rpc";
 
 import * as CheckpointDiffQuery from "./checkpointing/CheckpointDiffQuery.ts";
-import * as NativeChildWorkQuery from "./orchestration-v2/NativeChildWorkQuery.ts";
 import * as ServerConfig from "./config.ts";
 import * as EnvironmentTheme from "./environmentTheme.ts";
 import * as Keybindings from "./keybindings.ts";
@@ -180,7 +178,6 @@ import * as ProviderRegistry from "./provider/ProviderRegistry.ts";
 import * as SecretCheck from "./secrets/SecretCheck.ts";
 import * as AcpRegistrySessions from "./provider/AcpRegistrySessions.ts";
 import * as ProviderInstanceRegistry from "./provider/ProviderInstanceRegistry.ts";
-import * as AcpRegistrySupport from "@orbiwork/provider-acp-registry/server/AcpRegistrySupport";
 import * as AcpRegistryRuntimeCoordinator from "@orbiwork/provider-acp-registry/server/AcpRegistryRuntimeCoordinator";
 import * as ProviderMaintenanceRunner from "./provider/providerMaintenanceRunner.ts";
 import * as ProviderAuthService from "./provider/ProviderAuthService.ts";
@@ -190,7 +187,6 @@ import * as NpmRelease from "./service/npmRelease.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
 import * as SecretResolver from "@orbiwork/secret-provider-core/server/SecretResolver";
-import * as ManagedProviders from "./policy/managedProviders.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import { invalidateSettingsSecrets } from "./sourceControl/sourceControlHostSecrets.ts";
 import * as DatabaseStorage from "./persistence/DatabaseStorage.ts";
@@ -1424,7 +1420,6 @@ export const layerWsRpc = (
       const agentSessionScanner = yield* AgentSessionScanner.AgentSessionScanner;
       const agentSessionImporter = yield* AgentSessionImporter.AgentSessionImporter;
       const checkpointDiffQuery = yield* CheckpointDiffQuery.CheckpointDiffQuery;
-      const nativeChildWork = yield* NativeChildWorkQuery.NativeChildWorkQuery;
       const keybindings = yield* Keybindings.Keybindings;
       const featureFlags = yield* FeatureFlags.FeatureFlags;
       const environmentTheme = yield* EnvironmentTheme.EnvironmentThemeService;
@@ -1443,7 +1438,6 @@ export const layerWsRpc = (
       const portDiscovery = yield* PortScanner.PortDiscovery;
       const providerRegistry = yield* ProviderRegistry.ProviderRegistry;
       const providerInstances = yield* ProviderInstanceRegistry.ProviderInstanceRegistry;
-      const acpRegistryCatalog = yield* AcpRegistrySupport.AcpRegistryCatalog;
       const acpRegistryRuntimeCoordinator =
         yield* AcpRegistryRuntimeCoordinator.AcpRegistryRuntimeCoordinator;
       const acpRegistrySessions = yield* AcpRegistrySessions.AcpRegistrySessions;
@@ -1828,7 +1822,6 @@ export const layerWsRpc = (
           secretRequestReferences: true,
           featureFlags: {
             secretProviders: featureFlags.secretProviders,
-            tanstackSource: featureFlags.tanstackSource,
           },
           ...Option.match(scratchWorkspaceRoot, {
             onNone: () => ({}),
@@ -1969,8 +1962,6 @@ export const layerWsRpc = (
           threadManagement.forceStopThread(input),
         [ORCHESTRATION_V2_WS_METHODS.getWorkflowScript]: (input) =>
           readWorkflowScript({ scriptPath: input.scriptPath }),
-        [ORCHESTRATION_V2_WS_METHODS.getNativeChildWork]: (input) =>
-          nativeChildWork.getNativeChildWork(input),
         [ORCHESTRATION_V2_WS_METHODS.getTurnItem]: (input) =>
           threadManagement.getTurnItem(input).pipe(
             Effect.mapError(
@@ -2300,36 +2291,6 @@ export const layerWsRpc = (
             workspaceSnapshotsOnDemand: false,
             deferNetworkDiscovery: false,
           }),
-        [WS_METHODS.serverSearchAcpRegistry]: (input) =>
-          acpRegistryCatalog
-            .search(input)
-            .pipe(Effect.mapError(AcpRegistrySupport.toAcpRegistryOperationError)),
-        [WS_METHODS.serverPrepareAcpRegistryAgent]: (input) =>
-          Effect.annotateCurrentSpan({ "acp_registry.agent_id": input.agentId }).pipe(
-            Effect.andThen(
-              Effect.suspend(() => {
-                const blocked = ManagedProviders.disallowedDriverReason(
-                  serverSettings.managedPolicy,
-                  ProviderDriverKind.make("acpRegistry"),
-                );
-                return blocked === undefined
-                  ? acpRegistryCatalog
-                      .prepare(input)
-                      .pipe(Effect.mapError(AcpRegistrySupport.toAcpRegistryOperationError))
-                  : Effect.fail(
-                      new AcpRegistryOperationError({ reason: "install_failed", message: blocked }),
-                    );
-              }),
-            ),
-          ),
-        [WS_METHODS.serverUninstallAcpRegistryManagedBinary]: (input) =>
-          Effect.annotateCurrentSpan({ "acp_registry.agent_id": input.agentId }).pipe(
-            Effect.andThen(
-              acpRegistryCatalog
-                .uninstallManagedBinary(input)
-                .pipe(Effect.mapError(AcpRegistrySupport.toAcpRegistryOperationError)),
-            ),
-          ),
         [WS_METHODS.serverAcceptAcpRegistryUrlAuth]: (input) =>
           Effect.annotateCurrentSpan({ "provider.instance_id": input.instanceId }).pipe(
             Effect.andThen(

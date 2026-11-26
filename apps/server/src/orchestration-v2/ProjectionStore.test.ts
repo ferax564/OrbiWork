@@ -1811,7 +1811,7 @@ it.effect("SQL shells flag only an active turn blocked solely on Orbi thread wai
     const delegation = {
       ...wait,
       id: TurnItemId.make("item:thread-wait:delegation"),
-      toolName: "orbiwork-thread_opencode2-adapter_delegate_task",
+      toolName: "mcp__orbiwork__delegate_task",
       input: { task: "Review", mode: "async" },
     };
     yield* updateItem(delegation);
@@ -4948,7 +4948,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         { toolName: "view_image", viewedImagePath: "/repo/screenshot.png" },
         { toolName: "mcp__docs__chart", output: { [MCP_APP_OUTPUT_KEY]: { uri: "ui://chart" } } },
         { toolName: "mcp__orbiwork__send_to_user" },
-        // OpenCode Code Mode reports a nested send_to_user call as one `execute` item.
+        // A code-mode agent reports a nested send_to_user call as one `execute` item.
         { toolName: "execute", output: JSON.stringify({ sentMessage: "Draft" }) },
       ]) {
         yield* writeSecondItem({

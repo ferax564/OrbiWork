@@ -224,7 +224,7 @@ describe("HtmlRender", () => {
       const html = yield* fileSystem.readFileString(stored ?? "");
       expect(html).toContain('<style id="orbi-theme">');
       expect(html).toContain("<p>Quarterly revenue</p>");
-      // Antigravity reports the call without its result, so the thread's
+      // A provider can report the call without its result, so the thread's
       // provider session keeps the page for one call with these arguments.
       const page = {
         html: `<p>Quarterly revenue</p>${" ".repeat(8_000)}`,
@@ -252,7 +252,7 @@ describe("HtmlRender", () => {
       yield* mcpSessions.set({
         ...session,
         providerSessionId: "replacement-credential",
-        providerInstanceId: ProviderInstanceId.make("antigravity"),
+        providerInstanceId: ProviderInstanceId.make("codex"),
         authorizationHeader: "Bearer replacement-token",
       });
       const replacement = yield* htmlRender.publish({ threadId, ...page });

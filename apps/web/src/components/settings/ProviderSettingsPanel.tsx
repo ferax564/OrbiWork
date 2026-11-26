@@ -104,7 +104,6 @@ import { ProviderInstanceCard } from "./ProviderInstanceCard";
 import { useSecretSources } from "./SecretSourceInput";
 import { TextGeneratorsSettings } from "./TextGeneratorsSettings";
 import { UsageProviderSettings } from "./UsageProviderSettings";
-import { ProviderSetupSection, readAntigravityAuthMethod } from "./ProviderSetupSection";
 import { ProviderAuthenticationSection } from "./ProviderAuthenticationSection";
 import { CodexSetupSection, CodexManagedRuntimeFields } from "./CodexSetupSection";
 import { readCodexSetupMode } from "./CodexSetupSection.logic";
@@ -144,11 +143,8 @@ function providerInstanceName(instance: ProviderInstanceConfig): string {
   );
 }
 
-async function confirmProviderInstanceRemoval(
-  question: string,
-  consequence = "",
-): Promise<boolean> {
-  const message = `${question}\n${resolveNow(msg("Its saved settings, including any custom binary path, will be removed."))}${consequence}`;
+async function confirmProviderInstanceRemoval(question: string): Promise<boolean> {
+  const message = `${question}\n${resolveNow(msg("Its saved settings, including any custom binary path, will be removed."))}`;
   const confirmed = await settlePromise(() =>
     ensureLocalApi().dialogs.confirm(message, { variant: "destructive" }),
   );
@@ -163,21 +159,10 @@ function modelListChanges(current: ReadonlyArray<string>, next: ReadonlyArray<st
     .map((model) => ({ model, selected: nextSet.has(model) }));
 }
 
-function providerConfigString(config: unknown, key: string): string | null {
-  if (config === null || typeof config !== "object") return null;
-  const value = (config as Record<string, unknown>)[key];
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
-
 const PROVIDER_SETTINGS = providerClients.definitions.map((definition) => ({
   provider: definition.driverKind,
   hasDefaultInstance: definition.hasDefaultInstance !== false,
 }));
-
-function configuredBinaryPath(config: unknown): string {
-  if (config === null || typeof config !== "object" || !("binaryPath" in config)) return "";
-  return typeof config.binaryPath === "string" ? config.binaryPath.trim() : "";
-}
 
 // Subscribe only in the label because every status push restamps all providers' checkedAt.
 function ProviderLastChecked({ environmentId }: { environmentId: EnvironmentId }) {
@@ -597,10 +582,6 @@ export function EnvironmentProviderSettings({
   const updateProvider = useAtomCommand(serverEnvironment.updateProvider, {
     reportFailure: false,
   });
-  const uninstallAcpRegistryManagedBinary = useAtomCommand(
-    serverEnvironment.uninstallAcpRegistryManagedBinary,
-    { reportFailure: false },
-  );
   const acceptAcpRegistryUrlAuth = useAtomCommand(serverEnvironment.acceptAcpRegistryUrlAuth, {
     reportFailure: false,
   });
@@ -644,14 +625,6 @@ export function EnvironmentProviderSettings({
     },
   );
 
-  const visibleProviderSettings = PROVIDER_SETTINGS.filter(
-    (providerSettings) =>
-      providerSettings.provider !== "cursor" ||
-      serverProviders.some(
-        (provider) =>
-          provider.instanceId === defaultInstanceIdForDriver(ProviderDriverKind.make("cursor")),
-      ),
-  );
   const resolvedBackgroundActivity = resolveServerBackgroundActivitySettings(settings);
   const providerHealthPreset = getBackgroundActivityPresetSettings(
     resolvedBackgroundActivity.profile,
@@ -752,17 +725,17 @@ export function EnvironmentProviderSettings({
   }
 
   const defaultSlotIdsBySource = new Set<string>(
-    visibleProviderSettings.map((providerSettings) =>
+    PROVIDER_SETTINGS.map((providerSettings) =>
       String(defaultInstanceIdForDriver(providerSettings.provider)),
     ),
   );
 
   const rows: InstanceRow[] = [];
   const visibleDriverKinds = new Set<ProviderDriverKind>(
-    visibleProviderSettings.map((providerSettings) => providerSettings.provider),
+    PROVIDER_SETTINGS.map((providerSettings) => providerSettings.provider),
   );
 
-  for (const providerSettings of visibleProviderSettings) {
+  for (const providerSettings of PROVIDER_SETTINGS) {
     const driver = providerSettings.provider;
     const defaultInstanceId = defaultInstanceIdForDriver(driver);
     const explicitInstance = settings.providerInstances?.[defaultInstanceId];
@@ -891,29 +864,6 @@ export function EnvironmentProviderSettings({
               ? (thrownErrorMessage(error, resolveNow) ?? error.message)
               : gt("The settings update failed."),
         });
-        return;
-      }
-
-      if (instance.driver !== ProviderDriverKind.make("acpRegistry")) return;
-      if (providerConfigString(instance.config, "source") === "local") return;
-      const agentId = providerConfigString(instance.config, "agentId");
-      if (agentId === null) return;
-
-      // Concurrent removals race client snapshots; let the server decide whether the agent remains in use.
-      const uninstallResult = await uninstallAcpRegistryManagedBinary({
-        environmentId,
-        input: { agentId },
-      });
-      if (uninstallResult._tag === "Failure" && !isAtomCommandInterrupted(uninstallResult)) {
-        const error = squashAtomCommandFailure(uninstallResult);
-        toastManager.add({
-          type: "warning",
-          title: gt("Provider deleted, but managed files remain"),
-          description:
-            error instanceof Error
-              ? (thrownErrorMessage(error, resolveNow) ?? error.message)
-              : gt("Managed binary cleanup failed."),
-        });
       }
     },
   );
@@ -921,14 +871,10 @@ export function EnvironmentProviderSettings({
   const resetDefaultInstance = useStableCallback(async (driverKind: ProviderDriverKind) => {
     const instanceId = defaultInstanceIdForDriver(driverKind);
     const instance = settings.providerInstances?.[instanceId] ?? { driver: driverKind };
-    const turnsOff =
-      resolveProviderInstanceEnabled(instance) &&
-      !resolveProviderInstanceEnabled({ driver: driverKind });
     const confirmed = await confirmProviderInstanceRemoval(
       gt("Reset the {provider} provider to its defaults?", {
         provider: providerInstanceName(instance),
       }),
-      turnsOff ? ` ${gt("It will also be turned off.")}` : "",
     );
     if (!confirmed) return;
     const result = await persistProviderInstance({ operation: "remove", instanceId });
@@ -1393,19 +1339,7 @@ function ProviderInstanceRow({
       }
       canWriteSettings={canWriteSettings}
       setup={
-        mode === "editor" && driver === "antigravity" ? (
-          <ProviderSetupSection
-            environmentId={environmentId}
-            environmentLabel={environmentLabel}
-            instanceId={instanceId}
-            provider={liveProvider}
-            binaryPath={configuredBinaryPath(instance.config)}
-            authMethod={readAntigravityAuthMethod(instance.config)}
-            enabled={resolveProviderInstanceEnabled(instance)}
-            readOnly={readOnly}
-            onEnable={() => actions.enableInstance(instanceId, { ...instance, enabled: true })}
-          />
-        ) : mode === "editor" && codexSetupMode === "managed" ? (
+        mode === "editor" && codexSetupMode === "managed" ? (
           <CodexSetupSection
             environmentId={environmentId}
             instanceId={instanceId}
@@ -1439,16 +1373,6 @@ function ProviderInstanceRow({
             instanceId={instanceId}
             provider={liveProvider}
             readOnly={readOnly}
-          />
-        ) : mode === "editor" &&
-          !readOnly &&
-          driver === "cursor" &&
-          liveProvider?.setup?.canAuthenticate === false ? (
-          <SettingsRow
-            title={gt("Cursor account")}
-            description={gt(
-              "Using CURSOR_API_KEY. Remove it from this provider's environment to use browser sign-in.",
-            )}
           />
         ) : null
       }

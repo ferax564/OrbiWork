@@ -96,7 +96,6 @@ export function DeviceWorkspace(props: {
             visible={props.visible}
             serveSimOnly={props.hostKind === "simlock"}
             axOverlay={axOverlay}
-            allowPhoneView
             renderControls={(view) => (
               <DeviceControlsRail
                 platform={props.device.platform}

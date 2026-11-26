@@ -1,5 +1,4 @@
 import {
-  AntigravitySettings,
   ClaudeSettings,
   CodexSettings,
   defaultInstanceIdForDriver,
@@ -16,13 +15,6 @@ import {
   type ServerSettings,
 } from "@orbiwork/contracts";
 import { acpRegistryClient } from "@orbiwork/provider-acp-registry/client";
-import { cursorClient } from "@orbiwork/provider-cursor/client";
-import { fxClient } from "@orbiwork/provider-fx/client";
-import { grokClient } from "@orbiwork/provider-grok/client";
-import { kiroClient } from "@orbiwork/provider-kiro/client";
-import { museClient } from "@orbiwork/provider-muse/client";
-import { openCodeClient } from "@orbiwork/provider-opencode/client";
-import { piClient } from "@orbiwork/provider-pi/client";
 import type { ProviderClientDefinition } from "@orbiwork/provider-core/client";
 
 interface KnownDriver {
@@ -42,20 +34,11 @@ const known = (
     { label, configFields: new Set(Object.keys(settingsSchema.fields)), hasDefaultInstance },
   ] as const;
 
-const PACKAGED_CLIENTS: ReadonlyArray<ProviderClientDefinition> = [
-  cursorClient,
-  grokClient,
-  fxClient,
-  kiroClient,
-  museClient,
-  openCodeClient,
-  piClient,
-  acpRegistryClient,
-];
+const PACKAGED_CLIENTS: ReadonlyArray<ProviderClientDefinition> = [acpRegistryClient];
 
 /**
  * Fields that make an instance launch without the settings a pin sets: managed Codex runs Orbi's own
- * runtime against OpenAI, and a server URL points OpenCode at a server it does not start. A policy
+ * runtime against OpenAI. A policy
  * that owns a pin owns these too, holding each at the value given here, which clients still send
  * when they add an instance.
  */
@@ -64,14 +47,12 @@ const PIN_BYPASS_FIELDS: ReadonlyMap<
   Readonly<Record<string, unknown>>
 > = new Map<ProviderDriverKind, Readonly<Record<string, unknown>>>([
   [ProviderDriverKind.make("codex"), { setupMode: "existing" }],
-  [ProviderDriverKind.make("opencode"), { serverUrl: "" }],
 ]);
 
 /** Drivers this build knows, by the names users see; a policy naming any other is refused. */
 const KNOWN_DRIVERS: ReadonlyMap<ProviderDriverKind, KnownDriver> = new Map([
   known("codex", "Codex", CodexSettings),
   known("claudeAgent", "Claude", ClaudeSettings),
-  known("antigravity", "Antigravity", AntigravitySettings),
   ...PACKAGED_CLIENTS.map((client) =>
     known(client.driverKind, client.label, client.settingsSchema, client.hasDefaultInstance),
   ),
@@ -96,7 +77,6 @@ const LAUNCH_CONFIG_FIELDS = [
   "shadowHomePath",
   "commandPath",
   "commandArgs",
-  "serverUrl",
 ] as const;
 
 export type ProviderWriteVerdict =

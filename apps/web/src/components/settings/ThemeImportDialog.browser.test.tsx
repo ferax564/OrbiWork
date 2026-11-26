@@ -1,4 +1,3 @@
-import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
@@ -12,89 +11,7 @@ import {
   themeColorToHex,
   THEME_FILE_VERSION,
 } from "../../themePalette";
-import { importOpenVsxThemeExtension, type OpenVsxThemeExtension } from "../../openVsxThemes";
 import { ThemeImportDialog } from "./ThemeImportDialog";
-
-const searchOpenVsxThemes = vi.hoisted(() => vi.fn());
-
-vi.mock("../../openVsxThemes", () => ({
-  searchOpenVsxThemes,
-  importOpenVsxThemeExtension: vi.fn(),
-}));
-
-const extension: OpenVsxThemeExtension = {
-  id: "acme.nightfall",
-  collectionId: "acme.nightfall",
-  name: "Nightfall",
-  publisher: "acme",
-  description: "A dark theme",
-  downloadCount: 10,
-  iconUrl: null,
-  sourceUrl: null,
-  manifestUrl: "https://example.test/manifest",
-  sha256Url: "https://example.test/sha256",
-  vsixUrl: "https://example.test/vsix",
-  version: "1.0.0",
-  license: "MIT",
-};
-
-describe("ThemeImportDialog", () => {
-  // StrictMode replays ref attach/detach on mount, which must not end the session.
-  it("searches Open VSX under StrictMode", async () => {
-    searchOpenVsxThemes.mockReset();
-    searchOpenVsxThemes.mockResolvedValue([extension]);
-    await using _screen = await render(
-      <StrictMode>
-        <ThemeImportDialog
-          open
-          onOpenChange={() => {}}
-          onImported={() => true}
-          onImportedMany={() => {}}
-        />
-      </StrictMode>,
-    );
-
-    // One input event: keystrokes more than the search debounce apart would search a prefix first.
-    await userEvent.fill(page.getByLabelText("Search Open VSX themes"), "night");
-
-    await expect.element(page.getByRole("heading", { name: "Nightfall" })).toBeVisible();
-    expect(searchOpenVsxThemes).toHaveBeenCalledWith(
-      "night",
-      expect.objectContaining({ sortBy: "downloadCount" }),
-    );
-  });
-
-  it("clears the search on Escape before closing the dialog", async () => {
-    searchOpenVsxThemes.mockReset();
-    searchOpenVsxThemes.mockResolvedValue([]);
-    const onOpenChange = vi.fn();
-    await using _screen = await render(
-      <ThemeImportDialog
-        open
-        onOpenChange={onOpenChange}
-        onImported={() => true}
-        onImportedMany={() => {}}
-      />,
-    );
-    const search = page.getByRole("searchbox", { name: "Search Open VSX themes" });
-    await expect.element(search).toHaveAttribute("type", "text");
-    await userEvent.fill(search, "nord");
-    await userEvent.keyboard("{Escape}");
-    await expect.element(search).toHaveValue("");
-    search.element().dispatchEvent(
-      new KeyboardEvent("keydown", {
-        bubbles: true,
-        cancelable: true,
-        key: "Escape",
-        repeat: true,
-      }),
-    );
-    expect(onOpenChange).not.toHaveBeenCalled();
-
-    await userEvent.keyboard("{Escape}");
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-  });
-});
 
 const theme = (name: string, accent = "#3b82f6", css?: string) => ({
   version: THEME_FILE_VERSION,
@@ -304,37 +221,4 @@ describe("ThemeImportDialog JSONC imports", () => {
       "#fdf6e3",
     ]);
   });
-});
-
-it("does not install a pending community theme after leaving Appearance", async () => {
-  using _themes = isolateThemes();
-  searchOpenVsxThemes.mockReset();
-  searchOpenVsxThemes.mockResolvedValue([extension]);
-  const download = Promise.withResolvers<ReturnType<typeof parseThemeFile>[]>();
-  vi.mocked(importOpenVsxThemeExtension).mockReset();
-  vi.mocked(importOpenVsxThemeExtension).mockReturnValue(download.promise);
-  await using screen = await render(
-    <ThemeImportDialog
-      open
-      onOpenChange={() => {}}
-      onImported={() => true}
-      onImportedMany={() => {}}
-    />,
-  );
-  await userEvent.fill(page.getByLabelText("Search Open VSX themes"), "night");
-  await page.getByRole("button", { name: "Install Nightfall" }).click();
-  await screen.unmount();
-  await act(async () => {
-    download.resolve([
-      {
-        ...parseThemeFile(theme("Nightfall")),
-        collection: { id: extension.collectionId, label: extension.name },
-      },
-    ]);
-    await download.promise;
-  });
-  expect(
-    getCustomThemes(),
-    "expect leaving Appearance to cancel its pending theme installation",
-  ).toEqual([]);
 });

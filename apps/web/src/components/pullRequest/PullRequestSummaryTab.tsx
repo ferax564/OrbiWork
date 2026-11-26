@@ -104,7 +104,6 @@ import {
   pullRequestCompletionScope,
 } from "./PullRequestMarkdownTextarea";
 import { PullRequestReactionBar } from "./PullRequestReactions";
-import { canReactPullRequestComment } from "@orbiwork/client-runtime/pull-request-reactions";
 import { PullRequestResolveThreadButton } from "./PullRequestResolveThreadButton";
 import { PullRequestConversationGhost } from "./PullRequestGhosts";
 import { sectionCollapseAnchorScrollTop } from "./pullRequestSummaryScroll.logic";
@@ -778,7 +777,7 @@ export function PullRequestSummaryTab({
     <PullRequestReactionBar
       className="ml-auto justify-end"
       reactions={comment.reactions ?? []}
-      canReact={canReactPullRequestComment(detail, comment)}
+      canReact={detail.capabilities.reactions === true}
       subjectId={comment.id}
       environmentId={environmentId}
       reference={reference}
@@ -991,7 +990,7 @@ export function PullRequestSummaryTab({
                   })}
                 </span>
               )}
-              {/* Azure DevOps accepts reviewers but cannot list candidates. */}
+              {/* A host may accept reviewers but not list candidates. */}
               {detail.capabilities.reviewers.request &&
               detail.capabilities.reviewers.listCandidates ? (
                 <PullRequestReviewerPicker

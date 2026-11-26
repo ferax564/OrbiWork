@@ -102,9 +102,7 @@ export function makeDesktopContentSecurityPolicy(
     "worker-src 'self' blob:",
     // Environment servers render HTML previews, MCP apps and documents; srcdoc frames inherit.
     `frame-src 'self' blob: ${networkSources}`,
-    // shortcut: ServerBrowserSurface shows PDFs in an <embed> from the environment server; make
-    // this 'none' once that becomes an iframe.
-    `object-src ${networkSources}`,
+    "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
   ].join("; ");

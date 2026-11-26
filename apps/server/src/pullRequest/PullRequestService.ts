@@ -365,7 +365,7 @@ export interface SupportedProject {
   readonly kind: SourceControlProviderKind;
   readonly repository: string;
   readonly host: string;
-  /** Unlike Azure repository names, remotes are unique across an organization. */
+  /** Unlike a bare repository name, a remote is unique across an organization. */
   readonly remote: string;
   readonly repositoryKey: string | null;
 }
@@ -1049,7 +1049,7 @@ export const make = Effect.gen(function* () {
       }),
     );
 
-  // Azure derives organization from the checkout; require the matching repository.
+  // A host may derive the organization from the checkout; require the matching repository.
   const requireProject = (ref: PullRequestRef): Effect.Effect<SupportedProject, PullRequestError> =>
     listWorkspaceProjects({ projectId: ref.projectId }).pipe(
       Effect.flatMap(({ supported }): Effect.Effect<SupportedProject, PullRequestError> => {
@@ -1072,7 +1072,7 @@ export const make = Effect.gen(function* () {
         }
         const referenceKey = `${host}/${repository}`.toLowerCase();
         const repositoryKey = sourceControlDefinitions.canonicalRepositoryKey(referenceKey);
-        // A host that spells one repository several ways (Azure's SSH and legacy clone hosts)
+        // A host that spells one repository several ways (separate SSH and clone hosts)
         // can differ from the browser URL's host. Compare the complete repository identity
         // before narrowing those checkouts by host.
         return listWorkspaceProjects(
@@ -3422,11 +3422,9 @@ export const make = Effect.gen(function* () {
       return detailUncached(refOfCacheKey(key)).pipe(
         Effect.tap(
           Effect.fn("PullRequestService.recordDetailStats")(function* (value: PullRequestDetail) {
-            // GitHub and Azure detail include the same checks; the checks TTL counts from their observation.
-            // Azure detail answers a failed policy read with no checks, which must not be cached.
+            // GitHub detail includes the same checks; the checks TTL counts from their observation.
             if (
-              (value.provider === "github" ||
-                (value.provider === "azure-devops" && value.checks.length > 0)) &&
+              value.provider === "github" &&
               value.observedAt !== undefined &&
               !(yield* Cache.has(checksCache, key))
             ) {

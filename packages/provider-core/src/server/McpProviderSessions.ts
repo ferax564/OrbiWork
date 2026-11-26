@@ -16,7 +16,7 @@ import type { McpProviderSessionConfig } from "./mcpSession.ts";
 const MAX_KEPT_HTML_RENDERS = 64;
 const MAX_KEPT_TOOL_RESULTS = 64;
 
-// Antigravity truncates long HTML arguments to a marked tail of at most 8,000 characters.
+// Bounded tool-call text keeps a marked tail of at most 8,000 characters.
 const BOUNDED_TEXT_MARKER = "[Earlier output truncated]\n\n";
 const KEPT_HTML_END_LENGTH = 8_000;
 

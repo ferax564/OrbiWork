@@ -70,21 +70,14 @@ export const deviceAxElementsAtom = Atom.family((target: DeviceHubTarget) =>
 
 export interface AndroidFoldView {
   readonly fold: AndroidFoldState | null;
-  /** Hinge angle the 3D phone shows, including an optimistic one while a change is in flight. */
-  readonly angle: number | null;
 }
 
-export const foldAngle = (fold: AndroidFoldState) =>
-  fold.hingeAngle ?? (fold.posture === "closed" ? 0 : 180);
-
 /**
- * The fold controls and the 3D phone share one view of a device's fold. Keyed by
+ * A device's last known fold, shared by its fold controls. Keyed by
  * host and device, not by hub access, so a renewed ticket keeps the known posture.
  */
 export const androidFoldViewAtom = Atom.family((deviceKey: string) =>
-  Atom.make<AndroidFoldView>({ fold: null, angle: null }).pipe(
-    Atom.withLabel(`android-fold-view:${deviceKey}`),
-  ),
+  Atom.make<AndroidFoldView>({ fold: null }).pipe(Atom.withLabel(`android-fold-view:${deviceKey}`)),
 );
 
 /**
@@ -111,12 +104,7 @@ export const androidFoldReadAtom = Atom.family(
           schedule: Schedule.spaced(FOLD_RETRY_MS),
         }),
         Effect.tap((fold) =>
-          Effect.sync(() =>
-            get.set(androidFoldViewAtom(input.deviceKey), {
-              fold,
-              angle: fold.supported ? foldAngle(fold) : null,
-            }),
-          ),
+          Effect.sync(() => get.set(androidFoldViewAtom(input.deviceKey), { fold })),
         ),
         Effect.asVoid,
       ),

@@ -325,7 +325,6 @@ export function normalizeAcpRegistryCommands(
 export function acpRegistryProbeResult(
   instanceId: ProviderInstanceId,
   started: AcpSessionRuntime.AcpSessionRuntimeStartResult,
-  icon: string | null = null,
   spawn?: AcpRegistryAuthSpawnContext,
   liveConfiguration?: AcpRegistryLiveConfiguration,
 ): AcpRegistryProbeResult {
@@ -339,7 +338,6 @@ export function acpRegistryProbeResult(
   return AcpRegistryProbeResult.make({
     instanceId,
     ready: true,
-    icon,
     ...(started.initializeResult.agentInfo?.version?.trim()
       ? { agentVersion: boundedText(started.initializeResult.agentInfo.version, MAX_ID_LENGTH) }
       : {}),
@@ -524,7 +522,6 @@ export const probeAcpRegistryConfiguration = Effect.fn("AcpRegistryProbe.probeCo
     const pty = yield* Effect.serviceOption(PtyAdapter.PtyAdapter);
 
     const openSession = Effect.gen(function* () {
-      // Resolution may install packages; bound it by the probe deadline.
       const resolved = yield* catalog
         .resolve(input.settings, input.cwd, input.environment)
         .pipe(Effect.mapError(AcpRegistrySupport.toAcpRegistryOperationError));
@@ -692,7 +689,7 @@ export const probeAcpRegistryConfiguration = Effect.fn("AcpRegistryProbe.probeCo
           Effect.fail(
             new AcpRegistryOperationError({
               reason: "probe_failed",
-              message: `The ACP agent did not resolve and create a test session within ${probeTimeoutMs / 1_000} seconds. Package installation or agent startup may be slow; this check retries on the next provider refresh.`,
+              message: `The ACP agent did not resolve and create a test session within ${probeTimeoutMs / 1_000} seconds. Agent startup may be slow; this check retries on the next provider refresh.`,
             }),
           ),
       }),
@@ -703,7 +700,6 @@ export const probeAcpRegistryConfiguration = Effect.fn("AcpRegistryProbe.probeCo
         probe: acpRegistryProbeResult(
           input.instanceId,
           session.started,
-          session.resolved.agent?.icon ?? null,
           {
             command: session.resolved.spawn.command,
             args: session.resolved.spawn.args,

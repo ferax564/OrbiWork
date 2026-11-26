@@ -332,6 +332,17 @@ describe("ClientSettings notifications", () => {
   });
 });
 
+describe("ClientSettings removed UI language", () => {
+  it("still decodes settings saved with a non-English language, and drops it", () => {
+    const settings = decodeClientSettings({ language: "de", notificationMode: "sound" });
+
+    expect(settings.notificationMode).toBe("sound");
+    expect(settings).not.toHaveProperty("language");
+    expect(encodeClientSettings(settings)).not.toHaveProperty("language");
+    expect(decodeClientSettingsPatch({ language: "ru" })).not.toHaveProperty("language");
+  });
+});
+
 describe("ClientSettings quit confirmation", () => {
   it.each([
     [true, "hold"],
@@ -346,20 +357,19 @@ describe("ClientSettings quit confirmation", () => {
 
 describe("provider enabled defaults", () => {
   it("resolves instance enabled state with explicit false winning", () => {
-    const grok = ProviderDriverKind.make("grok");
+    const acp = ProviderDriverKind.make("acpRegistry");
     const codex = ProviderDriverKind.make("codex");
-    expect(resolveProviderInstanceEnabled({ driver: grok, config: {} })).toBe(false);
     expect(resolveProviderInstanceEnabled({ driver: codex, config: {} })).toBe(true);
+    // A driver this build no longer ships still decodes; the registry shows it unavailable.
     expect(
-      resolveProviderInstanceEnabled({ driver: ProviderDriverKind.make("ollama"), config: {} }),
+      resolveProviderInstanceEnabled({ driver: ProviderDriverKind.make("cursor"), config: {} }),
     ).toBe(true);
-    expect(resolveProviderInstanceEnabled({ driver: grok, enabled: true, config: {} })).toBe(true);
+    expect(resolveProviderInstanceEnabled({ driver: acp, config: { enabled: false } })).toBe(false);
     expect(resolveProviderInstanceEnabled({ driver: codex, enabled: false, config: {} })).toBe(
       false,
     );
-    expect(resolveProviderInstanceEnabled({ driver: grok, config: { enabled: true } })).toBe(true);
     expect(
-      resolveProviderInstanceEnabled({ driver: grok, enabled: true, config: { enabled: false } }),
+      resolveProviderInstanceEnabled({ driver: acp, enabled: true, config: { enabled: false } }),
     ).toBe(false);
     expect(
       resolveProviderInstanceEnabled({ driver: codex, enabled: false, config: { enabled: true } }),

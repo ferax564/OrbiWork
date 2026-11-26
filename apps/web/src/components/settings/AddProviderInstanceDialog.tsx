@@ -14,7 +14,6 @@ import {
 import { squashAtomCommandFailure } from "@orbiwork/client-runtime/state/runtime";
 import type { ProviderClientDefinition } from "@orbiwork/provider-core/client";
 import {
-  type AcpRegistrySearchAgent,
   AuthProvidersManageScope,
   ProviderInstanceId,
   ProviderDriverKind,
@@ -49,18 +48,13 @@ import { ProviderSettingsForm, deriveProviderSettingsFields } from "./ProviderSe
 import { WizardPanel, WizardPopup, WizardHeader, WizardFooter } from "../ui/wizard";
 import {
   ADD_PROVIDER_WIZARD_STEPS,
-  ACP_REGISTRY_WIZARD_STEPS,
   LOCAL_ACP_WIZARD_STEPS,
-  resolveAcpRegistryWizardNavigation,
   resolveWizardNavigation,
   updateProviderIdentityDraft,
   type ProviderIdentityDraft,
   type WizardNavigation,
 } from "./AddProviderInstanceDialog.logic";
 import { AddProviderInstanceWizardSteps } from "./AddProviderInstanceWizardSteps";
-import { AcpRegistrySearchStep, useAcpRegistrySearch } from "./AcpRegistrySearchStep";
-import { ProviderWizardAuthenticationStep } from "./ProviderWizardAuthenticationStep";
-import { resolveOfficialAcpRegistryIconUrl } from "./AcpRegistryIcon";
 import { AddManagedCodexAccountDialog } from "./CodexSetupSection";
 import { MultipleAccountsNote } from "./MultipleAccountsNote";
 import { ProviderEnvironmentSection } from "./ProviderInstanceCard";
@@ -68,10 +62,10 @@ import { useSecretSources } from "./SecretSourceInput";
 
 const INSTANCE_ID_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
-const ACP_REGISTRY_DRIVER_KIND = ProviderDriverKind.make("acpRegistry");
+const ACP_DRIVER_KIND = ProviderDriverKind.make("acpRegistry");
 const DEFAULT_DRIVER_OPTION = providerClients.definitions[0]!;
 const DRIVER_OPTIONS = providerClients.definitions.filter(
-  (option) => option.driverKind !== ACP_REGISTRY_DRIVER_KIND,
+  (option) => option.driverKind !== ACP_DRIVER_KIND,
 );
 const FEATURED_DRIVER_OPTIONS = DRIVER_OPTIONS.filter((option) => option.featured !== false);
 const MORE_DRIVER_OPTIONS = DRIVER_OPTIONS.filter((option) => option.featured === false);
@@ -95,13 +89,11 @@ function validateInstanceId(
 function ProviderOptionGrid({
   options,
   value,
-  disabled,
   onValueChange,
   ...labelProps
 }: {
   readonly options: ReadonlyArray<ProviderClientDefinition>;
   readonly value: ProviderDriverKind;
-  readonly disabled: boolean;
   readonly onValueChange: (value: string) => void;
   readonly "aria-label"?: string;
   readonly "aria-labelledby"?: string;
@@ -109,7 +101,6 @@ function ProviderOptionGrid({
   return (
     <RadioGroup
       {...labelProps}
-      disabled={disabled}
       value={value}
       onValueChange={onValueChange}
       className="grid grid-cols-1 sm:grid-cols-2"
@@ -151,7 +142,7 @@ interface AddProviderInstanceDialogProps {
   readonly environmentLabel: string;
   readonly onOpenChange: (open: boolean) => void;
   readonly onCreated?: (instanceId: ProviderInstanceId, driver: ProviderDriverKind) => void;
-  /** Opens with "Show more" expanded, so the ACP Registry search is in view. */
+  /** Opens with "Show more" expanded, so the local ACP command is in view. */
   readonly showMoreProviders?: boolean;
 }
 
@@ -180,25 +171,22 @@ export function AddProviderInstanceDialog({
   const moreDriverOptions = MORE_DRIVER_OPTIONS.filter((option) =>
     isManagedDriverAllowed(managedPolicy, option.driverKind),
   );
-  const acpRegistryAllowed = isManagedDriverAllowed(managedPolicy, ACP_REGISTRY_DRIVER_KIND);
+  const acpAllowed = isManagedDriverAllowed(managedPolicy, ACP_DRIVER_KIND);
   const [driver, setDriver] = useState<ProviderDriverKind>(
     () =>
       (featuredDriverOptions[0] ?? moreDriverOptions[0])?.driverKind ??
-      (acpRegistryAllowed ? ACP_REGISTRY_DRIVER_KIND : DEFAULT_DRIVER_KIND),
+      (acpAllowed ? ACP_DRIVER_KIND : DEFAULT_DRIVER_KIND),
   );
   const [identityByDriver, setIdentityByDriver] = useState<Record<string, ProviderIdentityDraft>>(
     {},
   );
-  const [selectedAcp, setSelectedAcp] = useState<AcpRegistrySearchAgent | null>(null);
   const [localEnvironment, setLocalEnvironment] = useState<
     ReadonlyArray<ProviderInstanceEnvironmentVariable>
   >([]);
-  const [isManualAcpConfiguration, setIsManualAcpConfiguration] = useState(false);
   const [showMoreProviders, setShowMoreProviders] = useState(initialShowMoreProviders);
   const [configByDriver, setConfigByDriver] = useState<Record<string, Record<string, unknown>>>({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [createdInstanceId, setCreatedInstanceId] = useState<ProviderInstanceId | null>(null);
 
   // Reserve Codex/Claude default ids because they run before configuration; other unconfigured slots are
   // available.
@@ -209,15 +197,7 @@ export function AddProviderInstanceDialog({
   ]);
 
   const driverOption = providerClients.get(driver) ?? DEFAULT_DRIVER_OPTION;
-  const isAcpRegistry = driver === ACP_REGISTRY_DRIVER_KIND;
-  const showRegistrySearch =
-    !createdInstanceId &&
-    !addingChatGptAccount &&
-    wizardStep === 0 &&
-    !(isAcpRegistry && isManualAcpConfiguration);
-  // Searches while Show more is closed, so the fold opens on results.
-  const registry = useAcpRegistrySearch(environmentId, showRegistrySearch);
-  const isPreparingRegistryAgent = registry.preparingId !== null;
+  const isLocalAcp = driver === ACP_DRIVER_KIND;
   const defaultIdentity: ProviderIdentityDraft = {
     label: driverOption.label,
     accentColor: "",
@@ -229,7 +209,7 @@ export function AddProviderInstanceDialog({
     deriveAvailableInstanceId(
       (candidateLabel) => {
         if (!candidateLabel.trim() || candidateLabel === driverOption.label) {
-          return isAcpRegistry ? `${driver}_custom` : driver;
+          return isLocalAcp ? `${driver}_custom` : driver;
         }
         return deriveInstanceId(driver, candidateLabel);
       },
@@ -243,23 +223,12 @@ export function AddProviderInstanceDialog({
   const previewLabel = label.trim() || gt("{provider} Workspace", { provider: driverOption.label });
 
   const configDraft = configByDriver[driver] ?? EMPTY_CONFIG_DRAFT;
-  const isLocalAcp = isAcpRegistry && isManualAcpConfiguration && configDraft.source === "local";
   const localCommandPath =
     typeof configDraft.commandPath === "string" ? configDraft.commandPath.trim() : "";
-  const manualAgentId = typeof configDraft.agentId === "string" ? configDraft.agentId.trim() : "";
-  const acpSelectionError = isLocalAcp
-    ? localCommandPath.length > 0
-      ? null
-      : gt("Executable is required.")
-    : selectedAcp !== null || (isManualAcpConfiguration && manualAgentId.length > 0)
-      ? null
-      : gt("Select an ACP or configure one manually.");
-  const wizardStepSummaries = isAcpRegistry
-    ? ([
-        isLocalAcp ? gt("Local ACP command") : (selectedAcp?.name ?? (manualAgentId || null)),
-        previewLabel,
-        null,
-      ] as const)
+  const acpSelectionError =
+    isLocalAcp && localCommandPath.length === 0 ? gt("Executable is required.") : null;
+  const wizardStepSummaries = isLocalAcp
+    ? ([gt("Local ACP command"), previewLabel, null] as const)
     : ([driverOption.label, previewLabel, null] as const);
   const setConfigDraft = (config: Record<string, unknown> | undefined) => {
     setConfigByDriver((existing) => {
@@ -274,7 +243,6 @@ export function AddProviderInstanceDialog({
   };
   const selectDriver = (value: string) => {
     setDriver(ProviderDriverKind.make(value));
-    setIsManualAcpConfiguration(false);
     setHasAttemptedSubmit(false);
   };
   const setIdentityDraft = (update: Partial<ProviderIdentityDraft>) => {
@@ -285,92 +253,31 @@ export function AddProviderInstanceDialog({
   };
 
   const applyWizardNavigation = (navigation: WizardNavigation) => {
-    if (isSaving || isPreparingRegistryAgent || createdInstanceId) return;
+    if (isSaving) return;
     if (navigation.kind === "blocked") {
       setHasAttemptedSubmit(true);
-    }
-    if (isAcpRegistry && !isLocalAcp && navigation.kind === "navigate" && navigation.step === 2) {
-      void handleSave();
-      return;
     }
     setWizardStep(navigation.step);
   };
 
   const navigateToStep = (requestedStep: number) => {
     applyWizardNavigation(
-      isAcpRegistry
-        ? isLocalAcp
-          ? resolveWizardNavigation(wizardStep, requestedStep, LOCAL_ACP_WIZARD_STEPS.length, {
-              instanceIdError,
-              prerequisite: { step: 0, error: acpSelectionError },
-            })
-          : resolveAcpRegistryWizardNavigation(wizardStep, requestedStep, {
-              instanceIdError,
-              selectionError: acpSelectionError,
-            })
+      isLocalAcp
+        ? resolveWizardNavigation(wizardStep, requestedStep, LOCAL_ACP_WIZARD_STEPS.length, {
+            instanceIdError,
+            prerequisite: { step: 0, error: acpSelectionError },
+          })
         : resolveWizardNavigation(wizardStep, requestedStep, ADD_PROVIDER_WIZARD_STEPS.length, {
             instanceIdError,
           }),
     );
   };
 
-  const handleAcpPrepared = (agent: AcpRegistrySearchAgent) => {
-    setDriver(ACP_REGISTRY_DRIVER_KIND);
-    const nextLabel = agent.name;
-    const registryIconUrl = resolveOfficialAcpRegistryIconUrl(agent.icon);
-    const nextInstanceId = deriveAvailableInstanceId(
-      (candidateLabel) => deriveInstanceId(ACP_REGISTRY_DRIVER_KIND, candidateLabel),
-      nextLabel,
-      existingIds,
-    );
-    setSelectedAcp(agent);
-    setIsManualAcpConfiguration(false);
-    setIdentityByDriver((existing) =>
-      updateProviderIdentityDraft(existing, ACP_REGISTRY_DRIVER_KIND, {
-        label: nextLabel,
-        instanceIdOverride: nextInstanceId,
-      }),
-    );
-    setConfigByDriver((existing) => ({
-      ...existing,
-      [ACP_REGISTRY_DRIVER_KIND]: {
-        agentId: agent.id,
-        distribution: "auto",
-        ...(registryIconUrl ? { registryIconUrl } : {}),
-      },
-    }));
-    setHasAttemptedSubmit(false);
-    setWizardStep(1);
-  };
-
-  const handleManualAcpConfiguration = () => {
-    setDriver(ACP_REGISTRY_DRIVER_KIND);
-    setSelectedAcp(null);
-    setIsManualAcpConfiguration(true);
-    setConfigByDriver((existing) => {
-      const next = { ...existing };
-      delete next[ACP_REGISTRY_DRIVER_KIND];
-      return next;
-    });
-    setIdentityByDriver((existing) =>
-      updateProviderIdentityDraft(existing, ACP_REGISTRY_DRIVER_KIND, {
-        label: "",
-        instanceIdOverride: null,
-      }),
-    );
-    setHasAttemptedSubmit(false);
-  };
-
   const handleLocalAcpConfiguration = () => {
-    setDriver(ACP_REGISTRY_DRIVER_KIND);
-    setSelectedAcp(null);
-    setIsManualAcpConfiguration(true);
-    setConfigByDriver((existing) => ({
-      ...existing,
-      [ACP_REGISTRY_DRIVER_KIND]: { source: "local", commandArgs: [] },
-    }));
+    setDriver(ACP_DRIVER_KIND);
+    setConfigByDriver((existing) => ({ ...existing, [ACP_DRIVER_KIND]: { commandArgs: [] } }));
     setIdentityByDriver((existing) =>
-      updateProviderIdentityDraft(existing, ACP_REGISTRY_DRIVER_KIND, {
+      updateProviderIdentityDraft(existing, ACP_DRIVER_KIND, {
         label: gt("Local ACP"),
         instanceIdOverride: null,
       }),
@@ -384,9 +291,9 @@ export function AddProviderInstanceDialog({
 
   const handleSave = async () => {
     if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
-    if (isSaving || createdInstanceId) return;
+    if (isSaving) return;
     setHasAttemptedSubmit(true);
-    if (instanceIdError !== null || (isAcpRegistry && acpSelectionError !== null)) return;
+    if (instanceIdError !== null || acpSelectionError !== null) return;
 
     const config =
       driver === "codex"
@@ -424,12 +331,6 @@ export function AddProviderInstanceDialog({
       return;
     }
     onCreated?.(brandedId, driver);
-    if (isAcpRegistry && !isLocalAcp) {
-      setCreatedInstanceId(brandedId);
-      setIsSaving(false);
-      setWizardStep(2);
-      return;
-    }
     toastManager.add({
       type: "success",
       title: gt("Provider instance added"),
@@ -462,13 +363,13 @@ export function AddProviderInstanceDialog({
             </T>
           }
         >
-          {isAcpRegistry ? (
+          {isLocalAcp ? (
             <AddProviderInstanceWizardSteps
               currentStep={wizardStep}
               summaries={wizardStepSummaries}
               instanceIdError={instanceIdError}
-              steps={isLocalAcp ? LOCAL_ACP_WIZARD_STEPS : ACP_REGISTRY_WIZARD_STEPS}
-              disabled={isSaving || isPreparingRegistryAgent || createdInstanceId !== null}
+              steps={LOCAL_ACP_WIZARD_STEPS}
+              disabled={isSaving}
               identityStep={1}
               prerequisite={{ step: 0, error: acpSelectionError }}
               onNavigation={applyWizardNavigation}
@@ -478,335 +379,230 @@ export function AddProviderInstanceDialog({
               currentStep={wizardStep}
               summaries={wizardStepSummaries}
               instanceIdError={instanceIdError}
-              disabled={isSaving || isPreparingRegistryAgent}
+              disabled={isSaving}
               onNavigation={applyWizardNavigation}
             />
           )}
         </WizardHeader>
 
-        {createdInstanceId ? (
-          <ProviderWizardAuthenticationStep
-            environmentId={environmentId}
-            environmentLabel={environmentLabel}
-            instanceId={createdInstanceId}
-            onFinish={() => onOpenChange(false)}
-          />
-        ) : (
-          <>
-            <WizardPanel className={cn(isAcpRegistry && wizardStep === identityStep && "min-h-72")}>
-              <div className={cn("grid gap-2", wizardStep !== 0 && "hidden")}>
-                <div id="add-instance-driver-label" className="text-sm font-medium text-foreground">
-                  {gt("Provider", { $context: "wizard step" })}
-                </div>
-                <ProviderOptionGrid
-                  options={featuredDriverOptions}
-                  value={driver}
-                  disabled={isPreparingRegistryAgent}
-                  onValueChange={selectDriver}
-                  aria-labelledby="add-instance-driver-label"
-                />
-                <MultipleAccountsNote environmentId={environmentId} driver={driver} />
-              </div>
+        <WizardPanel className={cn(isLocalAcp && wizardStep === identityStep && "min-h-72")}>
+          <div className={cn("grid gap-2", wizardStep !== 0 && "hidden")}>
+            <div id="add-instance-driver-label" className="text-sm font-medium text-foreground">
+              {gt("Provider", { $context: "wizard step" })}
+            </div>
+            <ProviderOptionGrid
+              options={featuredDriverOptions}
+              value={driver}
+              onValueChange={selectDriver}
+              aria-labelledby="add-instance-driver-label"
+            />
+            <MultipleAccountsNote environmentId={environmentId} driver={driver} />
+          </div>
 
-              {wizardStep === 0 && (moreDriverOptions.length > 0 || acpRegistryAllowed) ? (
-                <Collapsible open={showMoreProviders} onOpenChange={setShowMoreProviders}>
-                  <div className="flex pt-2">
-                    <CollapsibleTrigger render={<Button variant="ghost-muted" size="xs" />}>
-                      {showMoreProviders ? gt("Show less") : gt("Show more")}
-                      <ChevronDownIcon
-                        aria-hidden
-                        className={cn("transition-transform", showMoreProviders && "rotate-180")}
-                      />
-                    </CollapsibleTrigger>
-                  </div>
-                  {/* WizardPanel already animates its height, so the fold opens without its own. */}
-                  <CollapsiblePanel animate={false}>
-                    <div className="space-y-4 pt-4">
-                      <ProviderOptionGrid
-                        options={moreDriverOptions}
-                        value={driver}
-                        disabled={isPreparingRegistryAgent}
-                        onValueChange={selectDriver}
-                        aria-label={gt("More providers")}
-                      />
-                      {!acpRegistryAllowed ? null : (
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <div aria-hidden className="flex-1 border-t border-border/70" />
-                          <span>
-                            <T>Or choose from ACP Registry</T>
-                          </span>
-                          <div aria-hidden className="flex-1 border-t border-border/70" />
-                        </div>
-                      )}
-                      {!acpRegistryAllowed ? null : isAcpRegistry && isManualAcpConfiguration ? (
-                        <div className="grid gap-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h3 className="text-sm font-medium text-foreground">
-                                {isLocalAcp ? gt("Local ACP command") : gt("Enter manually")}
-                              </h3>
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                {isLocalAcp
-                                  ? gt("Run an installed ACP executable on {environment}.", {
-                                      environment: environmentLabel,
-                                    })
-                                  : gt(
-                                      "Enter an official registry ID and any local executable or auth override.",
-                                    )}
-                              </p>
-                            </div>
-                            <Button
-                              onClick={() => {
-                                setIsManualAcpConfiguration(false);
-                                setHasAttemptedSubmit(false);
-                              }}
-                              size="xs"
-                              variant="ghost"
-                            >
-                              <T>Search registry</T>
-                            </Button>
-                          </div>
-                          <SettingsGroup variant="plain">
-                            <ProviderSettingsForm
-                              definition={driverOption}
-                              value={configDraft}
-                              idPrefix="add-provider-acpRegistry-manual"
-                              variant="settings"
-                              onChange={setConfigDraft}
-                              environmentId={environmentId}
-                            />
-                            {isLocalAcp ? (
-                              <ProviderEnvironmentSection
-                                environment={localEnvironment}
-                                onChange={setLocalEnvironment}
-                                secretSources={secretSources}
-                                environmentId={environmentId}
-                              />
-                            ) : null}
-                          </SettingsGroup>
-                          {isAcpRegistry && hasAttemptedSubmit && acpSelectionError ? (
-                            <p className="text-2xs text-destructive">{acpSelectionError}</p>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <>
-                          <AcpRegistrySearchStep
-                            environmentId={environmentId}
-                            registry={registry}
-                            providerInstances={settings.providerInstances}
-                            onPrepared={handleAcpPrepared}
-                            onManualConfiguration={handleManualAcpConfiguration}
-                            onLocalConfiguration={handleLocalAcpConfiguration}
-                          />
-                          {isAcpRegistry && hasAttemptedSubmit && acpSelectionError ? (
-                            <p className="mt-2 text-2xs text-destructive">{acpSelectionError}</p>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  </CollapsiblePanel>
-                </Collapsible>
-              ) : null}
-
-              {isAcpRegistry && wizardStep === 1 && selectedAcp ? (
-                <div className="mb-4 flex items-start justify-between gap-3 border-b border-border/70 pb-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {selectedAcp.name}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      v{selectedAcp.version} · {selectedAcp.distribution}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-2 text-2xs">
-                    {selectedAcp.website ? (
-                      <a
-                        aria-label={gt("Open documentation for {name} ({id})", {
-                          name: selectedAcp.name,
-                          id: selectedAcp.id,
-                        })}
-                        className="text-muted-foreground hover:text-foreground"
-                        href={selectedAcp.website}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        <T>Docs</T>
-                      </a>
-                    ) : null}
-                    {selectedAcp.repository ? (
-                      <a
-                        aria-label={gt("Open source for {name} ({id})", {
-                          name: selectedAcp.name,
-                          id: selectedAcp.id,
-                        })}
-                        className="text-muted-foreground hover:text-foreground"
-                        href={selectedAcp.repository}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        {gt("Source", { $context: "link to source code" })}
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-
-              <SettingsGroup
-                variant="plain"
-                className={cn(wizardStep !== identityStep && "hidden")}
-              >
-                <SettingsRow
-                  title={
-                    <label htmlFor="add-provider-label">
-                      {gt("Label", { $context: "noun, display name" })}
-                    </label>
-                  }
-                  description={
-                    <span id="add-provider-label-description">
-                      <T>Shown in the provider list.</T>
-                    </span>
-                  }
-                  control={
-                    <Input
-                      id="add-provider-label"
-                      aria-describedby="add-provider-label-description"
-                      size="sm"
-                      className="w-full @min-[32rem]/settings-row:w-56"
-                      placeholder={gt("e.g. Work")}
-                      value={label}
-                      onChange={(event) => setIdentityDraft({ label: event.target.value })}
-                    />
-                  }
-                />
-                <SettingsRow
-                  title={
-                    <label htmlFor="add-provider-instance-id">
-                      <T>Instance ID</T>
-                    </label>
-                  }
-                  description={
-                    <span id="add-provider-instance-id-description">
-                      <T>Letters, digits, '-', or '_'.</T>
-                    </span>
-                  }
-                  status={
-                    showInstanceIdError ? (
-                      <span
-                        id="add-provider-instance-id-error"
-                        role="alert"
-                        className="text-destructive"
-                      >
-                        {instanceIdError}
-                      </span>
-                    ) : undefined
-                  }
-                  control={
-                    <Input
-                      id="add-provider-instance-id"
-                      aria-describedby={
-                        showInstanceIdError
-                          ? "add-provider-instance-id-description add-provider-instance-id-error"
-                          : "add-provider-instance-id-description"
-                      }
-                      size="sm"
-                      className="w-full @min-[32rem]/settings-row:w-56"
-                      placeholder={`${driver}_work`}
-                      value={instanceId}
-                      onChange={(event) => {
-                        setIdentityDraft({ instanceIdOverride: event.target.value });
-                      }}
-                      aria-invalid={showInstanceIdError}
-                    />
-                  }
-                />
-                <SettingsRow
-                  title={gt("Accent color")}
-                  description={gt("Optional marker shown in the picker.")}
-                  control={
-                    <ProviderAccentColorPicker
-                      displayName={label || driverOption.label}
-                      value={accentColor || undefined}
-                      onCommit={(value) => setIdentityDraft({ accentColor: value })}
-                      layout="inline"
-                    />
-                  }
-                />
-              </SettingsGroup>
-
-              {!isAcpRegistry && driverSettingsFields.length > 0 ? (
-                <SettingsGroup variant="plain" className={cn(wizardStep !== 2 && "hidden")}>
-                  <ProviderSettingsForm
-                    definition={driverOption}
-                    value={configDraft}
-                    idPrefix={`add-provider-${driver}`}
-                    variant="settings"
-                    onChange={setConfigDraft}
-                    managed={
-                      driverLocks && { keys: driverLocks.configKeys, reason: driverLocks.reason }
-                    }
-                    environmentId={environmentId}
+          {wizardStep === 0 && (moreDriverOptions.length > 0 || acpAllowed) ? (
+            <Collapsible open={showMoreProviders} onOpenChange={setShowMoreProviders}>
+              <div className="flex pt-2">
+                <CollapsibleTrigger render={<Button variant="ghost-muted" size="xs" />}>
+                  {showMoreProviders ? gt("Show less") : gt("Show more")}
+                  <ChevronDownIcon
+                    aria-hidden
+                    className={cn("transition-transform", showMoreProviders && "rotate-180")}
                   />
-                </SettingsGroup>
-              ) : !isAcpRegistry && wizardStep === 2 ? (
-                <div className="grid gap-2">
-                  <p className="text-sm text-muted-foreground">
-                    <T>This driver has no required configuration. You can add the instance now.</T>
-                  </p>
-                </div>
-              ) : null}
-            </WizardPanel>
-
-            <WizardFooter>
-              <Button
-                variant={wizardStep === 0 ? "ghost-muted" : "outline"}
-                size="sm"
-                disabled={isSaving || isPreparingRegistryAgent}
-                onClick={() => {
-                  if (wizardStep === 0) {
-                    onOpenChange(false);
-                    return;
-                  }
-                  setWizardStep((step) => Math.max(0, step - 1));
-                }}
-              >
-                {wizardStep === 0 ? gt("Cancel") : gt("Back")}
-              </Button>
-              {wizardStep === 0 && driver === "codex" ? (
-                <>
-                  <Button variant="outline" size="sm" onClick={() => navigateToStep(1)}>
-                    <T>Configure manually</T>
-                  </Button>
-                  {driverLocks?.configKeys.has("setupMode") ? null : (
-                    <ChatGptConnectionButton
-                      size="sm"
-                      onClick={() => setAddingChatGptAccount(true)}
+                </CollapsibleTrigger>
+              </div>
+              {/* WizardPanel already animates its height, so the fold opens without its own. */}
+              <CollapsiblePanel animate={false}>
+                <div className="space-y-4 pt-4">
+                  {moreDriverOptions.length === 0 ? null : (
+                    <ProviderOptionGrid
+                      options={moreDriverOptions}
+                      value={driver}
+                      onValueChange={selectDriver}
+                      aria-label={gt("More providers")}
                     />
                   )}
-                </>
-              ) : wizardStep < (isAcpRegistry ? 1 : 2) ? (
-                <Button
+                  {!acpAllowed ? null : isLocalAcp ? (
+                    <div className="grid gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-foreground">
+                          {gt("Local ACP command")}
+                        </h3>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {gt("Run an installed ACP executable on {environment}.", {
+                            environment: environmentLabel,
+                          })}
+                        </p>
+                      </div>
+                      <SettingsGroup variant="plain">
+                        <ProviderSettingsForm
+                          definition={driverOption}
+                          value={configDraft}
+                          idPrefix="add-provider-acpRegistry-manual"
+                          variant="settings"
+                          onChange={setConfigDraft}
+                          environmentId={environmentId}
+                        />
+                        <ProviderEnvironmentSection
+                          environment={localEnvironment}
+                          onChange={setLocalEnvironment}
+                          secretSources={secretSources}
+                          environmentId={environmentId}
+                        />
+                      </SettingsGroup>
+                      {hasAttemptedSubmit && acpSelectionError ? (
+                        <p className="text-2xs text-destructive">{acpSelectionError}</p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={handleLocalAcpConfiguration}>
+                      <T>Local ACP command</T>
+                    </Button>
+                  )}
+                </div>
+              </CollapsiblePanel>
+            </Collapsible>
+          ) : null}
+
+          <SettingsGroup variant="plain" className={cn(wizardStep !== identityStep && "hidden")}>
+            <SettingsRow
+              title={
+                <label htmlFor="add-provider-label">
+                  {gt("Label", { $context: "noun, display name" })}
+                </label>
+              }
+              description={
+                <span id="add-provider-label-description">
+                  <T>Shown in the provider list.</T>
+                </span>
+              }
+              control={
+                <Input
+                  id="add-provider-label"
+                  aria-describedby="add-provider-label-description"
                   size="sm"
-                  disabled={isPreparingRegistryAgent}
-                  onClick={() => navigateToStep(wizardStep + 1)}
-                >
-                  <T>Next</T>
-                </Button>
-              ) : (
-                <Button
+                  className="w-full @min-[32rem]/settings-row:w-56"
+                  placeholder={gt("e.g. Work")}
+                  value={label}
+                  onChange={(event) => setIdentityDraft({ label: event.target.value })}
+                />
+              }
+            />
+            <SettingsRow
+              title={
+                <label htmlFor="add-provider-instance-id">
+                  <T>Instance ID</T>
+                </label>
+              }
+              description={
+                <span id="add-provider-instance-id-description">
+                  <T>Letters, digits, '-', or '_'.</T>
+                </span>
+              }
+              status={
+                showInstanceIdError ? (
+                  <span
+                    id="add-provider-instance-id-error"
+                    role="alert"
+                    className="text-destructive"
+                  >
+                    {instanceIdError}
+                  </span>
+                ) : undefined
+              }
+              control={
+                <Input
+                  id="add-provider-instance-id"
+                  aria-describedby={
+                    showInstanceIdError
+                      ? "add-provider-instance-id-description add-provider-instance-id-error"
+                      : "add-provider-instance-id-description"
+                  }
                   size="sm"
-                  disabled={isSaving || !canManageProviders}
-                  onClick={() => void handleSave()}
-                >
-                  {isSaving
-                    ? gt("Adding...")
-                    : isAcpRegistry && !isLocalAcp
-                      ? gt("Continue to sign-in")
-                      : gt("Add instance")}
-                </Button>
+                  className="w-full @min-[32rem]/settings-row:w-56"
+                  placeholder={`${driver}_work`}
+                  value={instanceId}
+                  onChange={(event) => {
+                    setIdentityDraft({ instanceIdOverride: event.target.value });
+                  }}
+                  aria-invalid={showInstanceIdError}
+                />
+              }
+            />
+            <SettingsRow
+              title={gt("Accent color")}
+              description={gt("Optional marker shown in the picker.")}
+              control={
+                <ProviderAccentColorPicker
+                  displayName={label || driverOption.label}
+                  value={accentColor || undefined}
+                  onCommit={(value) => setIdentityDraft({ accentColor: value })}
+                  layout="inline"
+                />
+              }
+            />
+          </SettingsGroup>
+
+          {!isLocalAcp && driverSettingsFields.length > 0 ? (
+            <SettingsGroup variant="plain" className={cn(wizardStep !== 2 && "hidden")}>
+              <ProviderSettingsForm
+                definition={driverOption}
+                value={configDraft}
+                idPrefix={`add-provider-${driver}`}
+                variant="settings"
+                onChange={setConfigDraft}
+                managed={
+                  driverLocks && { keys: driverLocks.configKeys, reason: driverLocks.reason }
+                }
+                environmentId={environmentId}
+              />
+            </SettingsGroup>
+          ) : !isLocalAcp && wizardStep === 2 ? (
+            <div className="grid gap-2">
+              <p className="text-sm text-muted-foreground">
+                <T>This driver has no required configuration. You can add the instance now.</T>
+              </p>
+            </div>
+          ) : null}
+        </WizardPanel>
+
+        <WizardFooter>
+          <Button
+            variant={wizardStep === 0 ? "ghost-muted" : "outline"}
+            size="sm"
+            disabled={isSaving}
+            onClick={() => {
+              if (wizardStep === 0) {
+                onOpenChange(false);
+                return;
+              }
+              setWizardStep((step) => Math.max(0, step - 1));
+            }}
+          >
+            {wizardStep === 0 ? gt("Cancel") : gt("Back")}
+          </Button>
+          {wizardStep === 0 && driver === "codex" ? (
+            <>
+              <Button variant="outline" size="sm" onClick={() => navigateToStep(1)}>
+                <T>Configure manually</T>
+              </Button>
+              {driverLocks?.configKeys.has("setupMode") ? null : (
+                <ChatGptConnectionButton size="sm" onClick={() => setAddingChatGptAccount(true)} />
               )}
-            </WizardFooter>
-          </>
-        )}
+            </>
+          ) : wizardStep < (isLocalAcp ? 1 : 2) ? (
+            <Button size="sm" onClick={() => navigateToStep(wizardStep + 1)}>
+              <T>Next</T>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              disabled={isSaving || !canManageProviders}
+              onClick={() => void handleSave()}
+            >
+              {isSaving ? gt("Adding...") : gt("Add instance")}
+            </Button>
+          )}
+        </WizardFooter>
       </WizardPopup>
     </Dialog>
   );

@@ -149,18 +149,6 @@ describe("getComposerProviderState", () => {
 
   it.each([
     {
-      driver: "opencode",
-      model: "opencode/kimi-k3",
-      catalogModel: "opencode/big-pickle",
-      options: selections(["variant", "max"], ["agent", "build"]),
-    },
-    {
-      driver: "pi",
-      model: "anthropic/claude-sonnet-4",
-      catalogModel: "default",
-      options: selections(["thinking", "high"]),
-    },
-    {
       driver: "acpRegistry",
       model: "gateway/chosen-model",
       catalogModel: "default",
@@ -208,7 +196,7 @@ describe("getComposerProviderState", () => {
 
   it("defaults fastMode to false when the provider reports true but the user has not selected it", () => {
     const state = getComposerProviderState({
-      provider: ProviderDriverKind.make("cursor"),
+      provider: ProviderDriverKind.make("acpRegistry"),
       model: MODEL,
       models: modelWith([booleanDescriptor("fastMode", true)]),
       modelOptions: undefined,
@@ -293,10 +281,10 @@ describe("getComposerReasoningStep", () => {
     }
   });
 
-  it("steps Antigravity's thinking_level like other effort controls", () => {
+  it("steps a thinking_level option like other effort controls", () => {
     expect(
       step({
-        provider: ProviderDriverKind.make("antigravity"),
+        provider: ProviderDriverKind.make("acpRegistry"),
         models: modelWith([selectDescriptor("thinking_level", LEVELS)]),
       })?.modelOptions,
     ).toStrictEqual(selections(["thinking_level", "high"]));
@@ -339,20 +327,20 @@ describe("getComposerReasoningStep", () => {
   });
 
   it("keeps a provider-default Fast mode off unless the user chose it", () => {
-    const cursor = {
-      provider: ProviderDriverKind.make("cursor"),
-      instanceId: ProviderInstanceId.make("cursor"),
+    const agent = {
+      provider: ProviderDriverKind.make("acpRegistry"),
+      instanceId: ProviderInstanceId.make("acpRegistry"),
       models: modelWith([
         selectDescriptor("reasoning_effort", LEVELS),
         booleanDescriptor("fastMode", true),
       ]),
     };
 
-    expect(step({ ...cursor, modelOptions: undefined })?.modelOptions).toStrictEqual(
+    expect(step({ ...agent, modelOptions: undefined })?.modelOptions).toStrictEqual(
       selections(["reasoning_effort", "high"], ["fastMode", false]),
     );
     expect(
-      step({ ...cursor, modelOptions: selections(["fastMode", true]) })?.modelOptions,
+      step({ ...agent, modelOptions: selections(["fastMode", true]) })?.modelOptions,
     ).toStrictEqual(selections(["reasoning_effort", "high"], ["fastMode", true]));
   });
 
@@ -383,7 +371,7 @@ describe("getComposerReasoningStep", () => {
         to: "medium",
       },
       {
-        // OpenCode reports "default" when no variant was chosen.
+        // Some providers report "default" when no level was chosen.
         label: "reported value outside the catalog",
         modelOptions: undefined,
         reportedModelSelection: {

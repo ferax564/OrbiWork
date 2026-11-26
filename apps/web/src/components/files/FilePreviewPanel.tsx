@@ -20,7 +20,6 @@ import {
   isWorkspaceImagePreviewPath,
   isWorkspaceFontPreviewPath,
   isWorkspaceVideoPreviewPath,
-  officePreviewKind,
   binaryPreviewKind,
 } from "@orbiwork/shared/filePreview";
 import { useAtomMount, useAtomValue } from "@effect/atom-react";
@@ -95,7 +94,7 @@ import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 
 import { AttachmentFilePreview } from "./AttachmentFilePreview";
 import { AudioPreview } from "./AudioPreview";
-import { BrowserDocumentFrame, isPdfPreviewFile } from "./BrowserDocumentFrame";
+import { BrowserDocumentFrame } from "./BrowserDocumentFrame";
 import { DelimitedTablePreview } from "./DelimitedTablePreview";
 import { PreviewImage } from "./PreviewImage";
 import FileBrowserPanel from "./FileBrowserPanel";
@@ -278,9 +277,8 @@ export function WorkspaceBrowserPreview(props: {
   readonly title: string;
   readonly workspaceMutationId: string | null;
 }) {
-  const pdf = isPdfPreviewFile(props.absolutePath);
   const resource = workspaceAssetResource({
-    kind: pdf ? "media-file" : "workspace-file",
+    kind: "workspace-file",
     threadRef: props.threadRef,
     draft: props.draft,
     workspaceRoot: props.workspaceRoot,
@@ -299,7 +297,6 @@ export function WorkspaceBrowserPreview(props: {
   const [endingGrant, setEndingGrant] = useState<string | null>(null);
   const grantEnding = frame !== null && endingGrant === frame.url;
   if (
-    !pdf &&
     assetUrl._tag === "Success" &&
     (frame === null ||
       (!assetUrl.waiting &&
@@ -321,9 +318,8 @@ export function WorkspaceBrowserPreview(props: {
     const timer = setTimeout(() => renewGrant(frame.url), frame.renewAt - Date.now());
     return () => clearTimeout(timer);
   }, [frame]);
-  const revision = pdf ? latestRevision : (frame?.revision ?? latestRevision);
-  const url =
-    assetUrl._tag !== "Success" ? null : pdf ? assetUrl.url : (frame?.url ?? assetUrl.url);
+  const revision = frame?.revision ?? latestRevision;
+  const url = assetUrl._tag !== "Success" ? null : (frame?.url ?? assetUrl.url);
   const revisionSuffix =
     revision === null
       ? ""
@@ -336,10 +332,7 @@ export function WorkspaceBrowserPreview(props: {
       </div>
     );
   }
-  if (
-    assetUrl._tag !== "Success" ||
-    (pdf && assetUrl.fileRevision === undefined && assetUrl.waiting)
-  ) {
+  if (assetUrl._tag !== "Success") {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
         <Spinner size="lg" />
@@ -350,61 +343,11 @@ export function WorkspaceBrowserPreview(props: {
   return (
     <BrowserDocumentFrame
       src={`${url}${revisionSuffix}`}
-      documentKey={`${documentId}:${revision}${pdf ? "" : `:${frame?.renewAt}`}`}
+      documentKey={`${documentId}:${revision}:${frame?.renewAt}`}
       documentId={documentId}
       title={props.title}
-      pdf={pdf}
       threadRef={props.threadRef}
-      pdfActions={
-        <WorkspacePdfSaveAction
-          environmentId={props.environmentId}
-          resource={resource}
-          name={props.title}
-        />
-      }
     />
-  );
-}
-
-function WorkspacePdfSaveAction(props: {
-  readonly environmentId: EnvironmentId;
-  readonly resource: AssetResource;
-  readonly name: string;
-}) {
-  const gt = useGT();
-  const [saving, setSaving] = useState(false);
-  const refreshAssetUrl = useAssetUrlRefresh(props.environmentId, props.resource);
-  return (
-    <FileSurfaceAction
-      label={saving ? gt("Preparing file…") : gt("Save file")}
-      disabled={saving}
-      onPress={() => {
-        setSaving(true);
-        void (async () => {
-          const url = await refreshAssetUrl();
-          if (!url) throw new Error(gt("Reconnect to the environment and try again."));
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(gt("The file could not be loaded. Try again."));
-          // Blob downloads keep desktop's custom app scheme from navigating to an external browser.
-          const downloadUrl = URL.createObjectURL(await response.blob());
-          setTimeout(() => URL.revokeObjectURL(downloadUrl), 30_000);
-          const anchor = document.createElement("a");
-          anchor.href = downloadUrl;
-          anchor.download = props.name.split(/[\\/]/).at(-1) || props.name;
-          anchor.click();
-        })()
-          .catch((cause: unknown) =>
-            toastManager.add({
-              type: "error",
-              title: gt("Could not save file"),
-              description: thrownErrorMessage(cause, m) ?? gt("Please try again."),
-            }),
-          )
-          .finally(() => setSaving(false));
-      }}
-    >
-      <DownloadIcon className="size-3.5" />
-    </FileSurfaceAction>
   );
 }
 
@@ -1279,13 +1222,11 @@ export default function FilePreviewPanel({
   const isAudio = relativePath !== null && !isVideo && isWorkspaceAudioPreviewPath(relativePath);
   const isImage = relativePath !== null && !isVideo && isWorkspaceImagePreviewPath(relativePath);
   const isMedia = isImage || isVideo || isAudio;
-  const isPdf = relativePath !== null && isPdfPreviewFile(relativePath);
   const isDocument =
     relativePath !== null &&
     (binaryPreviewKind({ name: relativePath }) !== null ||
-      officePreviewKind({ name: relativePath }) !== null ||
       isWorkspaceFontPreviewPath(relativePath));
-  const isHtml = relativePath !== null && !isPdf && isBrowserPreviewFile(relativePath);
+  const isHtml = relativePath !== null && isBrowserPreviewFile(relativePath);
   const isHostFile =
     attachment !== undefined || (relativePath !== null && isHostPath(relativePath));
   const fileAccess = useFilesystemReadAccess(environmentId, m);
@@ -1361,7 +1302,7 @@ export default function FilePreviewPanel({
   const markdownRenderable = isMarkdown && (file.data?.byteLength ?? 0) <= FULL_TEXT_MAX_BYTES;
   const renderMarkdown = markdownRenderable && renderMarkdownPreferred && revealHandled;
   const renderMermaid = isMermaid && renderMermaidPreferred && revealHandled;
-  const renderBrowserFile = isPdf || (isHtml && renderBrowserFilePreferred && revealHandled);
+  const renderBrowserFile = isHtml && renderBrowserFilePreferred && revealHandled;
   const renderTable = tableDelimiter !== null && renderTablePreferred && revealHandled;
   const renderedMode = isMermaid
     ? ("mermaid" as const)
@@ -1401,7 +1342,6 @@ export default function FilePreviewPanel({
     previewPath !== null &&
     !isMedia &&
     !isDocument &&
-    !isPdf &&
     file.data &&
     !file.data.truncated &&
     file.data.contents.length > 0
@@ -1504,7 +1444,7 @@ export default function FilePreviewPanel({
       attachment === undefined &&
       relativePath !== null &&
       // Skip mutation reads for media and documents; folders still detect conversion to files.
-      (isFolder || (!isMedia && !isPdf && !isDocument)) &&
+      (isFolder || (!isMedia && !isDocument)) &&
       !selectedFilePending
       ? revisionedQuery(
           getProjectFileQueryAtom(environmentId, cwd, relativePath),
@@ -1923,7 +1863,7 @@ export default function FilePreviewPanel({
                 onOpenFile={onOpenFile}
                 answersPanelFind={!previewPath}
                 workspaceMutationId={workspaceMutationId}
-                {...(previewPath && !isMedia && !isPdf
+                {...(previewPath && !isMedia
                   ? {
                       onRefreshSelectedFile: () => {
                         if (!isDocument) file.refresh();

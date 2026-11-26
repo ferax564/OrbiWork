@@ -1332,7 +1332,7 @@ it.effect(
           providerThreadId,
           type: "dynamic_tool",
           status: "running",
-          toolName: "grok.monitor",
+          toolName: "acp.monitor",
           input: { persistent: true, command: "tail -f" },
         },
       ],

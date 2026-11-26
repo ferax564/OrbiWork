@@ -48,11 +48,7 @@ import {
   PreviewViewportSetting,
   PreviewZoomFactor,
 } from "./preview.ts";
-import {
-  ProviderInstanceConfig,
-  ProviderInstanceId,
-  ProviderDriverKind,
-} from "./providerInstance.ts";
+import { ProviderInstanceConfig, ProviderInstanceId } from "./providerInstance.ts";
 import { PullRequestMergeMethod } from "./pullRequest.ts";
 import {
   CloudSpeechModelId,
@@ -598,8 +594,6 @@ export const ClientSettingsSchema = Schema.Struct({
     ),
   ),
   speechCorrectionWord: SpeechCorrectionCue.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
-  // A locale code or "system". Open string so new locales and downgrades need no migration.
-  language: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed("en"))),
   snapShotEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   snapShotIncludeAccessibility: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(true)),
@@ -636,7 +630,7 @@ export const UsageModelPriceOverride = Schema.Struct({
 });
 export type UsageModelPriceOverride = typeof UsageModelPriceOverride.Type;
 
-export const makeBinaryPathSetting = (fallback: string) =>
+const makeBinaryPathSetting = (fallback: string) =>
   TrimmedString.pipe(
     Schema.decodeTo(
       Schema.String,
@@ -870,83 +864,6 @@ export const ClaudeSettings = makeProviderSettingsSchema(
   },
 );
 export type ClaudeSettings = typeof ClaudeSettings.Type;
-
-export const ANTIGRAVITY_AUTH_METHODS = [
-  { value: "oauth-personal", label: "Google account" },
-  { value: "oauth-business", label: "Gemini Enterprise" },
-  { value: "gemini-api-key", label: "Gemini API key" },
-  { value: "agent-platform", label: "Agent Platform (Vertex AI)" },
-] as const satisfies ReadonlyArray<ProviderSettingsFormOption>;
-export const AntigravityAuthMethod = Schema.Literals(
-  ANTIGRAVITY_AUTH_METHODS.map((method) => method.value),
-);
-export type AntigravityAuthMethod = typeof AntigravityAuthMethod.Type;
-
-export const AntigravitySettings = makeProviderSettingsSchema(
-  {
-    enabled: Schema.Boolean.pipe(
-      Schema.withDecodingDefault(Effect.succeed(false)),
-      Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
-    ),
-    authMethod: AntigravityAuthMethod.pipe(
-      Schema.withDecodingDefault(Effect.succeed("oauth-personal" as const)),
-      Schema.annotateKey({
-        title: "Sign-in method",
-        description:
-          "Google accounts use your subscription; API keys and Agent Platform bill usage.",
-        providerSettingsForm: {
-          control: "select",
-          options: ANTIGRAVITY_AUTH_METHODS,
-          clearWhenEmpty: "omit",
-        },
-      }),
-    ),
-    apiKey: SettingsSecretValue.pipe(
-      secretSetting,
-      Schema.withDecodingDefault(Effect.succeed("")),
-      Schema.annotateKey({
-        title: "API key",
-        description: "Gemini or Vertex AI express key. Stored separately on the host.",
-        providerSettingsForm: {
-          control: "password",
-          placeholder: "Optional",
-          clearWhenEmpty: "omit",
-        },
-      }),
-    ),
-    gcpProject: TrimmedString.pipe(
-      Schema.withDecodingDefault(Effect.succeed("")),
-      Schema.annotateKey({
-        title: "GCP project",
-        description:
-          "Required for Gemini Enterprise. Agent Platform uses it when no API key is set.",
-        providerSettingsForm: { placeholder: "my-project-id", clearWhenEmpty: "omit" },
-      }),
-    ),
-    gcpLocation: TrimmedString.pipe(
-      Schema.withDecodingDefault(Effect.succeed("")),
-      Schema.annotateKey({
-        title: "GCP location",
-        description: "Region for Gemini Enterprise or Agent Platform.",
-        providerSettingsForm: { placeholder: "us-central1", clearWhenEmpty: "omit" },
-      }),
-    ),
-    binaryPath: TrimmedString.pipe(
-      Schema.withDecodingDefault(Effect.succeed("")),
-      Schema.annotateKey({
-        title: "Binary path",
-        description: "Custom ACP executable. Leave empty to select automatically.",
-        providerSettingsForm: { placeholder: "Automatic", clearWhenEmpty: "persist" },
-      }),
-    ),
-    customModels: Schema.Array(CustomModelSetting).pipe(
-      Schema.withDecodingDefault(Effect.succeed([])),
-      Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
-    ),
-  },
-  { order: ["authMethod", "apiKey", "gcpProject", "gcpLocation", "binaryPath"] },
-);
-export type AntigravitySettings = typeof AntigravitySettings.Type;
 
 export const UsageLimitSourceConfig = Schema.Struct({
   kind: Schema.Literal("cliproxy"),
@@ -1634,22 +1551,12 @@ export const providerInstanceConfigEnabledFlag = (config: unknown): boolean | un
   return typeof enabled === "boolean" ? enabled : undefined;
 };
 
-// Must match each driver's enabled decoding default.
-const DEFAULT_DISABLED_PROVIDER_DRIVERS: ReadonlySet<ProviderDriverKind> = new Set(
-  ["cursor", "grok", "fx", "kiro", "muse", "pi", "opencode", "antigravity"].map((driver) =>
-    ProviderDriverKind.make(driver),
-  ),
-);
-
 const DEFAULT_ENABLED_DEFAULT_INSTANCES: ReadonlySet<ProviderInstanceId> = new Set(
   ["codex", "claudeAgent"].map((instanceId) => ProviderInstanceId.make(instanceId)),
 );
 
 export const isUnconfiguredDefaultInstanceEnabled = (instanceId: ProviderInstanceId): boolean =>
   DEFAULT_ENABLED_DEFAULT_INSTANCES.has(instanceId);
-
-const defaultEnabledForDriver = (driver: ProviderDriverKind): boolean =>
-  !DEFAULT_DISABLED_PROVIDER_DRIVERS.has(driver);
 
 export const resolveProviderInstanceEnabled = (
   instance: Pick<ProviderInstanceConfig, "driver" | "enabled" | "config">,
@@ -1658,7 +1565,7 @@ export const resolveProviderInstanceEnabled = (
   if (instance.enabled === false || configEnabled === false) {
     return false;
   }
-  return instance.enabled ?? configEnabled ?? defaultEnabledForDriver(instance.driver);
+  return instance.enabled ?? configEnabled ?? true;
 };
 
 export const resolveProjectProviderInstanceEnabled = (
@@ -1754,7 +1661,6 @@ export const ServerSettingsOperation = Schema.Literals([
   "check-exists",
   "create-provider-instance",
   "read-file",
-  "read-provider-history",
   "read-project-settings",
   "read-secret",
   "remove-secret",
@@ -2161,7 +2067,6 @@ export const ClientSettingsPatch = Schema.Struct({
   speechRemoveFillerWords: Schema.optionalKey(Schema.Boolean),
   speechPostProcessingPrompt: Schema.optionalKey(SpeechPostProcessingPromptSettings),
   speechCorrectionWord: Schema.optionalKey(SpeechCorrectionCue),
-  language: Schema.optionalKey(Schema.String),
   snapShotEnabled: Schema.optionalKey(Schema.Boolean),
   snapShotIncludeAccessibility: Schema.optionalKey(Schema.Boolean),
   snapShotShortcut: Schema.optionalKey(SnapShotShortcut),

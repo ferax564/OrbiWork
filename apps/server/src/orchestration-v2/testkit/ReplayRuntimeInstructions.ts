@@ -6,19 +6,8 @@ export function materializeReplayTranscriptRuntimeInstructions(
   transcript: ProviderReplayTranscript,
   runtime: { readonly driver: ProviderDriverKind; readonly model: string },
 ): ProviderReplayTranscript {
-  const harness =
-    runtime.driver === "cursor"
-      ? "Cursor"
-      : runtime.driver === "grok"
-        ? "Grok"
-        : runtime.driver === "kiro"
-          ? "Kiro"
-          : runtime.driver === "acpRegistry"
-            ? "acpRegistry"
-            : runtime.driver === "fx"
-              ? "fx"
-              : undefined;
-  if (harness === undefined) return transcript;
+  if (runtime.driver !== "acpRegistry") return transcript;
+  const harness = "acpRegistry";
   const instructions = buildRuntimeInstructions({ harness, model: runtime.model });
   // The notes name the model, so each prompt expects the ones for its session's current model.
   const sessionModels = new Map<unknown, string>();
@@ -26,8 +15,6 @@ export function materializeReplayTranscriptRuntimeInstructions(
     const model = sessionModels.get(sessionId) ?? runtime.model;
     return model === runtime.model ? instructions : buildRuntimeInstructions({ harness, model });
   };
-  // Grok's flavor sets `supportsCompaction`; Kiro compacts through its own request instead.
-  const compactsThroughPrompt = runtime.driver === "grok";
   // Like the adapter: notes go out until a prompt carrying that text succeeds, and a new runtime
   // or compaction resets that. Not mirrored, as no recording has them: Copilot compaction events,
   // child-session compactions, and ACP v2 prompts that settle through an idle `state_update`.
@@ -51,24 +38,7 @@ export function materializeReplayTranscriptRuntimeInstructions(
         readonly sessionId: unknown;
         /** The runtime notes the prompt carried, if any. */
         readonly notes: string | undefined;
-        readonly compact: boolean;
         readonly compactionsAtSend: number;
-      }
-    | undefined;
-  let pendingKiroCompact: { readonly sessionId: unknown } | undefined;
-  const cursorSessionKey = "cursor";
-  let cursorAgentId: string | undefined;
-  let interruptedCursorNotes:
-    | {
-        readonly agentId: string | undefined;
-        readonly notes: string;
-      }
-    | undefined;
-  let pendingCursorRun:
-    | {
-        readonly notes: string | undefined;
-        readonly compact: boolean;
-        compacted: boolean;
       }
     | undefined;
 
@@ -77,50 +47,6 @@ export function materializeReplayTranscriptRuntimeInstructions(
     entries: transcript.entries.map((entry) => {
       if (entry.type === "emit_inbound") {
         const frame = asFrame(entry.frame);
-        if (runtime.driver === "cursor") {
-          if (
-            (frame?.type === "agent.opened" || frame?.type === "run.started") &&
-            typeof frame.agentId === "string"
-          ) {
-            cursorAgentId = frame.agentId;
-          }
-          const cursorUpdate =
-            frame?.type === "interaction.update" && isRecord(frame.update)
-              ? frame.update
-              : undefined;
-          if (cursorUpdate?.type === "summary-completed" && cursorUpdate.failed !== true) {
-            deliveredNotes.delete(cursorSessionKey);
-            if (interruptedCursorNotes?.agentId === cursorAgentId) {
-              interruptedCursorNotes = undefined;
-            }
-            if (pendingCursorRun !== undefined) pendingCursorRun.compacted = true;
-          }
-          if (frame?.type === "run.completed" && pendingCursorRun !== undefined) {
-            const status = isRecord(frame.result) ? frame.result.status : undefined;
-            if (pendingCursorRun.compact) {
-              deliveredNotes.delete(cursorSessionKey);
-            } else if (
-              status === "finished" &&
-              !pendingCursorRun.compacted &&
-              pendingCursorRun.notes !== undefined
-            ) {
-              deliveredNotes.set(cursorSessionKey, pendingCursorRun.notes);
-              interruptedCursorNotes = undefined;
-            } else if (status !== "finished") {
-              if (pendingCursorRun.notes !== undefined) {
-                deliveredNotes.delete(cursorSessionKey);
-              }
-              interruptedCursorNotes =
-                status === "cancelled" &&
-                !pendingCursorRun.compacted &&
-                pendingCursorRun.notes !== undefined
-                  ? { agentId: cursorAgentId, notes: pendingCursorRun.notes }
-                  : undefined;
-            }
-            pendingCursorRun = undefined;
-          }
-          return entry;
-        }
         if (frame?.kind === "response" && frame.method === "session/prompt" && pendingPrompt) {
           const stopReason = isRecord(frame.result) ? frame.result.stopReason : undefined;
           const delivered =
@@ -133,9 +59,7 @@ export function materializeReplayTranscriptRuntimeInstructions(
             openCompactions.delete(pendingPrompt.sessionId);
             markCompacted(pendingPrompt.sessionId);
           }
-          if (delivered && pendingPrompt.compact) {
-            markCompacted(pendingPrompt.sessionId);
-          } else if (
+          if (
             delivered &&
             pendingPrompt.notes !== undefined &&
             (compactionCounts.get(pendingPrompt.sessionId) ?? 0) === pendingPrompt.compactionsAtSend
@@ -143,17 +67,6 @@ export function materializeReplayTranscriptRuntimeInstructions(
             deliveredNotes.set(pendingPrompt.sessionId, pendingPrompt.notes);
           }
           pendingPrompt = undefined;
-        }
-        if (
-          frame?.kind === "response" &&
-          frame.method === "_kiro/session/compact" &&
-          pendingKiroCompact
-        ) {
-          // Kiro's adapter accepts only `{ success: true }`.
-          if (isRecord(frame.result) && frame.result.success === true) {
-            markCompacted(pendingKiroCompact.sessionId);
-          }
-          pendingKiroCompact = undefined;
         }
         const update =
           frame?.method === "session/update" && isRecord(frame.params)
@@ -178,66 +91,6 @@ export function materializeReplayTranscriptRuntimeInstructions(
       if (entry.type !== "expect_outbound") return entry;
       const frame = entry.frame;
       if (typeof frame !== "object" || frame === null) return entry;
-      if (runtime.driver === "cursor" && "type" in frame) {
-        if (frame.type === "agent.close") {
-          deliveredNotes.clear();
-          cursorAgentId = undefined;
-          interruptedCursorNotes = undefined;
-          pendingCursorRun = undefined;
-          return entry;
-        }
-        if (frame.type === "run.resume") {
-          pendingCursorRun = {
-            notes:
-              interruptedCursorNotes !== undefined &&
-              interruptedCursorNotes.agentId === cursorAgentId
-                ? interruptedCursorNotes.notes
-                : undefined,
-            compact: false,
-            compacted: false,
-          };
-          return entry;
-        }
-        if (frame.type === "run.start") {
-          if (
-            ("summarize" in frame && frame.summarize === true) ||
-            ("message" in frame &&
-              typeof frame.message === "string" &&
-              frame.message.trim() === "/compress")
-          ) {
-            deliveredNotes.delete(cursorSessionKey);
-            pendingCursorRun = { notes: undefined, compact: true, compacted: false };
-            return entry;
-          }
-          if ("message" in frame && typeof frame.message === "string") {
-            const options =
-              "options" in frame && isRecord(frame.options) ? frame.options : undefined;
-            const model =
-              isRecord(options?.model) && typeof options.model.id === "string"
-                ? options.model.id
-                : runtime.model;
-            const expected =
-              model === runtime.model ? instructions : buildRuntimeInstructions({ harness, model });
-            const recorded = frame.message.endsWith(expected);
-            const resend = !recorded && deliveredNotes.get(cursorSessionKey) !== expected;
-            interruptedCursorNotes = undefined;
-            pendingCursorRun = {
-              notes: recorded || resend ? expected : undefined,
-              compact: false,
-              compacted: false,
-            };
-            if (!resend) return entry;
-            return {
-              ...entry,
-              frame: {
-                ...frame,
-                message: frame.message.length === 0 ? expected : `${frame.message}\n\n${expected}`,
-              },
-            };
-          }
-        }
-        return entry;
-      }
       if (
         "method" in frame &&
         (frame.method === "session/close" || frame.method === "initialize")
@@ -247,7 +100,6 @@ export function materializeReplayTranscriptRuntimeInstructions(
         completedCompactionIds.clear();
         openCompactions.clear();
         pendingPrompt = undefined;
-        pendingKiroCompact = undefined;
         return entry;
       }
       const params = "params" in frame && isRecord(frame.params) ? frame.params : undefined;
@@ -265,18 +117,6 @@ export function materializeReplayTranscriptRuntimeInstructions(
       }
       if (
         "method" in frame &&
-        frame.method === "_kiro/session/compact" &&
-        "params" in frame &&
-        typeof frame.params === "object" &&
-        frame.params !== null &&
-        "sessionId" in frame.params
-      ) {
-        // Once it succeeds, Kiro's native compaction makes the next prompt resend them.
-        pendingKiroCompact = { sessionId: frame.params.sessionId };
-        return entry;
-      }
-      if (
-        "method" in frame &&
         frame.method === "session/prompt" &&
         "params" in frame &&
         typeof frame.params === "object" &&
@@ -287,14 +127,11 @@ export function materializeReplayTranscriptRuntimeInstructions(
         const promptSessionId = "sessionId" in frame.params ? frame.params.sessionId : undefined;
         const prompt: ReadonlyArray<unknown> = frame.params.prompt;
         const firstText = promptPartText(prompt[0])?.trim();
-        // Like the adapter, native slash commands go out without instructions. Where the agent
-        // compacts through the prompt, a successful `/compact` makes the next prompt resend them.
+        // Like the adapter, native slash commands go out without instructions.
         if (firstText?.startsWith("/") === true) {
           pendingPrompt = {
             sessionId: promptSessionId,
             notes: undefined,
-            compact:
-              compactsThroughPrompt && prompt.length === 1 && /^\/compact(?:\s|$)/.test(firstText),
             compactionsAtSend: compactionCounts.get(promptSessionId) ?? 0,
           };
           return entry;
@@ -313,7 +150,6 @@ export function materializeReplayTranscriptRuntimeInstructions(
           sessionId: promptSessionId,
           // Recorders normalize the notes they keep, so a recorded block stands for this model's.
           notes: recordedNotes !== undefined || resend ? expected : undefined,
-          compact: false,
           compactionsAtSend: compactionCounts.get(promptSessionId) ?? 0,
         };
         if (!resend) return entry;
@@ -343,11 +179,8 @@ function promptPartText(part: unknown): string | undefined {
 
 type ReplayFrame = {
   readonly kind?: unknown;
-  readonly type?: unknown;
-  readonly agentId?: unknown;
   readonly method?: unknown;
   readonly params?: unknown;
-  readonly update?: unknown;
   readonly result?: unknown;
   readonly error?: unknown;
 };

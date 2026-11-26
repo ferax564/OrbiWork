@@ -124,9 +124,9 @@ vi.mock(import("~/browser/openFileInPreview"), async (original) => {
     }) as never,
   };
 });
-// The Word engine compiles a large WebAssembly bundle; these tests only need the URL it loads.
-vi.mock(import("./OfficeFilePreview"), () => ({
-  OfficeFilePreview: ({ src }: { src: string }) => <div data-testid="office-preview">{src}</div>,
+// The archive worker reads the bytes; these tests only need the URL it loads.
+vi.mock(import("./BinaryFilePreview"), () => ({
+  BinaryFilePreview: ({ src }: { src: string }) => <div data-testid="document-preview">{src}</div>,
 }));
 vi.mock(import("./FileBreadcrumbs"), () => ({ FileBreadcrumbs: () => <></> }));
 vi.mock(import("./FileBrowserPanel"), () => ({
@@ -183,7 +183,7 @@ function setup() {
   state.assetResources = [];
   state.openedBrowserUrls = [];
   let mints = 0;
-  state.mintUrl.mockReset().mockImplementation(async () => `/assets/report.docx?mint=${++mints}`);
+  state.mintUrl.mockReset().mockImplementation(async () => `/assets/report.zip?mint=${++mints}`);
   state.writeFile.mockReset().mockResolvedValue(AsyncResult.success(undefined));
   return {
     [Symbol.dispose]() {
@@ -238,11 +238,11 @@ function documentPreview(workspaceMutationId: string, fileRevision: string) {
   state.file = null;
   state.assetUrl = {
     _tag: "Success",
-    url: "/assets/report.docx",
+    url: "/assets/report.zip",
     expiresAt: Number.MAX_SAFE_INTEGER,
     fileRevision,
   };
-  return filePreview("report.docx", workspaceMutationId);
+  return filePreview("report.zip", workspaceMutationId);
 }
 
 function deepActiveElement() {
@@ -626,8 +626,8 @@ describe("workspace document previews", () => {
   it("keeps an unchanged document loaded when another workspace change lands", async () => {
     using _settings = setup();
     await using screen = await render(documentPreview("mutation-1", "revision-1"));
-    const preview = screen.getByTestId("office-preview");
-    await expect.element(preview).toHaveTextContent("/assets/report.docx?mint=1");
+    const preview = screen.getByTestId("document-preview");
+    await expect.element(preview).toHaveTextContent("/assets/report.zip?mint=1");
     const loaded = preview.element();
 
     await screen.rerender(documentPreview("mutation-2", "revision-1"));
@@ -639,12 +639,12 @@ describe("workspace document previews", () => {
   it("keeps an unchanged document mounted while its revision check reloads", async () => {
     using _settings = setup();
     await using screen = await render(documentPreview("mutation-1", "revision-1"));
-    const preview = screen.getByTestId("office-preview");
-    await expect.element(preview).toHaveTextContent("/assets/report.docx?mint=1");
+    const preview = screen.getByTestId("document-preview");
+    await expect.element(preview).toHaveTextContent("/assets/report.zip?mint=1");
     const loaded = preview.element();
 
     state.assetUrl = { _tag: "Loading" };
-    await screen.rerender(filePreview("report.docx", "mutation-1"));
+    await screen.rerender(filePreview("report.zip", "mutation-1"));
     await screen.rerender(documentPreview("mutation-1", "revision-1"));
 
     expect(
@@ -660,24 +660,24 @@ describe("workspace document previews", () => {
   it("reloads the document when its URL can no longer be minted", async () => {
     using _settings = setup();
     await using screen = await render(documentPreview("mutation-1", "revision-1"));
-    const preview = screen.getByTestId("office-preview");
-    await expect.element(preview).toHaveTextContent("/assets/report.docx?mint=1");
+    const preview = screen.getByTestId("document-preview");
+    await expect.element(preview).toHaveTextContent("/assets/report.zip?mint=1");
 
     state.assetUrl = { _tag: "Failure" };
-    await screen.rerender(filePreview("report.docx", "mutation-2"));
+    await screen.rerender(filePreview("report.zip", "mutation-2"));
 
-    await expect.element(preview).toHaveTextContent("/assets/report.docx?mint=2");
+    await expect.element(preview).toHaveTextContent("/assets/report.zip?mint=2");
   });
 
   it("loads the new bytes when the document itself changes", async () => {
     using _settings = setup();
     await using screen = await render(documentPreview("mutation-1", "revision-1"));
-    const preview = screen.getByTestId("office-preview");
-    await expect.element(preview).toHaveTextContent("/assets/report.docx?mint=1");
+    const preview = screen.getByTestId("document-preview");
+    await expect.element(preview).toHaveTextContent("/assets/report.zip?mint=1");
 
     await screen.rerender(documentPreview("mutation-2", "revision-2"));
 
-    await expect.element(preview).toHaveTextContent("/assets/report.docx?mint=2");
+    await expect.element(preview).toHaveTextContent("/assets/report.zip?mint=2");
   });
 });
 

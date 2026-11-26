@@ -47,9 +47,7 @@ const DEFAULT_TEXT_GENERATION_INSTANCE_ID = ProviderInstanceId.make("codex");
 export function readInstanceCustomModels(
   settings: UnifiedSettings,
   instanceId: ProviderInstanceId,
-  driverKind: ProviderDriverKind,
 ): ReadonlyArray<CustomModelDefinition> {
-  if (driverKind === "antigravity") return [];
   const instance = settings.providerInstances?.[instanceId];
   const config = instance?.config;
   if (config !== null && typeof config === "object") {
@@ -180,7 +178,7 @@ function getAppModelOptions(
   );
 
   const defaultInstanceId = defaultInstanceIdForDriver(provider);
-  const customModels = readInstanceCustomModels(settings, defaultInstanceId, provider);
+  const customModels = readInstanceCustomModels(settings, defaultInstanceId);
   for (const entry of normalizeCustomModelEntries(customModels, builtInModelSlugs)) {
     if (seen.has(entry.slug)) {
       continue;
@@ -221,7 +219,7 @@ export function getAppModelOptionsForInstance(
     ),
   );
 
-  const customModels = readInstanceCustomModels(settings, entry.instanceId, entry.driverKind);
+  const customModels = readInstanceCustomModels(settings, entry.instanceId);
   for (const custom of normalizeCustomModelEntries(customModels, builtInModelSlugs)) {
     if (seen.has(custom.slug)) {
       continue;

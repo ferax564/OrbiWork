@@ -76,13 +76,7 @@ import {
   AcpRegistryListProvidersResult,
   AcpRegistryLogoutInput,
   AcpRegistryLogoutResult,
-  AcpRegistryManagedBinaryUninstallInput,
-  AcpRegistryManagedBinaryUninstallResult,
   AcpRegistryOperationError,
-  AcpRegistryPrepareInput,
-  AcpRegistryPrepareResult,
-  AcpRegistrySearchInput,
-  AcpRegistrySearchResult,
   AcpRegistrySetProviderInput,
   AcpRegistrySetProviderResult,
 } from "./acpRegistry.ts";
@@ -267,7 +261,6 @@ import {
 import {
   ORCHESTRATION_V2_WS_METHODS,
   OrchestrationGetWorkflowScriptError,
-  OrchestrationV2GetNativeChildWorkError,
   OrchestrationV2StopWorkflowError,
   OrchestrationV2ForceStopThreadError,
   OrchestrationV2DispatchCommandError,
@@ -597,9 +590,6 @@ export const WS_METHODS = {
   serverUpdateSettings: "server.updateSettings",
   serverDiscoverSourceControl: "server.discoverSourceControl",
   serverCheckSecretSource: "server.checkSecretSource",
-  serverSearchAcpRegistry: "server.searchAcpRegistry",
-  serverPrepareAcpRegistryAgent: "server.prepareAcpRegistryAgent",
-  serverUninstallAcpRegistryManagedBinary: "server.uninstallAcpRegistryManagedBinary",
   serverAcceptAcpRegistryUrlAuth: "server.acceptAcpRegistryUrlAuth",
   serverListAcpRegistrySessions: "server.listAcpRegistrySessions",
   serverImportAcpRegistrySession: "server.importAcpRegistrySession",
@@ -1025,27 +1015,6 @@ const WsServerCheckSecretSourceRpc = Rpc.make(WS_METHODS.serverCheckSecretSource
   success: SecretSourceCheckResult,
   error: EnvironmentAuthorizationError,
 });
-
-const WsServerSearchAcpRegistryRpc = Rpc.make(WS_METHODS.serverSearchAcpRegistry, {
-  payload: AcpRegistrySearchInput,
-  success: AcpRegistrySearchResult,
-  error: Schema.Union([AcpRegistryOperationError, EnvironmentAuthorizationError]),
-});
-
-const WsServerPrepareAcpRegistryAgentRpc = Rpc.make(WS_METHODS.serverPrepareAcpRegistryAgent, {
-  payload: AcpRegistryPrepareInput,
-  success: AcpRegistryPrepareResult,
-  error: Schema.Union([AcpRegistryOperationError, EnvironmentAuthorizationError]),
-});
-
-const WsServerUninstallAcpRegistryManagedBinaryRpc = Rpc.make(
-  WS_METHODS.serverUninstallAcpRegistryManagedBinary,
-  {
-    payload: AcpRegistryManagedBinaryUninstallInput,
-    success: AcpRegistryManagedBinaryUninstallResult,
-    error: Schema.Union([AcpRegistryOperationError, EnvironmentAuthorizationError]),
-  },
-);
 
 const WsServerAcceptAcpRegistryUrlAuthRpc = Rpc.make(WS_METHODS.serverAcceptAcpRegistryUrlAuth, {
   payload: AcpRegistryAcceptUrlAuthInput,
@@ -2190,15 +2159,6 @@ const WsOrchestrationV2GetWorkflowScriptRpc = Rpc.make(
   },
 );
 
-const WsOrchestrationV2GetNativeChildWorkRpc = Rpc.make(
-  ORCHESTRATION_V2_WS_METHODS.getNativeChildWork,
-  {
-    payload: OrchestrationV2RpcSchemas.getNativeChildWork.input,
-    success: OrchestrationV2RpcSchemas.getNativeChildWork.output,
-    error: Schema.Union([OrchestrationV2GetNativeChildWorkError, EnvironmentAuthorizationError]),
-  },
-);
-
 const WsOrchestrationV2GetTurnItemRpc = Rpc.make(ORCHESTRATION_V2_WS_METHODS.getTurnItem, {
   payload: OrchestrationV2RpcSchemas.getTurnItem.input,
   success: OrchestrationV2RpcSchemas.getTurnItem.output,
@@ -2476,9 +2436,6 @@ export const WsRpcGroup = RpcGroup.make(
   WsPeerLinksPairLinkRpc,
   WsServerDiscoverSourceControlRpc,
   WsServerCheckSecretSourceRpc,
-  WsServerSearchAcpRegistryRpc,
-  WsServerPrepareAcpRegistryAgentRpc,
-  WsServerUninstallAcpRegistryManagedBinaryRpc,
   WsServerAcceptAcpRegistryUrlAuthRpc,
   WsServerListAcpRegistrySessionsRpc,
   WsServerImportAcpRegistrySessionRpc,
@@ -2651,7 +2608,6 @@ export const WsRpcGroup = RpcGroup.make(
   WsSubscribeResourceTelemetryRpc,
   WsOrchestrationV2DispatchCommandRpc,
   WsOrchestrationV2GetWorkflowScriptRpc,
-  WsOrchestrationV2GetNativeChildWorkRpc,
   WsOrchestrationV2StopWorkflowRpc,
   WsOrchestrationV2ForceStopThreadRpc,
   WsOrchestrationV2GetTurnItemRpc,

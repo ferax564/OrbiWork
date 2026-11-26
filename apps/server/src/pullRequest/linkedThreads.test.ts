@@ -155,9 +155,10 @@ it.effect(
           'https://github.com/acme/web/pull/7', 'manual', ${createdAt})
       `;
 
+      // Links to hosts OrbiWork no longer integrates with are found under the key they were saved with.
       expect(
         (yield* listLinkedPullRequestThreads({
-          host: "forge.example:3000",
+          host: "forge.example",
           repository: "acme/web",
           number: 7,
         })).threads.map((thread) => thread.id),
@@ -171,8 +172,8 @@ it.effect(
       ).toEqual(["forgejo-other-port"]);
       expect(
         (yield* listLinkedPullRequestThreads({
-          host: "org.visualstudio.com",
-          repository: "project/_git/web",
+          host: "dev.azure.com",
+          repository: "org/project/_git/web",
           number: 7,
         })).threads.map((thread) => thread.id),
       ).toEqual(["azure"]);

@@ -30,16 +30,6 @@ describe("resolveOrbiMcpToolPresentation", () => {
       expect(resolveOrbiMcpToolPresentation(`mcp__another-server__${tool}`), tool).toBeNull();
     }
   });
-
-  it("matches OpenCode 2's per-thread server names, whose thread ids hold underscores", () => {
-    expect(
-      resolveOrbiMcpToolPresentation("orbiwork-thread_opencode2-adapter_delegate_task")
-        ?.displayName,
-    ).toBe("Delegate a child task");
-    expect(
-      resolveOrbiMcpToolPresentation("orbiwork-thread_opencode2-adapter_not_a_tool"),
-    ).toBeNull();
-  });
 });
 
 describe("resolveOrbiMcpToolDefinition", () => {

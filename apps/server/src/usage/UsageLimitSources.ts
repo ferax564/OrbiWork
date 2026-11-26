@@ -9,7 +9,7 @@ import {
   type UsageLimitSourceId,
   type UsageLimitSourceSnapshot,
 } from "@orbiwork/contracts";
-import { antigravityWindowLimitsModel, hubRoutes } from "@orbiwork/shared/usageLimits";
+import { hubRoutes } from "@orbiwork/shared/usageLimits";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -73,7 +73,7 @@ function keepLastGoodReadings(
           (candidate) =>
             candidate.id === account.id &&
             candidate.driver === account.driver &&
-            // Fingerprinted Antigravity readings omit the listed identity, so they are never lent.
+            // Fingerprinted readings omit the listed identity, so they are never lent.
             candidate.usageLimits.credentialFingerprint === undefined &&
             candidate.email === account.email &&
             candidate.workspaceId === account.workspaceId,
@@ -241,10 +241,7 @@ export function hubPoolResetAt(
     // An unread account may be the one still blocked, so its refill is unknown.
     if (account.usageLimits.unavailable) return null;
     const spent = account.usageLimits.windows.filter(
-      (window) =>
-        window.usedPercent >= 100 &&
-        windowLimitsModel(window, model) &&
-        (account.driver !== "antigravity" || antigravityWindowLimitsModel(window, model)),
+      (window) => window.usedPercent >= 100 && windowLimitsModel(window, model),
     );
     if (spent.length === 0) return null;
     const resets = spent.map((window) => Date.parse(window.resetsAt ?? ""));

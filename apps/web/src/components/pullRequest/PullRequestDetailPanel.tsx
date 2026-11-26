@@ -897,7 +897,7 @@ export function PullRequestDetailPanel({
     });
     setPendingAction(null);
     if (result._tag === "Failure") {
-      // Azure DevOps provides no strategy availability; explain policy failures after the attempt.
+      // A host may report no strategy availability; explain policy failures after the attempt.
       const failure = squashAtomCommandFailure(result);
       const hint =
         updateMethod === "rebase"

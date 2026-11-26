@@ -11,8 +11,6 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   type LimitAccount,
-  displayLimitWindows,
-  cursorUsageWindowDetails,
   collectProviderUsageLimits,
   sameUsageLimitCommandCoverage,
   withUsageLimitsCommands,
@@ -127,60 +125,30 @@ describe("new thread model fallback", () => {
     ).toBeDefined();
   });
   it.each([
-    ["cursor", ["autoPercentUsed"], "claude-opus-5-5", false, undefined, undefined],
-    ["cursor", ["autoPercentUsed"], "composer-2.5", false, undefined, undefined],
-    ["cursor", ["autoPercentUsed", "apiPercentUsed"], "composer-2.5", true, undefined, undefined],
-    ["antigravity", ["gemini-weekly"], "claude-opus-5-5", false, undefined, undefined],
-    ["antigravity", ["3p-weekly"], "claude-opus-5-5", true, undefined, undefined],
-    ["antigravity", ["gemini-weekly"], "antigravity-default", true, undefined, undefined],
     ["codex", ["individual"], "gpt-5.5", true, undefined, undefined],
-    ["opencode", ["go_weekly"], "opencode/big-pickle", false, undefined, undefined],
-    ["opencode", ["go_weekly"], "opencode-go/big-pickle", true, undefined, undefined],
-    ["opencode", ["budget_model"], "opencode/other", false, ["opencode/limited"], undefined],
-    ["opencode", ["budget_model"], "opencode/limited", true, ["opencode/limited"], undefined],
+    ["acpRegistry", ["budget_model"], "hub/other", false, ["hub/limited"], undefined],
+    ["acpRegistry", ["budget_model"], "hub/limited", true, ["hub/limited"], undefined],
+    ["acpRegistry", ["budget_set"], "other/model", false, ["hub/limited", "hub/second"], undefined],
+    ["acpRegistry", ["budget_set"], "hub/second", true, ["hub/limited", "hub/second"], undefined],
+    ["acpRegistry", ["budget_empty"], "hub/other", false, [], undefined],
     [
-      "opencode",
-      ["budget_set"],
-      "other/model",
-      false,
-      ["opencode/limited", "opencode/second"],
-      undefined,
-    ],
-    [
-      "opencode",
-      ["budget_set"],
-      "opencode/second",
-      true,
-      ["opencode/limited", "opencode/second"],
-      undefined,
-    ],
-    ["opencode", ["budget_empty"], "opencode/other", false, [], undefined],
-    [
-      "opencode",
+      "acpRegistry",
       ["budget_all"],
       "anthropic/claude",
       false,
       undefined,
-      ["opencode", "console-custom"],
+      ["hub", "console-custom"],
     ],
+    ["acpRegistry", ["budget_all"], "hub/model", true, undefined, ["hub", "console-custom"]],
     [
-      "opencode",
-      ["budget_all"],
-      "opencode-go/model",
-      false,
-      undefined,
-      ["opencode", "console-custom"],
-    ],
-    ["opencode", ["budget_all"], "opencode/model", true, undefined, ["opencode", "console-custom"]],
-    [
-      "opencode",
+      "acpRegistry",
       ["budget_all"],
       "console-custom/model",
       true,
       undefined,
-      ["opencode", "console-custom"],
+      ["hub", "console-custom"],
     ],
-    ["opencode", ["budget_all"], "opencode/model", false, undefined, []],
+    ["acpRegistry", ["budget_all"], "hub/model", false, undefined, []],
   ] as const)(
     "matches %s pools %s to %s",
     (driver, ids, model, usesFallback, modelIds, providerIds) => {
@@ -334,15 +302,15 @@ describe("pools", () => {
     }
   });
 
-  it("merges OpenCode Go limits from machines with the same API key", () => {
+  it("merges limits from machines with the same API key", () => {
     const go = provider({
-      driver: ProviderDriverKind.make("opencode"),
-      instanceId: ProviderInstanceId.make("opencode"),
+      driver: ProviderDriverKind.make("acpRegistry"),
+      instanceId: ProviderInstanceId.make("acpRegistry"),
       auth: { status: "authenticated" },
       usageLimits: {
         checkedAt,
         credentialFingerprint: "shared-go-key",
-        windows: [{ ...window, id: "go_rolling", usedPercent: 3 }],
+        windows: [{ ...window, id: "rolling", usedPercent: 3 }],
       },
     });
     const input = new Map([
@@ -358,7 +326,7 @@ describe("pools", () => {
                 usageLimits: {
                   ...go.usageLimits!,
                   checkedAt: "2026-09-03T11:30:00.000Z",
-                  windows: [{ ...window, id: "go_rolling", usedPercent: 4 }],
+                  windows: [{ ...window, id: "rolling", usedPercent: 4 }],
                 },
               },
             ],
@@ -402,25 +370,25 @@ describe("pools", () => {
     expect(collectLimitAccounts(input)).toHaveLength(1);
   });
 
-  it("merges a local Antigravity login with its hub account by Google account fingerprint", () => {
-    const antigravity = ProviderDriverKind.make("antigravity");
+  it("merges a local login with its hub account by credential fingerprint", () => {
+    const driver = ProviderDriverKind.make("acpRegistry");
     const local = provider({
-      driver: antigravity,
-      instanceId: ProviderInstanceId.make("antigravity"),
+      driver,
+      instanceId: ProviderInstanceId.make("acpRegistry"),
       auth: { status: "authenticated" },
       usageLimits: {
         checkedAt,
-        credentialFingerprint: "google-key",
-        windows: [{ ...window, id: "gemini-weekly", usedPercent: 20 }],
+        credentialFingerprint: "shared-key",
+        windows: [{ ...window, id: "weekly", usedPercent: 20 }],
       },
     });
     const hubAccount = {
-      id: "antigravity-g@example.com.json",
-      driver: antigravity,
+      id: "hub-g@example.com.json",
+      driver,
       usageLimits: {
         checkedAt: "2026-09-03T11:30:00.000Z",
-        credentialFingerprint: "google-key",
-        windows: [{ ...window, id: "gemini-weekly", usedPercent: 30 }],
+        credentialFingerprint: "shared-key",
+        windows: [{ ...window, id: "weekly", usedPercent: 30 }],
       },
     };
     const accounts = collectLimitAccounts(
@@ -1177,47 +1145,6 @@ describe("pooled account columns", () => {
       row.columns.map((member) => (member.window ? member.account.key : null)),
     );
 
-  it.each([
-    {
-      reports: [
-        [14, 14],
-        [14, 14],
-      ],
-      ids: ["autoPercentUsed"],
-      remaining: [86],
-      label: null,
-    },
-    {
-      reports: [
-        [14, 14],
-        [80, 70],
-      ],
-      ids: ["totalPercentUsed", "autoPercentUsed"],
-      remaining: [53, 58],
-      label: "Cursor Models",
-    },
-    {
-      reports: [[undefined, 14]],
-      ids: ["autoPercentUsed"],
-      remaining: [86],
-      label: "Cursor Models",
-    },
-    { reports: [[14, undefined]], ids: ["totalPercentUsed"], remaining: [86], label: null },
-  ])("preserves Cursor totals and scope for $reports", ({ reports, ids, remaining, label }) => {
-    const accounts = reports.map(([total, auto], index) => ({
-      ...account(String(index), [
-        ...(total === undefined ? [] : [{ ...weekly, id: "totalPercentUsed", usedPercent: total }]),
-        ...(auto === undefined ? [] : [{ ...weekly, id: "autoPercentUsed", usedPercent: auto }]),
-      ]),
-      driver: ProviderDriverKind.make("cursor"),
-    }));
-    const pool = collectLimitPools(accounts, now)[0]!;
-    const visible = displayLimitWindows(pool);
-    expect(visible.map((window) => window.id)).toEqual(ids);
-    expect(visible.map((window) => window.remainingPercent)).toEqual(remaining);
-    expect(cursorUsageWindowDetails(ids.at(-1)!, pool)?.label).toBe(label);
-  });
-
   // regression: #20349 sessions stay visible while the weekly quota is exhausted
   it.each([
     ["claudeAgent", "13:00", 40, "14:00", 100],
@@ -1267,12 +1194,12 @@ describe("pooled account columns", () => {
         { ...weekly, usedPercent: 99 },
         { ...weekly, id: "seven_day_fable", usedPercent: 40 },
       ]),
-      { ...blocked, key: "cursor", driver: ProviderDriverKind.make("cursor") },
+      { ...blocked, key: "acp", driver: ProviderDriverKind.make("acpRegistry") },
     ];
     const snapshot = structuredClone(accounts);
-    const [claude, cursor] = collectLimitPools(accounts, now);
+    const [claude, acp] = collectLimitPools(accounts, now);
     expect.soft(claude?.windows.map((row) => row.remainingPercent)).toEqual([40, 1, 70]);
-    expect.soft(cursor?.windows.map((row) => row.remainingPercent)).toEqual([60, 0, 80]);
+    expect.soft(acp?.windows.map((row) => row.remainingPercent)).toEqual([60, 0, 80]);
     expect(accounts).toEqual(snapshot);
   });
 
@@ -1594,7 +1521,7 @@ describe("/usage-limits", () => {
       accounts: [
         {
           id: "x",
-          driver: ProviderDriverKind.make("grok"),
+          driver: ProviderDriverKind.make("acpRegistry"),
           models: ["gpt-5.6-sol"],
           usageLimits: limits,
         },
@@ -1907,8 +1834,8 @@ describe("external usage settings", () => {
           ],
         ]),
       );
-    expect(notices(unsupported("Sign in with Google to see Antigravity limits."))).toEqual([
-      "codex: Sign in with Google to see Antigravity limits.",
+    expect(notices(unsupported("Sign in to see limits."))).toEqual([
+      "codex: Sign in to see limits.",
     ]);
     expect(notices(unsupported())).toEqual([]);
   });

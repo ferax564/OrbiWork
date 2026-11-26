@@ -10,9 +10,6 @@ vi.mock(import("~/state/device"), async (original) => ({
   ...(await original()),
   useDeviceHubAccess: () => access,
 }));
-vi.mock(import("./DevicePhoneViewport"), () => ({
-  DevicePhoneViewport: () => <></>,
-}));
 import { DeviceStreamView } from "./DeviceStreamView";
 
 const access = { httpBase: "http://test", wsBase: "ws://test", query: {}, credentials: true };
@@ -85,7 +82,6 @@ function view() {
       deviceId="test"
       platform="ios"
       visible
-      allowPhoneView={false}
       renderControls={(controls) => (
         <output>
           {controls.handle?.inputConnected ? "Input connected" : "Input disconnected"}

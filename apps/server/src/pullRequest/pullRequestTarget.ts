@@ -1,5 +1,4 @@
 import type { OrchestrationProjectShell, SourceControlProviderKind } from "@orbiwork/contracts";
-import { canonicalizeGitCafePullRequestUrl } from "@orbiwork/source-control-definitions/registry";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
@@ -97,14 +96,14 @@ export const resolveTarget = Effect.fn("PullRequestsToolkit.resolveTarget")(func
     }
     return {
       ...normalizeThreadPullRequestKey(parsed),
-      url: canonicalizeGitCafePullRequestUrl(input.url),
+      url: input.url,
     } satisfies ResolvedTarget;
   }
   if (input.repository === undefined || input.number === undefined) {
     return yield* new PullRequestTargetIncompleteError({});
   }
-  // Azure DevOps tools name the project's repository by its bare name, which no URL can be built
-  // from, so it is read as the project's full repository path.
+  // A host whose tools name the repository by a bare name, which no URL can be built from, has it
+  // read as the project's full repository path.
   const own =
     project?.repositoryIdentity == null || input.repository.includes("/")
       ? null
@@ -125,10 +124,7 @@ export const resolveTarget = Effect.fn("PullRequestsToolkit.resolveTarget")(func
   const repository = (own?.repository ?? input.repository).toLowerCase();
   // Without a URL, a public forge host says what shape its change request URLs take;
   // any other host is taken to run the project's own forge.
-  const recognizedKind = sourceControlDefinitions.recognizeRemote(`https://${host}`)?.kind;
-  const kind =
-    sourceControlDefinitions.findByPublicHost(host)?.kind ??
-    (recognizedKind === "gitcafe" ? recognizedKind : projectHost.kind);
+  const kind = sourceControlDefinitions.findByPublicHost(host)?.kind ?? projectHost.kind;
   const definition = kind === null ? null : sourceControlDefinitions.get(kind);
   const url =
     definition?.changeRequestUrl({
@@ -145,6 +141,6 @@ export const resolveTarget = Effect.fn("PullRequestsToolkit.resolveTarget")(func
   }
   return {
     ...normalizeThreadPullRequestKey({ host, repository, number: input.number, url }),
-    url: canonicalizeGitCafePullRequestUrl(url),
+    url,
   } satisfies ResolvedTarget;
 });

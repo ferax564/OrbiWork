@@ -746,16 +746,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("notification toast popup completion input approval failure")],
   },
   {
-    id: "language",
-    title: msg("Language"),
-    to: "/settings/general",
-    searchTerms: [
-      msg(
-        "locale translation english deutsch german español spanish français french português portuguese brasil brazilian chinese 中文 japanese 日本語 korean 한국어 russian русский swedish svenska sprache idioma langue 语言 言語 언어 язык",
-      ),
-    ],
-  },
-  {
     id: "time-format",
     title: msg("Time format"),
     to: "/settings/general",
@@ -832,9 +822,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "provider-update-checks",
     title: msg("Provider update checks"),
     to: "/settings/maintenance",
-    searchTerms: [
-      msg("installed cli versions newer available codex claude cursor grok fx kiro opencode"),
-    ],
+    searchTerms: [msg("installed cli versions newer available codex claude")],
     scope: "environment-defaults",
   },
   {
@@ -1058,7 +1046,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/providers",
     searchTerms: [
       msg(
-        "agents cli codex claude cursor grok fx kiro opencode antigravity google sign in sign out install subscription instances authentication api key models configuration binary path config directory codex_home shadow home endpoint arguments environment variables display name accent color custom favorite hidden auto compact native sessions import resume",
+        "agents cli codex claude sign in sign out install subscription instances authentication api key models configuration binary path config directory codex_home shadow home endpoint arguments environment variables display name accent color custom favorite hidden auto compact native sessions import resume",
       ),
     ],
   },

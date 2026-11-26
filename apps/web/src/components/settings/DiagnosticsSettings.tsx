@@ -253,7 +253,7 @@ function formatProcessType(
   resolve: MessageResolver,
 ): string {
   if (process.depth > 0) return resolve(msg("Subprocess"));
-  if (/\b(codex|claude|opencode|cursor)\b/i.test(process.command))
+  if (/\b(codex|claude)\b/i.test(process.command))
     return resolve(msg("Agent", { $context: "process type" }));
   return resolve(msg("Process", { $context: "process type" }));
 }

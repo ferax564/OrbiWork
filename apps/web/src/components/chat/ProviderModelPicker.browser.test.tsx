@@ -16,7 +16,7 @@ import { __setClientSettingsForTests } from "../../hooks/useSettings";
 import { deriveProviderInstanceEntries } from "../../providerInstances";
 import { ProviderModelPicker } from "./ProviderModelPicker";
 
-it("shows a glyph per ACP agent, never its registry image, when adding a model from another agent", async () => {
+it("shows a glyph per ACP agent, never a remote image, when adding a model from another agent", async () => {
   const entries = deriveProviderInstanceEntries(
     ["First", "Second"].map((name) => ({
       instanceId: ProviderInstanceId.make(name.toLowerCase()),
@@ -34,12 +34,7 @@ it("shows a glyph per ACP agent, never its registry image, when adding a model f
       slashCommands: [],
       skills: [],
     })),
-  ).map((entry, index) => ({
-    ...entry,
-    ...(index === 0
-      ? { acpRegistryIconUrl: "https://cdn.agentclientprotocol.com/registry/icons/first.svg" }
-      : { acpRegistryAgentId: "picker-by-id" }),
-  }));
+  );
   const first = { instanceId: entries[0]!.instanceId, model: "first" };
   const options = new Map(entries.map((entry) => [entry.instanceId, entry.models]));
 
@@ -63,9 +58,7 @@ it("shows a glyph per ACP agent, never its registry image, when adding a model f
   await using screen = await render(<Picker />);
   const picker = () => screen.container.querySelector("[data-chat-provider-model-picker]")!;
   const triggerGlyphs = () =>
-    picker().querySelectorAll(
-      '[data-chat-provider-model-picker-icon] [data-slot="acp-icon-fallback"]',
-    ).length;
+    picker().querySelectorAll("[data-chat-provider-model-picker-icon] svg").length;
   await vi.waitFor(() => expect(triggerGlyphs()).toBe(1));
   await screen.getByRole("button", { name: "First model", exact: true }).click();
   await page.getByRole("button", { name: "Second agent", exact: true }).click();

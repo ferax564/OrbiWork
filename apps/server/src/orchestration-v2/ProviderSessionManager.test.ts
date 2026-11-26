@@ -1535,7 +1535,7 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const state = yield* Ref.make(emptyState);
-      // Like OpenCode2, a stopped start can still emit turn.terminal later.
+      // A stopped start can still emit turn.terminal later.
       const holdStart = yield* Ref.make(false);
       const startHeld = yield* Deferred.make<void>();
       yield* Effect.gen(function* () {
@@ -3337,7 +3337,7 @@ it.effect(
         assert.isDefined(originalToken);
         yield* manager.detach({ providerSessionId: s1, threadId });
 
-        // ACP and OpenCode consume credentials during openSession; predecessor release must not revoke them before entry publication.
+        // ACP adapters consume credentials during openSession; predecessor release must not revoke them before entry publication.
         yield* Ref.set(duringOpen, manager.close(s1).pipe(Effect.orDie));
         yield* manager.open({ threadId, providerSessionId: s2, modelSelection, runtimePolicy });
 

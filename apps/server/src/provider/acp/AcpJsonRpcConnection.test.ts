@@ -563,7 +563,7 @@ describe("AcpSessionRuntime", () => {
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 
-  // A provided env is the complete child environment, as in OpenCodeRuntime; the AppImage
+  // A provided env is the complete child environment; the AppImage
   // scrub deletes mount-only variables, which inheritance would put back.
   it.effect.each([
     { label: "with extendEnv false", extendEnv: false as const },

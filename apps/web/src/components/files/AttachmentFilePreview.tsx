@@ -6,11 +6,7 @@ import { readFilePreviewResponse } from "@orbiwork/client-runtime/file-preview";
 import { settlePromise } from "@orbiwork/client-runtime/state/runtime";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Cause from "effect/Cause";
-import {
-  filePreviewKind,
-  officePreviewKind,
-  FILE_TEXT_PREVIEW_MAX_BYTES,
-} from "@orbiwork/shared/filePreview";
+import { filePreviewKind, FILE_TEXT_PREVIEW_MAX_BYTES } from "@orbiwork/shared/filePreview";
 import {
   ChevronRightIcon,
   DownloadIcon,
@@ -51,10 +47,6 @@ import {
 
 const LargeTextViewer = lazy(() => import("./LargeTextViewer"));
 
-const OfficeFilePreview = lazy(() =>
-  import("./OfficeFilePreview").then((module) => ({ default: module.OfficeFilePreview })),
-);
-
 const FontFilePreview = lazy(() =>
   import("./FontFilePreview").then((module) => ({ default: module.FontFilePreview })),
 );
@@ -66,15 +58,6 @@ const MermaidFilePreview = lazy(() =>
 const SourcePreview = lazy(() => import("./ReadOnlySourcePreview"));
 
 const STALE_URL_MS = 5 * 60_000;
-
-const blobKeys = new WeakMap<Blob, string>();
-let nextBlobKey = 0;
-
-function blobKey(blob: Blob) {
-  const key = blobKeys.get(blob) ?? `blob:${nextBlobKey++}`;
-  blobKeys.set(blob, key);
-  return key;
-}
 
 export function ReadOnlySourcePreview(props: { name: string; text: string; wordWrap?: boolean }) {
   return (
@@ -115,7 +98,6 @@ export function AttachmentFilePreview(props: {
   onClose?: () => void;
 }) {
   const kind = filePreviewKind(props);
-  const officeKind = officePreviewKind(props);
   const delimiter = filePreviewDelimiter(props);
   const renderedMode =
     kind === "mermaid"
@@ -325,45 +307,23 @@ export function AttachmentFilePreview(props: {
     ) : (
       <ReadOnlySourcePreview name={props.name} text={content.text} wordWrap={wordWrap} />
     )
-  ) : kind === "archive" || kind === "sqlite" ? (
+  ) : kind === "archive" ? (
     <BinaryFilePreview
       key={revision}
       src={url}
       name={props.name}
-      kind={kind}
       onRetry={() => setRevision((value) => value + 1)}
     />
   ) : kind === "font" ? (
     <Suspense fallback={<FileSurfaceLoading />}>
       <FontFilePreview src={url} name={props.name} />
     </Suspense>
-  ) : officeKind ? (
-    <Suspense fallback={<FileSurfaceLoading />}>
-      <OfficeFilePreview
-        src={url}
-        name={props.name}
-        kind={officeKind}
-        sizeBytes={props.sizeBytes}
-      />
-    </Suspense>
-  ) : kind === "pdf" || kind === "html" ? (
+  ) : kind === "html" ? (
     <BrowserDocumentFrame
       src={url}
       title={props.name}
-      pdf={kind === "pdf"}
       htmlRender={props.htmlRender === true}
       threadRef={props.threadRef}
-      // Each mount signs or creates a new URL, so the URL cannot identify the file across visits.
-      // A draft keeps its Blob key after upload, so finishing the upload does not reload the PDF.
-      documentKey={
-        kind !== "pdf"
-          ? undefined
-          : props.file
-            ? blobKey(props.file)
-            : props.asset && "attachmentId" in props.asset
-              ? `${props.asset.environmentId}:${props.asset.attachmentId}`
-              : undefined
-      }
     />
   ) : kind === "audio" ? (
     <AudioPreview

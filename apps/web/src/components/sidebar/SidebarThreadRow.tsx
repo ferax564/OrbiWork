@@ -138,14 +138,7 @@ import { IssueGlyph, issueStatePresentation } from "../issue/issuePresentation";
 // environment's map, and every memoized row, stable across them.
 export type SidebarProviderEntry = Pick<
   ProviderInstanceEntry,
-  | "instanceId"
-  | "driverKind"
-  | "enabled"
-  | "displayName"
-  | "accentColor"
-  | "acpRegistryAgentId"
-  | "acpRegistryIconUrl"
-  | "models"
+  "instanceId" | "driverKind" | "enabled" | "displayName" | "accentColor" | "models"
 >;
 function compactSidebarTimeLabel(timestamp: string, nowMs: number, resolve: MessageResolver) {
   const parts = formatRelativeTime(timestamp, nowMs, resolve);
@@ -221,8 +214,6 @@ function SidebarProviderStack(props: {
       driverKind={currentEntry.driverKind}
       displayName={currentEntry.displayName}
       accentColor={currentEntry.accentColor}
-      acpRegistryAgentId={currentEntry.acpRegistryAgentId}
-      acpRegistryIconUrl={currentEntry.acpRegistryIconUrl}
       showBadge={showInstanceBadge}
       size="compact"
       iconClassName="opacity-60"
@@ -241,8 +232,6 @@ function SidebarProviderStack(props: {
             key={instanceId}
             driverKind={entry.driverKind}
             displayName={entry.displayName}
-            acpRegistryAgentId={entry.acpRegistryAgentId}
-            acpRegistryIconUrl={entry.acpRegistryIconUrl}
             iconClassName="size-3 opacity-35 grayscale"
           />
         );
@@ -347,8 +336,6 @@ function SidebarThreadTooltip({
                 providerEntry?.displayName ?? thread.runtime?.providerName ?? modelInstanceId
               }
               accentColor={providerEntry?.accentColor}
-              acpRegistryAgentId={providerEntry?.acpRegistryAgentId}
-              acpRegistryIconUrl={providerEntry?.acpRegistryIconUrl}
               showBadge={showInstanceBadge && providerEntry?.accentColor !== undefined}
               badgeContent="none"
               badgeClassName="h-2 min-w-2 px-0"

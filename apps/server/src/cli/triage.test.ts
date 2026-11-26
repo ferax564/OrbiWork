@@ -79,10 +79,9 @@ async function fixture(commands: ReadonlyArray<string>) {
 }
 
 it.live.each([
-  { commands: ["agy", "codex"], agent: "antigravity", command: "agy", model: "test-model" },
-  { commands: ["agy"], agent: undefined, command: "agy", model: undefined },
-  { commands: ["agy", "codex"], agent: "codex", command: "codex", model: "test-model" },
-  { commands: ["agy", "codex", "claude"], agent: "claude", command: "claude", model: undefined },
+  { commands: ["codex"], agent: undefined, command: "codex", model: undefined },
+  { commands: ["claude", "codex"], agent: "codex", command: "codex", model: "test-model" },
+  { commands: ["claude", "codex"], agent: "claude", command: "claude", model: undefined },
 ])(
   "launches $command with the triage prompt (agent=$agent, model=$model)",
   ({ commands, agent, command, model }) =>
@@ -99,10 +98,7 @@ it.live.each([
         cwd: string;
       };
       expect(launch.command).toBe(command);
-      expect(launch.args.slice(0, -1)).toEqual([
-        ...(model === undefined ? [] : ["--model", model]),
-        ...(command === "agy" ? ["--prompt-interactive"] : []),
-      ]);
+      expect(launch.args.slice(0, -1)).toEqual(model === undefined ? [] : ["--model", model]);
       expect(launch.args.at(-1)).toContain(NodePath.join(launch.cwd, "triage-playbook.md"));
       expect(
         await NodeFSP.readFile(NodePath.join(launch.cwd, "triage-playbook.md"), "utf8"),
@@ -145,26 +141,26 @@ it.effect.each([
 );
 
 it.live(
-  "requires an explicit choice when Codex and Antigravity are installed without a terminal",
+  "requires an explicit choice when Claude Code and Codex are installed without a terminal",
   () =>
     Effect.promise(async () => {
-      await using setup = await fixture(["agy", "codex"]);
+      await using setup = await fixture(["claude", "codex"]);
       const result = await setup.run([]);
       expect(result.code).toBe(1);
-      expect(result.stdout + result.stderr).toContain("--agent antigravity");
+      expect(result.stdout + result.stderr).toContain("--agent claude");
       expect(result.stdout + result.stderr).toContain("--agent codex");
       expect(result.stdout + result.stderr).not.toContain("Starting");
       await expect(NodeFSP.stat(setup.record)).rejects.toMatchObject({ code: "ENOENT" });
     }),
 );
 
-it.live("reports the missing agy executable when Antigravity is explicitly requested", () =>
+it.live("reports the missing claude executable when Claude Code is explicitly requested", () =>
   Effect.promise(async () => {
     await using setup = await fixture(["codex"]);
-    const result = await setup.run(["--agent", "antigravity"]);
+    const result = await setup.run(["--agent", "claude"]);
     expect(result.code).toBe(1);
     expect(result.stdout + result.stderr).toContain(
-      "`agy` is not installed or was not found on PATH.",
+      "`claude` is not installed or was not found on PATH.",
     );
     await expect(NodeFSP.stat(setup.record)).rejects.toMatchObject({ code: "ENOENT" });
   }),

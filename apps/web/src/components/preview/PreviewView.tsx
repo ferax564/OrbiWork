@@ -24,7 +24,6 @@ import {
   normalizePreviewUrl,
   isPreviewUrlNormalizationError,
   resolveAddressBarInput,
-  previewPdfAssetUrl,
   resolveSearchUrlTemplate,
 } from "@orbiwork/shared/preview";
 import { msg, T, useGT, useMessages } from "gt-react";
@@ -51,11 +50,7 @@ import {
   resolveExternalServerUrl,
 } from "~/browser/browserTargetResolver";
 import { useEnvironmentSupportsServerBrowser } from "~/state/entities";
-import {
-  useEnvironment,
-  useEnvironmentHttpBaseUrl,
-  usePrimaryEnvironmentId,
-} from "~/state/environments";
+import { useEnvironment, usePrimaryEnvironmentId } from "~/state/environments";
 import { previewEnvironment } from "~/state/preview";
 import { usePreviewStreamAccess } from "~/state/previewStream";
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -203,7 +198,6 @@ export function PreviewView({
   );
   const addPreviewAnnotation = useComposerDraftStore((store) => store.addPreviewAnnotation);
   const addImage = useComposerDraftStore((store) => store.addImage);
-  const environmentHttpBaseUrl = useEnvironmentHttpBaseUrl(threadRef.environmentId);
   const open = useAtomCommand(previewEnvironment.open);
   const closePreview = useAtomCommand(previewEnvironment.close, "preview close");
   const environmentLabel = useEnvironment(threadRef.environmentId)?.label ?? null;
@@ -1111,11 +1105,6 @@ export function PreviewView({
                 environmentId={threadRef.environmentId}
                 threadId={threadRef.threadId}
                 tabId={snapshot.tabId}
-                pdfUrl={
-                  navStatus._tag === "Success"
-                    ? previewPdfAssetUrl(url, environmentHttpBaseUrl)
-                    : null
-                }
                 visible={visible}
                 onFirstFrame={() => setServerStreamSettledTabId(runtimeTabId)}
                 onNoFrames={() => setServerStreamSettledTabId(runtimeTabId)}

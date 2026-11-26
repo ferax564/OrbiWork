@@ -27,10 +27,10 @@ import type { ProviderInstance } from "@orbiwork/provider-core/server/driver";
 import * as ProviderAuthService from "./ProviderAuthService.ts";
 import * as ProviderInstanceRegistry from "./ProviderInstanceRegistry.ts";
 
-const instanceId = ProviderInstanceId.make("antigravity-personal");
-const otherInstanceId = ProviderInstanceId.make("antigravity-work");
+const instanceId = ProviderInstanceId.make("acp-personal");
+const otherInstanceId = ProviderInstanceId.make("acp-work");
 const unsupportedInstanceId = ProviderInstanceId.make("codex");
-const driverKind = ProviderDriverKind.make("antigravity");
+const driverKind = ProviderDriverKind.make("acpRegistry");
 const owner = "paired-client-owner";
 const otherOwner = "paired-client-other";
 const flowId = "test-sign-in-flow";

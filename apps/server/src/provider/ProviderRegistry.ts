@@ -203,15 +203,6 @@ export function upsertProviderWorkspaceSnapshot(
 }
 
 const shouldRetainMissingProviderModels = (provider: ServerProvider): boolean => {
-  if (provider.driver === ProviderDriverKind.make("pi")) {
-    // Pi auth becomes known only after inventory discovery: empty means unauthenticated; failed/interactive discovery preserves unknown auth and cached models.
-    return !(
-      provider.installed &&
-      (provider.status === "ready" || provider.status === "warning") &&
-      provider.auth.status !== "unknown"
-    );
-  }
-
   if (provider.driver === ProviderDriverKind.make("acpRegistry")) {
     // Only completed ACP discovery provides nativeSessions and inventory; placeholder probes cannot establish auth for agents without sign-in.
     return !(
@@ -221,12 +212,6 @@ const shouldRetainMissingProviderModels = (provider: ServerProvider): boolean =>
     );
   }
 
-  if (provider.driver === ProviderDriverKind.make("kiro")) {
-    // Kiro is ready once `whoami` confirms the account, even when `--list-models` failed and
-    // the snapshot fell back to the built-in list.
-    return true;
-  }
-
   if (provider.driver === ProviderDriverKind.make("claudeAgent")) {
     // Claude Code keeps one gateway model cache per Claude home, for one base URL at a time, so a
     // ready probe can omit this instance's gateway models after another instance or a terminal
@@ -234,37 +219,21 @@ const shouldRetainMissingProviderModels = (provider: ServerProvider): boolean =>
     return true;
   }
 
-  const isAntigravity = provider.driver === ProviderDriverKind.make("antigravity");
-  const isCodex = provider.driver === ProviderDriverKind.make("codex");
-  const isOpenCode = provider.driver === ProviderDriverKind.make("opencode");
-  if (!isAntigravity && !isCodex && !isOpenCode) {
+  if (provider.driver !== ProviderDriverKind.make("codex")) {
     // Any other driver must report ready only after a completed model listing, or opt out above:
     // a ready list is authoritative, and warning/error probes keep the old models.
     return !(provider.installed && provider.status === "ready");
   }
 
-  if (
-    (isAntigravity || isCodex) &&
-    (!provider.enabled || provider.auth.status === "unauthenticated")
-  ) {
+  if (!provider.enabled || provider.auth.status === "unauthenticated") {
     return false;
   }
 
-  // Antigravity's local health check does not authenticate or discover models.
-  const isPendingAntigravityAuthentication =
-    isAntigravity && provider.status === "warning" && provider.auth.status === "unknown";
-  const isPendingInitialProbe =
-    provider.enabled && !provider.installed && provider.status === "warning";
-  // A cold OpenCode server can finish its probe as a warning before it lists any models.
+  const isPendingInitialProbe = !provider.installed && provider.status === "warning";
   const isIncompleteInstalledProbe =
-    provider.installed &&
-    (provider.status === "error" || ((isCodex || isOpenCode) && provider.status === "warning"));
-  return isPendingAntigravityAuthentication || isPendingInitialProbe || isIncompleteInstalledProbe;
+    provider.installed && (provider.status === "error" || provider.status === "warning");
+  return isPendingInitialProbe || isIncompleteInstalledProbe;
 };
-
-const shouldRetainMissingOpenCodeMetadata = (provider: ServerProvider): boolean =>
-  provider.driver === ProviderDriverKind.make("opencode") &&
-  shouldRetainMissingProviderModels(provider);
 
 const mergeProviderModels = (
   provider: ServerProvider,
@@ -306,39 +275,15 @@ const mergeProviderModels = (
     : mergedModels;
 };
 
-/** Antigravity health checks only initialize; preserve previously verified Google auth across restarts. */
-const carrySavedAntigravityAccount = (
-  previousProvider: ServerProvider,
-  nextProvider: ServerProvider,
-): Pick<ServerProvider, "auth" | "status"> | undefined => {
-  const antigravity = ProviderDriverKind.make("antigravity");
-  if (
-    nextProvider.driver !== antigravity ||
-    previousProvider.driver !== antigravity ||
-    !nextProvider.enabled ||
-    nextProvider.auth.status !== "unknown" ||
-    previousProvider.auth.status !== "authenticated" ||
-    (nextProvider.auth.type !== undefined &&
-      nextProvider.auth.type !== previousProvider.auth.type) ||
-    (!nextProvider.installed && nextProvider.status !== "warning")
-  ) {
-    return undefined;
-  }
-  const status =
-    nextProvider.installed && nextProvider.status === "warning" ? "ready" : nextProvider.status;
-  return { auth: previousProvider.auth, status };
-};
-
 /** One failed check after a ready one is often transient, so its retained catalog stays offered. */
 const retainsReadyCatalog = (
   previousProvider: ServerProvider,
   nextProvider: ServerProvider,
-  status: ServerProvider["status"],
   models: ServerProvider["models"],
 ): boolean =>
   nextProvider.enabled &&
   nextProvider.installed &&
-  (status === "error" || status === "warning") &&
+  (nextProvider.status === "error" || nextProvider.status === "warning") &&
   nextProvider.auth.status !== "unauthenticated" &&
   models.length > 0 &&
   (previousProvider.status === "ready" ||
@@ -353,8 +298,6 @@ export const mergeProviderSnapshot = (
   if (!previousProvider) {
     return nextProvider;
   }
-  const savedAccount = carrySavedAntigravityAccount(previousProvider, nextProvider);
-  const { message: _uncheckedMessage, ...nextWithoutMessage } = nextProvider;
   const models = mergeProviderModels(nextProvider, previousProvider.models, nextProvider.models);
   // Folder catalogs were compared with the old machine catalog, so every folder rescans.
   const previousWorkspaceSnapshots = Equal.equals(models, previousProvider.models)
@@ -378,30 +321,15 @@ export const mergeProviderSnapshot = (
           ...nextWorkspaceSnapshots,
         ].slice(-MAX_WORKSPACE_SNAPSHOTS_PER_PROVIDER);
   return {
-    ...(savedAccount?.status === "ready" ? nextWithoutMessage : nextProvider),
-    ...savedAccount,
+    ...nextProvider,
     models,
-    ...(retainsReadyCatalog(
-      previousProvider,
-      nextProvider,
-      savedAccount?.status ?? nextProvider.status,
-      models,
-    )
+    ...(retainsReadyCatalog(previousProvider, nextProvider, models)
       ? { modelsRetained: true }
       : {}),
     ...(workspaceSnapshots === undefined ? {} : { workspaceSnapshots }),
     ...(nextProvider.workspaceRescannedAt === undefined &&
     previousProvider.workspaceRescannedAt !== undefined
       ? { workspaceRescannedAt: previousProvider.workspaceRescannedAt }
-      : {}),
-    ...(shouldRetainMissingOpenCodeMetadata(nextProvider)
-      ? {
-          slashCommands:
-            nextProvider.slashCommands.length === 0
-              ? previousProvider.slashCommands
-              : nextProvider.slashCommands,
-          skills: nextProvider.skills.length === 0 ? previousProvider.skills : nextProvider.skills,
-        }
       : {}),
   };
 };

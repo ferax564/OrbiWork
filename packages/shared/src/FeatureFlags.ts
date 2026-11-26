@@ -7,14 +7,13 @@ import * as Layer from "effect/Layer";
 import * as HostProcess from "./HostProcess.ts";
 
 /**
- * One comma-separated list, such as `tanstack_source,github_app_client_id=Iv23…`. A bare name
+ * One comma-separated list, such as `secret_providers,github_app_client_id=Iv23…`. A bare name
  * turns a flag on. Read once when the server starts; changing it takes a restart.
  */
 const VARIABLE = "ORBIWORK_FEATURE_FLAGS";
 
 const config = Config.all({
   secretProviders: Config.Boolean("secret_providers").pipe(Config.withDefault(false)),
-  tanstackSource: Config.Boolean("tanstack_source").pipe(Config.withDefault(false)),
   /** The public client ID of the OrbiWork for GitHub app; unset turns its sign-in off. */
   githubAppClientId: Config.option(Config.String("github_app_client_id")),
 });

@@ -26,7 +26,10 @@ describe("reuseProvidersIgnoringCheckedAt", () => {
     const merged = reuseProvidersIgnoringCheckedAt(previous, reordered);
     expect(merged.map((entry) => entry.instanceId)).toEqual(["codex", "claude"]);
     expect(merged[0]).toBe(previous[1]);
-    const added = reuseProvidersIgnoringCheckedAt(previous, [...previous, provider("cursor", "b")]);
+    const added = reuseProvidersIgnoringCheckedAt(previous, [
+      ...previous,
+      provider("acpRegistry", "b"),
+    ]);
     expect(added).toHaveLength(3);
   });
 });

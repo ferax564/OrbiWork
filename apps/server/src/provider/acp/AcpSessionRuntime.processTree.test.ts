@@ -143,41 +143,41 @@ describe("terminatePosixOwnedProcessTree", () => {
       NodeFS.mkdirSync(scratchRoot, { recursive: true });
       const scratch = NodeFS.mkdtempSync(NodePath.join(scratchRoot, "acp-cgroup-wrapper-"));
       const linkedNode = NodePath.join(scratch, "OrbiWork AppImage 'quoted'");
-      const bareGrok = NodePath.join(scratch, "grok");
+      const bareAgent = NodePath.join(scratch, "agent");
       const relativeBin = NodePath.join(scratch, "relative-bin");
       const directoryBin = NodePath.join(scratch, "directory-bin");
       const validBin = NodePath.join(scratch, "valid-bin");
       const outputPath = NodePath.join(scratch, "argv.json");
       NodeFS.mkdirSync(relativeBin);
-      NodeFS.mkdirSync(NodePath.join(directoryBin, "grok"), { recursive: true });
+      NodeFS.mkdirSync(NodePath.join(directoryBin, "agent"), { recursive: true });
       NodeFS.mkdirSync(validBin);
       NodeFS.symlinkSync(process.execPath, linkedNode);
-      NodeFS.symlinkSync(process.execPath, bareGrok);
-      NodeFS.symlinkSync(process.execPath, NodePath.join(relativeBin, "grok"));
-      NodeFS.symlinkSync(process.execPath, NodePath.join(validBin, "grok"));
+      NodeFS.symlinkSync(process.execPath, bareAgent);
+      NodeFS.symlinkSync(process.execPath, NodePath.join(relativeBin, "agent"));
+      NodeFS.symlinkSync(process.execPath, NodePath.join(validBin, "agent"));
       expect(
-        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: scratch }),
-      ).toBe(bareGrok);
-      expect(AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: "" })).toBe(
-        bareGrok,
-      );
-      // Undefined PATH searches /usr/bin:/bin; the bareGrok fixture lives only in cwd.
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("agent", scratch, { PATH: scratch }),
+      ).toBe(bareAgent);
       expect(
-        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, { PATH: undefined }),
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("agent", scratch, { PATH: "" }),
+      ).toBe(bareAgent);
+      // Undefined PATH searches /usr/bin:/bin; the bareAgent fixture lives only in cwd.
+      expect(
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("agent", scratch, { PATH: undefined }),
       ).toBeUndefined();
       expect(
         AcpSessionRuntime.resolveLinuxCgroupTargetCommand("sh", scratch, { PATH: undefined }),
       ).toBeDefined();
       expect(
-        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, {
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("agent", scratch, {
           PATH: "relative-bin",
         }),
-      ).toBe(NodePath.join(relativeBin, "grok"));
+      ).toBe(NodePath.join(relativeBin, "agent"));
       expect(
-        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("grok", scratch, {
+        AcpSessionRuntime.resolveLinuxCgroupTargetCommand("agent", scratch, {
           PATH: `directory-bin${NodePath.delimiter}valid-bin`,
         }),
-      ).toBe(NodePath.join(validBin, "grok"));
+      ).toBe(NodePath.join(validBin, "agent"));
       const target = [
         'const fs = require("node:fs");',
         "fs.writeFileSync(process.argv[1], JSON.stringify({",

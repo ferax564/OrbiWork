@@ -37,15 +37,6 @@ export function getProviderStatusBannerKey(status: ServerProvider | null): strin
     ].join("\u0000");
   }
   if (status.status === "ready") return null;
-  // Antigravity validates credentials at session start; unknown restart auth is not failure.
-  if (
-    status.driver === "antigravity" &&
-    status.installed &&
-    status.status === "warning" &&
-    status.auth.status === "unknown"
-  ) {
-    return null;
-  }
   return [status.instanceId, status.status, status.auth.status, status.message ?? ""].join(
     "\u0000",
   );
@@ -93,11 +84,7 @@ export function useProviderStatusBannerDismissed(bannerKey: string | null): bool
 }
 
 export function hasProviderSetup(status: ServerProvider): boolean {
-  return (
-    status.driver === "antigravity" ||
-    status.setup?.canAuthenticate === true ||
-    status.setup?.canInstall === true
-  );
+  return status.setup?.canAuthenticate === true || status.setup?.canInstall === true;
 }
 
 /** Components pass `useMessages()` so the message follows a language switch. */
@@ -123,9 +110,7 @@ export function getProviderStatusMessage(
   }
   if (status.auth.status === "unauthenticated") {
     if (hasProviderSetup(status)) {
-      return status.driver === "antigravity"
-        ? resolve(msg("Open provider setup to sign in with Google."))
-        : resolve(msg("Open provider setup to sign in."));
+      return resolve(msg("Open provider setup to sign in."));
     }
     return resolve(msg("Sign in via the CLI to authenticate again."));
   }

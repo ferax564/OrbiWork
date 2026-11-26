@@ -203,8 +203,7 @@ environment from settings the user controls, such as their shell profile, so a u
 own `claude` earlier on their `PATH`. Pin an absolute `binaryPath` in `providers.instances` for each
 provider you allow.
 
-ACP agents' own mode menus have no effect under `maxRuntimeMode`, except Antigravity's, whose modes
-OrbiWork can place under the limit. Users still choose which ACP Registry agent runs; leave
+ACP agents' own mode menus have no effect under `maxRuntimeMode`. Users still choose which ACP agent command runs; leave
 `acpRegistry` out of `allowedDrivers` to stop that.
 
 The limit decides which modes OrbiWork asks the provider for. It is not a sandbox; see
@@ -258,9 +257,7 @@ so restart OrbiWork after that.
 ### Providers
 
 `providers.allowedDrivers` lists the providers that may run, by ID: `codex` (Codex),
-`claudeAgent` (Claude), `cursor` (Cursor), `grok` (Grok), `opencode` (OpenCode), `antigravity`
-(Antigravity), `fx` (fx), `kiro` (Kiro), `pi` (Pi), `muse` (Muse Code), and `acpRegistry` (ACP
-Registry).
+`claudeAgent` (Claude), and `acpRegistry` (ACP agent).
 `orbi policy check` rejects an ID this version does not know. Threads on other providers stay,
 marked unavailable, and users can still turn those providers off.
 
@@ -270,8 +267,7 @@ that routes Claude through Amazon Bedrock or a base URL for a company gateway. `
 change the fields you set. With `"locked": false`, the fields fill in only what the user left
 empty. A `codex` entry that is locked, or any `codex` entry under `maxRuntimeMode`, also rules out
 [Connect with ChatGPT](./providers-codex.md#connect-with-chatgpt), since that runtime would skip
-your fields. In the same way, an `opencode` entry like that rules out a server URL, so OpenCode
-starts the binary you set.
+your fields.
 
 ### Updates
 

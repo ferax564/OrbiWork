@@ -641,7 +641,7 @@ function AgentsSection({
                 <ACPRegistryIcon className="size-4" />
               </RowIcon>
               <span className="min-w-0 flex-1 text-sm text-muted-foreground">
-                <T>More agents in the ACP Registry</T>
+                <T>Local ACP command</T>
               </span>
               <Button
                 size="xs"
@@ -649,7 +649,7 @@ function AgentsSection({
                 disabled={!canManageProviders}
                 onClick={() => setAddingProvider(true)}
               >
-                <T>Browse</T>
+                <T>Configure manually</T>
               </Button>
             </div>
           ) : null}
@@ -1734,7 +1734,6 @@ function ImportCandidateRow({
 const IMPORT_SOURCE_NAMES: Record<AgentSessionSource, string> = {
   claudeAgent: "Claude Code",
   codex: "Codex",
-  pi: "Pi",
 };
 function useImportSourcesLabel() {
   return new Intl.ListFormat(useLocale(), { type: "conjunction" }).format(

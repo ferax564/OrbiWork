@@ -1,5 +1,4 @@
 import {
-  AntigravitySettings,
   ClaudeSettings,
   CodexSettings,
   isProviderDriverKind,
@@ -8,13 +7,6 @@ import {
 import { acpRegistryClient } from "@orbiwork/provider-acp-registry/client";
 import { makeProviderClientRegistry, type ProviderIcon } from "@orbiwork/provider-core/client";
 import { modelShortName } from "@orbiwork/provider-core/modelShortName";
-import { cursorClient } from "@orbiwork/provider-cursor/client";
-import { fxClient } from "@orbiwork/provider-fx/client";
-import { grokClient } from "@orbiwork/provider-grok/client";
-import { kiroClient } from "@orbiwork/provider-kiro/client";
-import { museClient } from "@orbiwork/provider-muse/client";
-import { openCodeClient } from "@orbiwork/provider-opencode/client";
-import { piClient } from "@orbiwork/provider-pi/client";
 
 // OpenRouter's Ink and Cloud glyphs from https://openrouter.ai/brand.
 export const openRouterIcon: ProviderIcon = {
@@ -32,30 +24,14 @@ export const providerClients = makeProviderClientRegistry([
     driverKind: ProviderDriverKind.make("codex"),
     label: "Codex",
     modelFamilies: ["GPT-", "GPT "],
-    acpRegistryAgentIds: ["codex-acp"],
     settingsSchema: CodexSettings,
   },
   {
     driverKind: ProviderDriverKind.make("claudeAgent"),
     label: "Claude",
     modelFamilies: ["Claude "],
-    acpRegistryAgentIds: ["claude-acp"],
     settingsSchema: ClaudeSettings,
   },
-  cursorClient,
-  grokClient,
-  fxClient,
-  openCodeClient,
-  {
-    driverKind: ProviderDriverKind.make("antigravity"),
-    label: "Antigravity",
-    modelFamilies: ["Gemini "],
-    acpRegistryAgentIds: ["antigravity-acp"],
-    settingsSchema: AntigravitySettings,
-  },
-  kiroClient,
-  museClient,
-  piClient,
   acpRegistryClient,
 ]);
 

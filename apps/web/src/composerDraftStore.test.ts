@@ -41,10 +41,10 @@ import { createModelSelection } from "@orbiwork/shared/model";
 const CODEX_INSTANCE = ProviderInstanceId.make("codex");
 const CODEX_SECONDARY_INSTANCE = ProviderInstanceId.make("codex_secondary");
 const CLAUDE_AGENT_INSTANCE = ProviderInstanceId.make("claudeAgent");
-const CURSOR_INSTANCE = ProviderInstanceId.make("cursor");
+const ACP_REGISTRY_INSTANCE = ProviderInstanceId.make("acpRegistry");
 const CODEX_DRIVER = ProviderDriverKind.make("codex");
 const CLAUDE_AGENT_DRIVER = ProviderDriverKind.make("claudeAgent");
-const CURSOR_DRIVER = ProviderDriverKind.make("cursor");
+const ACP_REGISTRY_DRIVER = ProviderDriverKind.make("acpRegistry");
 
 function toSelections(
   options: Record<string, string | boolean | undefined> | undefined,
@@ -2066,16 +2066,16 @@ describe("composerDraftStore sticky composer settings", () => {
     const store = useComposerDraftStore.getState();
 
     store.setStickyModelSelection(
-      modelSelection(CURSOR_DRIVER, "composer-2", {
+      modelSelection(ACP_REGISTRY_DRIVER, "agent-model", {
         fastMode: false,
       }),
     );
-    store.setStickyModelSelection(modelSelection(CURSOR_DRIVER, "composer-2.5"));
+    store.setStickyModelSelection(modelSelection(ACP_REGISTRY_DRIVER, "agent-model-2"));
 
     expect(
-      useComposerDraftStore.getState().stickyModelSelectionByProvider[CURSOR_INSTANCE],
+      useComposerDraftStore.getState().stickyModelSelectionByProvider[ACP_REGISTRY_INSTANCE],
     ).toEqual(
-      modelSelection(CURSOR_DRIVER, "composer-2.5", {
+      modelSelection(ACP_REGISTRY_DRIVER, "agent-model-2", {
         fastMode: false,
       }),
     );

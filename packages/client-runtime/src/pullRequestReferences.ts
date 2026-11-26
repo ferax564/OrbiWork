@@ -17,7 +17,7 @@ export function changeRequestReferenceAutolinker(
 }
 
 /**
- * Forges link uploads root-relative, as GitCafe's `/api/attachments/<id>`. In a change request
+ * Forges link uploads root-relative, as `/uploads/<id>`. In a change request
  * body that always means the forge's origin, never a path on the machine rendering it.
  */
 export function resolveChangeRequestMediaUrl(url: string, changeRequestUrl: string): string {

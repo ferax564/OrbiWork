@@ -90,7 +90,6 @@ describe("ACP Registry probe", () => {
     expect(result).toEqual({
       instanceId,
       ready: true,
-      icon: null,
       authMethods: [
         { id: "chatgpt", name: "ChatGPT", description: null, type: "agent" },
         {
@@ -360,20 +359,9 @@ describe("ACP Registry probe", () => {
 
   it.effect("lists native sessions and logs out through generic ACP lifecycle methods", () => {
     const catalog = AcpRegistrySupport.AcpRegistryCatalog.of({
-      search: () => Effect.die("unused search"),
-      prepare: () => Effect.die("unused prepare"),
       inspect: () => Effect.die("unused inspect"),
-      uninstallManagedBinary: () => Effect.die("unused uninstall"),
       resolve: () =>
         Effect.succeed({
-          agent: {
-            id: "mock-agent",
-            name: "Mock Agent",
-            version: "1.0.0",
-            description: "ACP session management test agent",
-            distribution: { npx: { package: "mock-agent@1.0.0" } },
-          },
-          distribution: "npx" as const,
           spawn: {
             command: "node",
             args: [mockAgentPath],
@@ -387,7 +375,7 @@ describe("ACP Registry probe", () => {
     });
     const input = {
       instanceId,
-      settings: decodeSettings({ agentId: "mock-agent" }),
+      settings: decodeSettings({ commandPath: "mock-agent" }),
       cwd: process.cwd(),
       environment: process.env,
     };
@@ -421,20 +409,9 @@ describe("ACP Registry probe", () => {
         const directory = yield* fs.makeTempDirectoryScoped({ prefix: "acp-probe-delete-" });
         const requestLogPath = NodePath.join(directory, "requests.ndjson");
         const catalog = AcpRegistrySupport.AcpRegistryCatalog.of({
-          search: () => Effect.die("unused search"),
-          prepare: () => Effect.die("unused prepare"),
           inspect: () => Effect.die("unused inspect"),
-          uninstallManagedBinary: () => Effect.die("unused uninstall"),
           resolve: () =>
             Effect.succeed({
-              agent: {
-                id: "mock-agent",
-                name: "Mock Agent",
-                version: "1.0.0",
-                description: "ACP probe cleanup test agent",
-                distribution: { npx: { package: "mock-agent@1.0.0" } },
-              },
-              distribution: "npx" as const,
               spawn: {
                 command: "node",
                 args: [mockAgentPath],
@@ -450,7 +427,7 @@ describe("ACP Registry probe", () => {
 
         const result = yield* probeAcpRegistryConfiguration({
           instanceId,
-          settings: decodeSettings({ agentId: "mock-agent" }),
+          settings: decodeSettings({ commandPath: "mock-agent" }),
           cwd: process.cwd(),
           environment: process.env,
         }).pipe(Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, catalog));
@@ -490,13 +467,9 @@ await import(pathToFileURL(agentPath).href);
       yield* fs.writeFileString(userPatch, "[]");
       const commandArgs = ["--profile", "acp", "--patch", userPatch];
       const catalog = AcpRegistrySupport.AcpRegistryCatalog.of({
-        search: () => Effect.die("unused search"),
-        prepare: () => Effect.die("unused prepare"),
         inspect: () => Effect.die("unused inspect"),
-        uninstallManagedBinary: () => Effect.die("unused uninstall"),
         resolve: () =>
           Effect.succeed({
-            distribution: "local",
             spawn: {
               command: process.execPath,
               args: [launcher, mockAgentPath, launchLog, ...commandArgs],
@@ -505,7 +478,7 @@ await import(pathToFileURL(agentPath).href);
       });
       const result = yield* probeAcpRegistryConfiguration({
         instanceId,
-        settings: decodeSettings({ source: "local", commandPath: "dsh", commandArgs }),
+        settings: decodeSettings({ commandPath: "dsh", commandArgs }),
         cwd: directory,
         environment: process.env,
       }).pipe(Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, catalog));

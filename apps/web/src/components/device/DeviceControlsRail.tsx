@@ -3,15 +3,11 @@ import {
   Camera,
   ChevronLeft,
   Home,
-  Keyboard,
-  Box,
-  Maximize,
   MoreHorizontal,
   PictureInPicture2,
   Power,
   RotateCcw,
   SlidersHorizontal,
-  Smartphone,
   Square,
   Type,
   X,
@@ -125,7 +121,7 @@ export function DeviceControlsRail(props: {
           <RailButton
             tooltipSide={popupSide}
             label={gt("Rotate device")}
-            disabled={inputDisabled || !!view.keyboard?.attached}
+            disabled={inputDisabled}
             onClick={() => handle?.rotate()}
           >
             <RotateCcw />
@@ -242,47 +238,6 @@ export function DeviceControlsRail(props: {
             </MenuItem>
           </MenuPopup>
         </Menu>
-        <RailDivider />
-        <RailButton
-          tooltipSide={popupSide}
-          label={gt("3D view")}
-          pressed={view.phone}
-          disabled={!view.streaming || !!view.phoneUnavailableReason}
-          description={view.phoneUnavailableReason ?? undefined}
-          onClick={view.showPhone}
-        >
-          <Box />
-        </RailButton>
-        <RailButton
-          tooltipSide={popupSide}
-          label={gt("Flat view")}
-          pressed={!view.phone}
-          disabled={!view.streaming}
-          onClick={view.showFlat}
-        >
-          <Smartphone />
-        </RailButton>
-        {view.keyboard ? (
-          <RailButton
-            tooltipSide={popupSide}
-            label={
-              view.keyboard.attached ? gt("Detach Magic Keyboard") : gt("Attach Magic Keyboard")
-            }
-            pressed={view.keyboard.attached}
-            onClick={view.keyboard.toggle}
-          >
-            <Keyboard />
-          </RailButton>
-        ) : null}
-        {view.phone ? (
-          <RailButton
-            tooltipSide={popupSide}
-            label={gt("Restore 3D view")}
-            onClick={view.resetView}
-          >
-            <Maximize />
-          </RailButton>
-        ) : null}
       </div>
       {view.foldingControls}
     </aside>
@@ -296,7 +251,6 @@ function RailDivider() {
 function RailButton(props: {
   tooltipSide: "left" | "bottom";
   label: string;
-  description?: string | undefined;
   disabled?: boolean;
   pressed?: boolean;
   onClick: () => void;
@@ -316,18 +270,8 @@ function RailButton(props: {
   );
   return (
     <Tooltip>
-      {props.disabled && props.description ? (
-        <TooltipTrigger
-          render={
-            <span className="inline-flex" tabIndex={0} role="group" aria-label={props.label} />
-          }
-        >
-          {button}
-        </TooltipTrigger>
-      ) : (
-        <TooltipTrigger render={button} />
-      )}
-      <TooltipPopup side={props.tooltipSide}>{props.description ?? props.label}</TooltipPopup>
+      <TooltipTrigger render={button} />
+      <TooltipPopup side={props.tooltipSide}>{props.label}</TooltipPopup>
     </Tooltip>
   );
 }

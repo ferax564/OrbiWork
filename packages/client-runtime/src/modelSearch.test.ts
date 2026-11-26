@@ -6,8 +6,8 @@ describe("scoreModelPickerSearch", () => {
   it("ranks exact token matches ahead of fuzzier matches", () => {
     const exactScore = scoreModelPickerSearch(
       {
-        driverKind: "opencode",
-        providerDisplayName: "opencode",
+        driverKind: "acpRegistry",
+        providerDisplayName: "Hub",
         name: "Claude Opus 4.7",
         subProvider: "GitHub Copilot",
       },
@@ -15,8 +15,8 @@ describe("scoreModelPickerSearch", () => {
     );
     const fuzzyScore = scoreModelPickerSearch(
       {
-        driverKind: "opencode",
-        providerDisplayName: "opencode",
+        driverKind: "acpRegistry",
+        providerDisplayName: "Hub",
         name: "Claude Opus 4.7",
         subProvider: "GitHub Copilot",
       },
@@ -96,8 +96,8 @@ const catalog: CatalogModel[] = [
     "GPT-5.6 Luna",
     "GPT-5.5",
   ]),
-  ...instanceModels("grok", "Grok", ["Grok 4.7", "Grok 4.6", "Grok 4.5"]),
-  ...instanceModels("antigravity", "Antigravity", [
+  ...instanceModels("acpRegistry", "xAI", ["Grok 4.7", "Grok 4.6", "Grok 4.5"]),
+  ...instanceModels("acpRegistry", "Gemini", [
     "Gemini 3.8 Flash (High)",
     "Gemini 3.8 Flash (Medium)",
     "Gemini 3.8 Flash (Low)",
@@ -111,29 +111,29 @@ const catalog: CatalogModel[] = [
     "Gemini 3.1 Pro (Low)",
   ]),
   {
-    driverKind: "opencode",
-    providerDisplayName: "OpenCode",
+    driverKind: "acpRegistry",
+    providerDisplayName: "Hub",
     name: "Kimi K3",
     subProvider: "Moonshot",
   },
   {
-    driverKind: "opencode",
-    providerDisplayName: "OpenCode",
+    driverKind: "acpRegistry",
+    providerDisplayName: "Hub",
     name: "Kimi K2.5",
     subProvider: "Moonshot",
   },
   {
-    driverKind: "opencode",
-    providerDisplayName: "OpenCode",
+    driverKind: "acpRegistry",
+    providerDisplayName: "Hub",
     name: "Kimi K2",
     subProvider: "Moonshot",
   },
   {
-    driverKind: "opencode",
-    providerDisplayName: "OpenCode",
+    driverKind: "acpRegistry",
+    providerDisplayName: "Hub",
     name: "DeepSeek V4.1 Flash 1017",
-    slug: "opencode-go/deepseek-v4.1-flash",
-    subProvider: "OpenCode Go",
+    slug: "hub/deepseek-v4.1-flash",
+    subProvider: "Hub Go",
   },
 ];
 
@@ -164,7 +164,7 @@ describe("rankModelPickerSearch", () => {
   });
 
   it("finds a model by its full or bare ID when the name is written differently", () => {
-    expect(search("opencode-go/deepseek-v4.1-flash")).toEqual(["DeepSeek V4.1 Flash 1017"]);
+    expect(search("hub/deepseek-v4.1-flash")).toEqual(["DeepSeek V4.1 Flash 1017"]);
     expect(search("deepseek-v4.1-flash")).toEqual(["DeepSeek V4.1 Flash 1017"]);
   });
 

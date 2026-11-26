@@ -101,7 +101,7 @@ describe("providerModelsFromSettings", () => {
 
 describe("parseGenericCliVersion", () => {
   it("parses a v-prefixed version", () => {
-    expect(parseGenericCliVersion("opencode v2.0.3")).toBe("2.0.3");
+    expect(parseGenericCliVersion("tool v2.0.3")).toBe("2.0.3");
     expect(parseGenericCliVersion("v22.19.0")).toBe("22.19.0");
   });
 
@@ -164,19 +164,7 @@ describe("ProviderCommandNotFoundError", () => {
 });
 
 describe("resolveProviderProbeTimeoutMs", () => {
-  it.each([
-    "codex",
-    "claude",
-    "cursor",
-    "antigravity",
-    "grok",
-    "kiro",
-    "fx",
-    "pi",
-    "muse",
-    "opencode",
-    "acp_registry",
-  ])("uses only %s's readiness override", (provider) => {
+  it.each(["codex", "claude", "acp_registry"])("uses only %s's readiness override", (provider) => {
     const key = `ORBIWORK_${provider.toUpperCase()}_PROBE_TIMEOUT_MS`;
     expect(resolveProviderProbeTimeoutMs(provider, 25000, { [key]: "60000" })).toBe(60000);
     expect(resolveProviderProbeTimeoutMs(provider, 25000, { [key]: "1000" })).toBe(25000);

@@ -1,18 +1,9 @@
-/* oxlint-disable react/no-array-index-key -- Read-only cells retain their database row and column positions. */
 import { decodeFilePreviewText, filePreviewKind } from "@orbiwork/shared/filePreview";
 import { formatAttachmentSize } from "@orbiwork/client-runtime/state/attachments";
-import { ChevronLeftIcon, ChevronRightIcon, FileIcon, FolderIcon } from "lucide-react";
+import { ChevronLeftIcon, FileIcon, FolderIcon } from "lucide-react";
 import { msg, T, useGT, useMessages } from "gt-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { m } from "~/i18n/messages";
-
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectPopup,
-  SelectItem,
-} from "~/components/ui/select";
 
 import {
   FileSurfaceAction,
@@ -20,11 +11,7 @@ import {
   FileSurfaceLoading,
   FileSurfaceNotice,
 } from "./fileSurfaceChrome";
-import {
-  SQLITE_PAGE_SIZE,
-  type BinaryWorkerRequest,
-  type BinaryWorkerResult,
-} from "./binaryPreviewProtocol";
+import type { BinaryWorkerRequest, BinaryWorkerResult } from "./binaryPreviewProtocol";
 import { archiveImageUrl } from "./archiveImageUrl";
 import { PreviewImage } from "./PreviewImage";
 import { readBinaryPreview } from "./readBinaryPreview";
@@ -32,19 +19,7 @@ import { previewErrorText, previewFailureText } from "./previewFailureMessages";
 
 const SourcePreview = lazy(() => import("./ReadOnlySourcePreview"));
 type Archive = Extract<BinaryWorkerResult, { type: "archive" }>;
-type Database = Extract<BinaryWorkerResult, { type: "sqlite" }>;
-type Rows = Extract<BinaryWorkerResult, { type: "rows" }>;
 
-const rowsLabel = (count: number, gt: ReturnType<typeof useGT>) =>
-  gt("{count, plural, one {{formatted} row} other {{formatted} rows}}", {
-    count,
-    formatted: count.toLocaleString(),
-  });
-const columnsLabel = (count: number, gt: ReturnType<typeof useGT>) =>
-  gt("{count, plural, one {{formatted} column} other {{formatted} columns}}", {
-    count,
-    formatted: count.toLocaleString(),
-  });
 const entriesLabel = (count: number, gt: ReturnType<typeof useGT>) =>
   gt("{count, plural, one {{formatted} entry} other {{formatted} entries}}", {
     count,
@@ -96,20 +71,15 @@ function ArchiveFile(props: { readonly path: string; readonly bytes: Uint8Array<
 export default function BinaryViewer(props: {
   readonly src: string;
   readonly name: string;
-  readonly kind: "archive" | "sqlite";
   readonly onRetry?: () => void;
 }) {
   const gt = useGT();
   const messages = useMessages();
   const [sizeBytes, setSizeBytes] = useState<number | null>(null);
   const [archive, setArchive] = useState<Archive | null>(null);
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [rows, setRows] = useState<Rows | null>(null);
   const [entry, setEntry] = useState<Extract<BinaryWorkerResult, { type: "entry" }> | null>(null);
   const [folder, setFolder] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [selectedTable, setSelectedTable] = useState("");
-  const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -126,7 +96,7 @@ export default function BinaryViewer(props: {
     }, 15_000);
     workerRef.current?.postMessage(request);
   };
-  // oxlint-disable-next-line orbiwork/no-unreasoned-state-sync -- Own the binary fetch, archive or database worker, message subscription, and request timeout for this file.
+  // oxlint-disable-next-line orbiwork/no-unreasoned-state-sync -- Own the binary fetch, archive worker, message subscription, and request timeout for this file.
   useEffect(() => {
     const controller = new AbortController();
     const worker = new Worker(new URL("./binaryPreview.worker.ts", import.meta.url), {
@@ -156,22 +126,13 @@ export default function BinaryViewer(props: {
       setBusy(false);
       if (result.type === "error") setError(previewFailureText(result));
       else if (result.type === "archive") setArchive(result);
-      else if (result.type === "entry") setEntry(result);
-      else if (result.type === "rows") setRows(result);
-      else {
-        setDatabase(result);
-        const table = result.tables[0];
-        if (table) {
-          setSelectedTable(table.name);
-          send({ type: "rows", table: table.name, page: 0 });
-        }
-      }
+      else setEntry(result);
     });
     void readBinaryPreview(props.src, controller.signal)
       .then((bytes) => {
         if (!controller.signal.aborted) {
           setSizeBytes(bytes.byteLength);
-          worker.postMessage({ type: "open", name: props.name, kind: props.kind, bytes }, [bytes]);
+          worker.postMessage({ type: "open", name: props.name, bytes }, [bytes]);
         }
       })
       .catch((cause: unknown) =>
@@ -184,14 +145,7 @@ export default function BinaryViewer(props: {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- One worker owns this keyed file and its message stream.
-  }, [props.src, props.kind, props.name]);
-  const table = database?.tables.find((item) => item.name === selectedTable);
-  const selectPage = (next: number, name = selectedTable) => {
-    setSelectedTable(name);
-    setPage(next);
-    setRows(null);
-    send({ type: "rows", table: name, page: next });
-  };
+  }, [props.src, props.name]);
   const children = new Map<
     string,
     { path: string; entryPath: string; directory: boolean; size: number; modified: string | null }
@@ -241,74 +195,6 @@ export default function BinaryViewer(props: {
             {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes, messages)}` : ""}
           </span>
         </div>
-      ) : null}
-      {database && table ? (
-        <>
-          <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-2 border-b border-border/60 px-3 py-1 text-xs">
-            <div className="min-w-32 flex-1">
-              <Select
-                value={selectedTable}
-                onValueChange={(value) => {
-                  if (!busy && value !== null) selectPage(0, value);
-                }}
-              >
-                <SelectTrigger
-                  aria-label={gt("Table", { $context: "noun, database table picker" })}
-                  aria-disabled={busy}
-                  aria-busy={busy}
-                  size="xs"
-                >
-                  <SelectValue>
-                    {table.name} ({rowsLabel(table.count, gt)})
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectPopup>
-                  {database.tables.map((item) => (
-                    <SelectItem key={item.name} value={item.name}>
-                      {item.name} ({rowsLabel(item.count, gt)})
-                    </SelectItem>
-                  ))}
-                </SelectPopup>
-              </Select>
-            </div>
-            <FileSurfaceAction
-              label={gt("Previous rows")}
-              disabled={busy || page === 0}
-              onPress={() => selectPage(page - 1)}
-            >
-              <ChevronLeftIcon className="size-3.5" />
-            </FileSurfaceAction>
-            <span className="shrink-0 tabular-nums" aria-live="polite">
-              {table.count === 0
-                ? gt("0 rows")
-                : gt("{start}–{end} of {total}", {
-                    start: String(page * SQLITE_PAGE_SIZE + 1),
-                    end: String(Math.min(table.count, (page + 1) * SQLITE_PAGE_SIZE)),
-                    total: table.count.toLocaleString(),
-                  })}
-            </span>
-            <FileSurfaceAction
-              label={gt("Next rows")}
-              disabled={busy || (page + 1) * SQLITE_PAGE_SIZE >= table.count}
-              onPress={() => selectPage(page + 1)}
-            >
-              <ChevronRightIcon className="size-3.5" />
-            </FileSurfaceAction>
-          </div>
-          <div
-            className="border-b border-border/60 px-3 py-2 text-xs text-muted-foreground tabular-nums"
-            role="status"
-          >
-            {rowsLabel(table.count, gt)} ·{" "}
-            {rows ? columnsLabel(rows.columns.length, gt) : gt("… columns")}
-            {sizeBytes !== null ? ` · ${formatAttachmentSize(sizeBytes, messages)}` : ""}
-          </div>
-          <FileSurfaceNotice>
-            <T>
-              Read-only. Up to 50 columns and 1,024 characters per cell. Blob contents are omitted.
-            </T>
-          </FileSurfaceNotice>
-        </>
       ) : null}
       {error ? (
         <FileSurfaceFailure
@@ -388,51 +274,7 @@ export default function BinaryViewer(props: {
             </p>
           ) : null}
         </div>
-      ) : rows ? (
-        <div className="scrollbar-gutter-both min-h-0 flex-1 overflow-auto">
-          <table
-            aria-label={`${props.name}: ${rows.table}`}
-            className="min-w-full border-separate border-spacing-0 text-xs"
-          >
-            <thead className="sticky top-0 bg-background">
-              <tr>
-                {rows.columns.map((name) => (
-                  <th
-                    key={name}
-                    scope="col"
-                    className="border-r border-b border-border/60 px-3 py-2 text-left font-medium whitespace-nowrap"
-                  >
-                    {name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.rows.map((row, index) => (
-                <tr key={index} className="even:bg-muted/30">
-                  {row.map((cell, column) => (
-                    <td
-                      key={column}
-                      className="max-w-80 min-w-32 border-r border-b border-border/60 px-3 py-1.5 align-top whitespace-pre-wrap break-words tabular-nums"
-                    >
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {rows.rows.length === 0 ? (
-            <p className="p-6 text-xs text-muted-foreground">
-              <T>This table is empty.</T>
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <p className="p-6 text-xs text-muted-foreground">
-          <T>This database has no readable tables.</T>
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }

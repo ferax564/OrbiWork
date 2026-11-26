@@ -158,7 +158,6 @@ export function ServerBrowserSurface(props: {
   readonly onControl?: (control: PreviewStreamControl | null) => void;
   readonly onPopup?: (tabId: string) => void;
   readonly className?: string;
-  readonly pdfUrl?: string | null;
   readonly ref?: Ref<ServerBrowserHandle>;
 }) {
   const {
@@ -174,7 +173,6 @@ export function ServerBrowserSurface(props: {
     onControl,
     onPopup,
     className,
-    pdfUrl = null,
     ref,
   } = props;
   const gt = useGT();
@@ -325,9 +323,9 @@ export function ServerBrowserSurface(props: {
         send({ type: "reload", ...(options?.ignoreCache ? { ignoreCache: true } : {}) }),
       stopLoading: () => send({ type: "stopLoading" }),
       viewport: (setting) => send({ type: "viewport", setting }),
-      canvas: () => (!pdfUrl && hasFrameRef.current ? canvasRef.current : null),
+      canvas: () => (hasFrameRef.current ? canvasRef.current : null),
     }),
-    [pdfUrl, send],
+    [send],
   );
 
   // oxlint-disable-next-line orbiwork/no-unreasoned-state-sync -- observes the canvas container's size, sends resizes to the stream and grows the frame cap
@@ -798,14 +796,6 @@ export function ServerBrowserSurface(props: {
         ) : null}
       </div>
       <div className="relative min-h-0 flex-1">
-        {pdfUrl ? (
-          <embed
-            src={pdfUrl}
-            type="application/pdf"
-            title={gt("PDF document")}
-            className="absolute inset-0 z-10 size-full border-0"
-          />
-        ) : null}
         <canvas
           ref={canvasRef}
           className="block size-full touch-none object-contain"
@@ -816,7 +806,7 @@ export function ServerBrowserSurface(props: {
           onMouseDown={(event) => event.preventDefault()}
           onContextMenu={(event) => event.preventDefault()}
         />
-        {!pdfUrl && agentCursor && control?.controller !== "you" ? (
+        {agentCursor && control?.controller !== "you" ? (
           <AgentCursorMark
             {...agentCursor}
             controller={control?.controller === "agent" ? "agent" : "none"}
@@ -831,7 +821,7 @@ export function ServerBrowserSurface(props: {
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
-          disabled={pdfUrl !== null || control?.controller !== "you"}
+          disabled={control?.controller !== "you"}
           defaultValue={INPUT_SENTINEL}
           onFocus={(event) => resetInput(event.currentTarget)}
           className="sr-only top-0 left-0 text-base"
@@ -851,7 +841,7 @@ export function ServerBrowserSurface(props: {
             if (text) send({ type: "text", text });
           }}
         />
-        {visible && framesStalled && !pdfUrl ? (
+        {visible && framesStalled ? (
           <div className="absolute inset-0 flex items-center justify-center bg-background p-4 text-center">
             <p role="alert" className="max-w-sm text-sm text-muted-foreground">
               <T>

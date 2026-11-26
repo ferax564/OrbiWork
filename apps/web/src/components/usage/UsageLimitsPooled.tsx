@@ -41,7 +41,6 @@ import { PaceIcon, ResetCreditDialog, barColor, usePaceMark, useResetCredit } fr
 import {
   collectExternalUsageLinks,
   collectLimitNotices,
-  cursorUsageWindowDetails,
   formatResetsIn,
   resetCreditChoices,
 } from "@orbiwork/shared/usageLimitsCopy";
@@ -595,22 +594,16 @@ function PoolWindowCard({
   pool,
   color,
   now,
-  label,
-  description,
 }: {
   readonly pool: LimitPoolWindow;
   readonly color: string;
   readonly now: number;
-  readonly label?: string | null | undefined;
-  readonly description?: string | undefined;
 }) {
   const nextRefill = pool.resets.find((reset) => reset.at > now && reset.restoresPercent > 0);
   return (
     <div className="grid items-center gap-x-6 gap-y-3 rounded-lg border border-border/60 p-4 md:grid-cols-[11rem_minmax(0,1fr)]">
       <div className="flex flex-col gap-1">
-        {label !== null ? (
-          <span className="text-sm font-medium text-foreground">{label ?? pool.label}</span>
-        ) : null}
+        <span className="text-sm font-medium text-foreground">{pool.label}</span>
         <span className="flex items-baseline gap-2">
           <span className="text-3xl font-semibold text-foreground tabular-nums">
             {pool.remainingPercent}%
@@ -629,9 +622,6 @@ function PoolWindowCard({
         ) : null}
       </div>
       <PoolBar pool={pool} color={color} now={now} />
-      {description ? (
-        <p className="text-xs text-muted-foreground md:col-span-2">{description}</p>
-      ) : null}
     </div>
   );
 }
@@ -640,7 +630,6 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
   const color = barColor(pool.driver);
   const label = providerClients.get(pool.driver)?.label ?? String(pool.driver);
   const windows = displayLimitWindows(pool);
-  const m = useMessages();
   return (
     <section className="flex flex-col gap-3">
       <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -653,20 +642,9 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
         />
         {label}
       </h2>
-      {windows.map((window) => {
-        const details =
-          pool.driver === "cursor" ? cursorUsageWindowDetails(window.id, pool, m) : undefined;
-        return (
-          <PoolWindowCard
-            key={`${window.kind}:${window.id}`}
-            pool={window}
-            color={color}
-            now={now}
-            label={details?.label}
-            description={details?.description}
-          />
-        );
-      })}
+      {windows.map((window) => (
+        <PoolWindowCard key={`${window.kind}:${window.id}`} pool={window} color={color} now={now} />
+      ))}
     </section>
   );
 }

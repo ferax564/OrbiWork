@@ -671,19 +671,19 @@ it("keeps an import opt-out on the page when storage cannot save it", async () =
 
 it("opens the list of agents to add once the checks find none, even after a wrong first status", async () => {
   using _now = setup();
-  const pi = {
+  const gemini = {
     ...readyClaude,
-    instanceId: ProviderInstanceId.make("pi"),
-    driver: ProviderDriverKind.make("pi"),
+    instanceId: ProviderInstanceId.make("gemini"),
+    driver: ProviderDriverKind.make("gemini"),
   };
-  // Pi's first status says installed before its check runs.
+  // Gemini's first status says installed before its check runs.
   appAtomRegistry.set(state.providers as Atom.Writable<ReadonlyArray<ServerProvider>>, [
-    { ...pi, status: "warning", auth: { status: "unknown" } },
+    { ...gemini, status: "warning", auth: { status: "unknown" } },
   ]);
   await using _screen = await mountWelcome();
   await act(async () =>
     appAtomRegistry.set(state.providers as Atom.Writable<ReadonlyArray<ServerProvider>>, [
-      { ...pi, installed: false, status: "error", auth: { status: "unknown" } },
+      { ...gemini, installed: false, status: "error", auth: { status: "unknown" } },
     ]),
   );
   const fold = () =>
@@ -695,7 +695,7 @@ it("opens the list of agents to add once the checks find none, even after a wron
   // Turning an agent on starts a new check; the open list stays where the user is working.
   await act(async () =>
     appAtomRegistry.set(state.providers as Atom.Writable<ReadonlyArray<ServerProvider>>, [
-      { ...pi, installed: false, status: "warning", auth: { status: "unknown" } },
+      { ...gemini, installed: false, status: "warning", auth: { status: "unknown" } },
     ]),
   );
   expect(fold()?.getAttribute("aria-expanded")).toBe("true");

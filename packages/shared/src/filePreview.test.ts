@@ -9,7 +9,6 @@ import {
   isWorkspaceImagePreviewPath,
   isWorkspacePreviewEntryPath,
   mediaKindFromPath,
-  officePreviewKind,
 } from "./filePreview.ts";
 
 describe("workspace file previews", () => {
@@ -19,9 +18,6 @@ describe("workspace file previews", () => {
     ["tar", "archive", "application/x-tar"],
     ["gz", "archive", "application/gzip"],
     ["tgz", "archive", "application/gzip"],
-    ["sqlite", "sqlite", "application/vnd.sqlite3"],
-    ["sqlite3", "sqlite", "application/vnd.sqlite3"],
-    ["db", "sqlite", "application/vnd.sqlite3"],
   ])("recognizes binary preview %s", (extension, kind, mimeType) => {
     const name = `files#draft/sample.${extension.toUpperCase()}`;
     for (const genericMime of [
@@ -45,8 +41,9 @@ describe("workspace file previews", () => {
   it("recognizes compound archives and MIME aliases", () => {
     expect(filePreviewKind({ name: "archive.tar.gz" })).toBe("archive");
     expect(filePreviewKind({ name: "download", mimeType: "application/x-gzip" })).toBe("archive");
-    expect(filePreviewKind({ name: "download", mimeType: "application/x-sqlite3" })).toBe("sqlite");
-    expect(filePreviewKind({ name: "misleading.zip", mimeType: "application/pdf" })).toBe("pdf");
+    expect(filePreviewKind({ name: "misleading.zip", mimeType: "application/pdf" })).toBe(
+      "unsupported",
+    );
   });
   it.each(["ttf", "otf", "woff", "woff2"])(
     "previews %s fonts through signed host assets",
@@ -65,43 +62,21 @@ describe("workspace file previews", () => {
     },
   );
   it.each([
-    [
-      "quarterly-report.DOCX",
-      "docx",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ],
-    [
-      "finance#q4/operating-plan.xlsx",
-      "xlsx",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ],
-    [
-      "slides?review/quarterly-review.pptx",
-      "pptx",
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    ],
-    ["notes.odt", "odt", "application/vnd.oasis.opendocument.text"],
-    ["budget.ods", "ods", "application/vnd.oasis.opendocument.spreadsheet"],
-    ["deck.odp", "odp", "application/vnd.oasis.opendocument.presentation"],
-    ["notes.rtf", "rtf", "application/rtf"],
-    ["guide.epub", "epub", "application/epub+zip"],
-    ["analysis.ipynb", "ipynb", "application/x-ipynb+json"],
-  ])("recognizes Office assets at literal path %s", (name, kind, mimeType) => {
-    expect(officePreviewKind({ name })).toBe(kind);
-    for (const genericMime of [
-      "",
-      "application/octet-stream",
-      "binary/octet-stream",
-      "application/unknown",
-      " APPLICATION/UNKNOWN ; charset=utf-8",
-      "text/plain",
-    ]) {
-      expect(filePreviewKind({ name, mimeType: genericMime })).toBe(kind);
-    }
-    expect(isWorkspacePreviewEntryPath(name)).toBe(true);
-    expect(hostPreviewMimeTypeFromExtension(`.${kind}`)).toBe(mimeType);
-    expect(filePreviewKind({ name: "download", mimeType })).toBe(kind);
-    expect(filePreviewKind({ name, mimeType: "application/zip" })).toBe("archive");
+    "report.docx",
+    "sheet.xlsx",
+    "deck.pptx",
+    "notes.odt",
+    "guide.epub",
+    "paper.pdf",
+    "app.sqlite",
+    "data.db",
+  ])("offers no in-app viewer for %s", (name) => {
+    expect(filePreviewKind({ name, mimeType: "application/octet-stream" })).toBe("unsupported");
+    expect(isWorkspacePreviewEntryPath(name)).toBe(false);
+    expect(hostPreviewMimeTypeFromExtension(name.slice(name.lastIndexOf(".")))).toBeNull();
+  });
+  it.each(["notes.rtf", "analysis.ipynb"])("shows %s as source text", (name) => {
+    expect(filePreviewKind({ name, mimeType: "application/octet-stream" })).toBe("text");
   });
   // regression: #10311 previews classify by the literal filename, not URL-like suffixes
   it.each([
@@ -169,14 +144,14 @@ describe("media path parsing", () => {
 describe("attachment preview classification", () => {
   it.each([
     ["example.json", "application/octet-stream", "text"],
-    ["report.pdf", "application/pdf", "pdf"],
+    ["report.pdf", "application/pdf", "unsupported"],
     ["page.HTML", "", "html"],
     ["diagram.mmd", "", "mermaid"],
     ["diagram.MERMAID", "text/plain", "mermaid"],
     ["download", "text/vnd.mermaid", "mermaid"],
     ["source-code.otf", "application/vnd.oasis.opendocument.formula-template", "font"],
-    ["download", "text/rtf", "rtf"],
-    ["analysis.IPYNB", "application/json", "ipynb"],
+    ["download", "text/rtf", "text"],
+    ["analysis.IPYNB", "application/json", "text"],
     ["clip.weba", "", "audio"],
     ["image.bmp", "application/octet-stream", "image"],
     ["photo.heic", "application/octet-stream", "image"],
@@ -186,7 +161,7 @@ describe("attachment preview classification", () => {
     ["recording.webm", "audio/webm", "audio"],
     ["payload", "application/problem+json", "text"],
     ["archive.zip", "application/zip", "archive"],
-    ["misleading.json", "application/pdf", "pdf"],
+    ["misleading.json", "application/pdf", "unsupported"],
     ["misleading.pdf", "application/zip", "archive"],
   ])("classifies %s (%s) as %s", (name, mimeType, expected) => {
     expect(filePreviewKind({ name, mimeType })).toBe(expected);
@@ -195,12 +170,9 @@ describe("attachment preview classification", () => {
     expect(() => decodeFilePreviewText(new Uint8Array([65, 0, 66]))).toThrow("binary");
     expect(() => decodeFilePreviewText(new Uint8Array([255]))).toThrow("UTF-8");
   });
-  it.each(["doc", "xls", "ppt", "7z", "rar"])(
-    "retains the binary fallback for %s, which opencode does not render",
-    (extension) => {
-      expect(filePreviewKind({ name: `sample.${extension}` })).toBe("unsupported");
-    },
-  );
+  it.each(["doc", "xls", "ppt", "7z", "rar"])("retains the binary fallback for %s", (extension) => {
+    expect(filePreviewKind({ name: `sample.${extension}` })).toBe("unsupported");
+  });
   it("does not corrupt a multi-byte character at the preview boundary", () => {
     const bytes = new Uint8Array(FILE_TEXT_PREVIEW_MAX_BYTES + 1).fill(97);
     bytes[FILE_TEXT_PREVIEW_MAX_BYTES - 1] = 0xe2;

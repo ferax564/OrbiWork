@@ -20,7 +20,6 @@ import { getProviderModelCapabilities } from "../providerModels";
 import { sanitizeThreadErrorMessage, thrownErrorMessage } from "@orbiwork/client-runtime/errors";
 import type { EnvironmentThread, ThreadStructure } from "@orbiwork/client-runtime/state/shell";
 import {
-  ANTIGRAVITY_DEFAULT_MODEL,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   type AssetCreateUrlInput,
   type AssetCreateUrlResult,
@@ -510,16 +509,10 @@ export function resolveComposerProviderSelection(input: {
     ? (input.entries.find((entry) => entry.instanceId === input.lockedInstanceId)
         ?.continuationGroupKey ?? null)
     : null;
-  // Missing metadata must not move Antigravity history into another Google profile.
-  const requiresExactInstance =
-    input.lockedProvider === "antigravity" &&
-    input.lockedInstanceId != null &&
-    lockedContinuationGroupKey === null;
   const compatibleEntries = input.entries.filter(
     (entry) =>
       (!input.lockedProvider || entry.driverKind === input.lockedProvider) &&
-      (!lockedContinuationGroupKey || entry.continuationGroupKey === lockedContinuationGroupKey) &&
-      (!requiresExactInstance || entry.instanceId === input.lockedInstanceId),
+      (!lockedContinuationGroupKey || entry.continuationGroupKey === lockedContinuationGroupKey),
   );
   const selectedProviderEntry =
     input.candidateInstanceIds
@@ -546,37 +539,6 @@ export function resolveComposerProviderSelection(input: {
     lockedContinuationGroupKey,
     unavailableProviderInstanceId,
   };
-}
-
-export function getAntigravitySendBlockReason(
-  provider:
-    | Pick<ServerProvider, "driver" | "installed" | "auth" | "models" | "status">
-    | null
-    | undefined,
-  model: string,
-  resolve: MessageResolver = m,
-): string | null {
-  if (provider?.driver !== "antigravity") return null;
-  if (!provider.installed) {
-    return resolve(msg("Install Antigravity in provider settings before sending."));
-  }
-  if (provider.auth.status === "unauthenticated") {
-    return resolve(msg("Sign in to Antigravity in provider settings before sending."));
-  }
-  const slug = model.trim();
-  if (slug.length === 0) return resolve(msg("Choose an Antigravity model before sending."));
-  if (provider.auth.status === "unknown") return null;
-  if (provider.models.length === 0) {
-    return resolve(msg("Refresh Antigravity models in provider settings before sending."));
-  }
-  if (
-    provider.status === "ready" &&
-    slug !== ANTIGRAVITY_DEFAULT_MODEL &&
-    !provider.models.some((entry) => entry.slug === slug || entry.aliases?.includes(slug))
-  ) {
-    return resolve(msg("That Antigravity model is no longer available. Choose another model."));
-  }
-  return null;
 }
 
 export function reconcileMountedTerminalThreadIds(input: {

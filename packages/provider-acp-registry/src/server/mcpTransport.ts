@@ -14,9 +14,6 @@ const COMMAND_CODE_ENTRY_POINTS = [
  * executable path splits at the space.
  */
 export function prefersHttpMcpTransport(settings: AcpRegistrySettings): boolean {
-  if (settings.source !== "local") {
-    return false;
-  }
   const executable = settings.commandPath.split(/[\\/]/u).pop() ?? "";
   return (
     COMMAND_CODE_EXECUTABLES.test(executable) ||

@@ -41,19 +41,6 @@ describe("findPromptLinkProjects", () => {
     expect(ids("me", "orbiwork")).toEqual(["fork"]);
     expect(ids("gitlab", "x")).toEqual([]);
   });
-
-  it("matches a checkout of the repository's GitCafe mirror", () => {
-    const projects = [
-      { id: "gitcafe", repositoryIdentity: identity("git.cafe/ferax564/orbiwork") },
-      { id: "staging", repositoryIdentity: identity("staging.git.cafe/ferax564/orbiwork") },
-      { id: "gitlab", repositoryIdentity: identity("gitlab.com/ferax564/orbiwork") },
-    ];
-    expect(
-      findPromptLinkProjects(projects, { owner: "ferax564", name: "orbiwork" }).map(
-        (project) => project.id,
-      ),
-    ).toEqual(["gitcafe", "staging"]);
-  });
 });
 
 describe("findPromptLinkPullRequestThread", () => {

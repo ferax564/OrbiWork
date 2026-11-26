@@ -1,18 +1,13 @@
 import { GTProvider } from "gt-react";
-import { useSyncExternalStore, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { getFormattingLocale, getI18nSnapshot, persistGTLocale, subscribeI18n } from "./runtime";
+import { DEFAULT_LOCALE } from "./locales";
 
-const reloadToSetting = (state: { readonly locale: string }) => persistGTLocale(state.locale);
-
-export function useFormattingLocale(): string | undefined {
-  return useSyncExternalStore(subscribeI18n, getFormattingLocale);
-}
+const TRANSLATIONS = { [DEFAULT_LOCALE]: {} };
 
 export function I18nProvider({ children }: { readonly children: ReactNode }) {
-  const { locale, translations } = useSyncExternalStore(subscribeI18n, getI18nSnapshot);
   return (
-    <GTProvider locale={locale} translations={translations} _reload={reloadToSetting}>
+    <GTProvider locale={DEFAULT_LOCALE} translations={TRANSLATIONS}>
       {children}
     </GTProvider>
   );

@@ -1,8 +1,6 @@
 import { thrownErrorMessage } from "@orbiwork/client-runtime/errors";
 import { m } from "~/i18n/messages";
 import { FILL_PREVIEW_VIEWPORT, type ScopedThreadRef } from "@orbiwork/contracts";
-import { previewPdfAssetUrl } from "@orbiwork/shared/preview";
-import { useEnvironmentHttpBaseUrl } from "~/state/environments";
 import { PanelRightIcon, PictureInPicture2, XIcon } from "lucide-react";
 import {
   type PointerEvent as ReactPointerEvent,
@@ -222,7 +220,6 @@ export function ThreadPreviewMiniPlayer({ threadRef, miniPlayer }: Props) {
 
 function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly tabId: string }) {
   const gt = useGT();
-  const httpBaseUrl = useEnvironmentHttpBaseUrl(threadRef.environmentId);
   const { serverEpoch, snapshot, desktopOverlay, serverTab, sourceSize } =
     useBrowserMiniPlayerSource(threadRef, tabId);
   const runtimeTabId = previewRuntimeTabId(threadRef, serverEpoch, tabId);
@@ -271,15 +268,9 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
   };
 
   if (!snapshot) return null;
-  const pdfUrl =
-    snapshot.navStatus._tag === "Success"
-      ? previewPdfAssetUrl(snapshot.navStatus.url, httpBaseUrl)
-      : null;
   const loadFailed = snapshot.navStatus._tag === "LoadFailed" ? snapshot.navStatus : null;
   const poppedOut = serverTab ? serverPictureInPicture : Boolean(desktopOverlay?.pictureInPicture);
-  const canPopOut = serverTab
-    ? poppedOut || (pdfUrl === null && supportsServerPictureInPicture())
-    : true;
+  const canPopOut = serverTab ? poppedOut || supportsServerPictureInPicture() : true;
 
   return (
     <MiniPlayerShell
@@ -328,7 +319,6 @@ function BrowserMiniPlayer({ threadRef, tabId, miniPlayer }: Props & { readonly 
               environmentId={threadRef.environmentId}
               threadId={threadRef.threadId}
               tabId={tabId}
-              pdfUrl={pdfUrl}
               visible
               followSize={false}
               controlPosition="bottom"

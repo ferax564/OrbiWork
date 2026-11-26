@@ -175,7 +175,7 @@ export const make = Effect.gen(function* () {
           }),
         );
 
-        // Persisted items provide settlement and final output; snapshot-only providers (ACP, Pi) also stream here.
+        // Persisted items provide settlement and final output; snapshot-only providers (ACP) also stream here.
         let snapshotOutput: string | undefined;
         let lost: Cause.Cause<unknown> | undefined;
         let settled: Extract<OrchestrationV2TurnItem, { type: "command_execution" }> | undefined;

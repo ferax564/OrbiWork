@@ -5,7 +5,6 @@ export type WizardNavigation =
   | { readonly kind: "blocked"; readonly step: number; readonly error: string };
 
 const IDENTITY_STEP = 1;
-const ACP_REGISTRY_IDENTITY_STEP = 1;
 
 const PROVIDER_STEP = msg("Provider", { $context: "wizard step" });
 const IDENTITY_STEP_LABEL = msg("Identity", { $context: "wizard step" });
@@ -14,11 +13,6 @@ export const ADD_PROVIDER_WIZARD_STEPS = [
   PROVIDER_STEP,
   IDENTITY_STEP_LABEL,
   msg("Config", { $context: "wizard step" }),
-] as const;
-export const ACP_REGISTRY_WIZARD_STEPS = [
-  PROVIDER_STEP,
-  IDENTITY_STEP_LABEL,
-  msg("Sign in", { $context: "wizard step" }),
 ] as const;
 export const LOCAL_ACP_WIZARD_STEPS = [PROVIDER_STEP, IDENTITY_STEP_LABEL] as const;
 
@@ -50,23 +44,6 @@ export function updateProviderIdentityDraft(
     ...drafts,
     [driver]: { ...getProviderIdentityDraft(drafts, driver), ...update },
   };
-}
-
-export function isConfiguredAcpRegistryAgent(
-  instances: Readonly<Record<string, { readonly driver: string; readonly config?: unknown }>>,
-  agentId: string,
-): boolean {
-  return Object.values(instances).some((instance) => {
-    if (
-      instance.driver !== "acpRegistry" ||
-      !instance.config ||
-      typeof instance.config !== "object"
-    ) {
-      return false;
-    }
-    const config = instance.config as Record<string, unknown>;
-    return config.source !== "local" && config.agentId === agentId;
-  });
 }
 
 export function resolveWizardNavigation(
@@ -106,19 +83,4 @@ export function resolveWizardNavigation(
   }
 
   return { kind: "navigate", step: targetStep };
-}
-
-export function resolveAcpRegistryWizardNavigation(
-  currentStep: number,
-  requestedStep: number,
-  validation: {
-    readonly instanceIdError: string | null;
-    readonly selectionError: string | null;
-  },
-): WizardNavigation {
-  return resolveWizardNavigation(currentStep, requestedStep, ACP_REGISTRY_WIZARD_STEPS.length, {
-    instanceIdError: validation.instanceIdError,
-    identityStep: ACP_REGISTRY_IDENTITY_STEP,
-    prerequisite: { step: 0, error: validation.selectionError },
-  });
 }

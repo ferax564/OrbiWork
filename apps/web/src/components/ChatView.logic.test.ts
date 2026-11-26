@@ -61,7 +61,6 @@ import { DraftId, hydrateImagesFromPersisted, useComposerDraftStore } from "../c
 import { derivePhase } from "../session-logic";
 import { makeThreadFixture, makeThreadProjectionFixture } from "../test-fixtures";
 import {
-  getAntigravitySendBlockReason,
   resolveComposerProviderSelection,
   resolveWorktreeSetupProgress,
   peekRememberedThreadTimeline,
@@ -721,7 +720,7 @@ describe("resolveComposerProviderSelection", () => {
   );
 
   it("keeps a signed-out selection instead of silently switching providers", () => {
-    const signedOutEntry = entry("antigravity", "google_work", {
+    const signedOutEntry = entry("claudeAgent", "claude_work", {
       status: "error",
       auth: { status: "unauthenticated" },
       models: catalogModels,
@@ -734,59 +733,49 @@ describe("resolveComposerProviderSelection", () => {
     });
 
     expect(selection.selectedProviderEntry?.instanceId).toBe(signedOutEntry.instanceId);
-    expect(
-      getAntigravitySendBlockReason(selection.selectedProviderEntry?.snapshot, "gemini-pro"),
-    ).toBe("Sign in to Antigravity in provider settings before sending.");
   });
 
-  it("blocks a saved model that a ready catalog no longer lists", () => {
-    const provider = entry("antigravity", "google_work", {
-      status: "ready",
-      models: catalogModels,
-    }).snapshot;
+  it.each([true, false])(
+    "shows history from a removed driver as unavailable (snapshot reported: %s)",
+    (reported) => {
+      const removed = entry("cursor", "cursor", {
+        availability: "unavailable",
+        unavailableReason: "Driver 'cursor' is not registered in this build.",
+        status: "error",
+      });
+      const entries = reported ? [entry("codex"), removed] : [entry("codex")];
+      const thread = importedThread(removed.instanceId);
+      const lockedProvider = deriveLockedProvider({
+        thread,
+        selectedProvider: entries[0]!.instanceId,
+        threadProvider: thread.modelSelection.instanceId,
+        providers: entries.map((entry) => entry.snapshot),
+      });
+      const selection = resolveComposerProviderSelection({
+        entries,
+        candidateInstanceIds: [thread.modelSelection.instanceId],
+        lockedProvider,
+        lockedInstanceId: thread.modelSelection.instanceId,
+      });
 
-    expect(getAntigravitySendBlockReason(provider, "saved-model-not-in-current-catalog")).toBe(
-      "That Antigravity model is no longer available. Choose another model.",
-    );
-    expect(getAntigravitySendBlockReason(provider, "gemini-pro")).toBeNull();
-  });
-
-  it("allows a saved native model to retry after a provider error without changing it", () => {
-    const provider = entry("antigravity", "google_work", {
-      status: "error",
-      models: catalogModels,
-    }).snapshot;
-
-    expect(
-      getAntigravitySendBlockReason(provider, "saved-model-not-in-current-catalog"),
-    ).toBeNull();
-  });
-
-  it("does not continue an existing Antigravity thread in another profile after deletion", () => {
-    const missingInstanceId = ProviderInstanceId.make("google_work");
-    const selection = resolveComposerProviderSelection({
-      entries: [entry("antigravity")],
-      candidateInstanceIds: [missingInstanceId],
-      lockedProvider: ProviderDriverKind.make("antigravity"),
-      lockedInstanceId: missingInstanceId,
-    });
-
-    expect(selection.selectedProviderEntry).toBeUndefined();
-    expect(selection.unavailableProviderInstanceId).toBe(missingInstanceId);
-  });
+      expect(removed.isAvailable).toBe(false);
+      expect(selection.selectedProviderEntry).toBeUndefined();
+      expect(selection.unavailableProviderInstanceId).toBe(removed.instanceId);
+    },
+  );
 
   it("keeps the session's continuation group when another instance was selected", () => {
-    const sessionEntry = entry("antigravity", "google_work", {
+    const sessionEntry = entry("claudeAgent", "claude_work", {
       enabled: false,
       continuation: { groupKey: "work-profile" },
     });
-    const anotherEntry = entry("antigravity", "google_personal", {
+    const anotherEntry = entry("claudeAgent", "claude_personal", {
       continuation: { groupKey: "personal-profile" },
     });
     const selection = resolveComposerProviderSelection({
       entries: [sessionEntry, anotherEntry],
       candidateInstanceIds: [anotherEntry.instanceId, sessionEntry.instanceId],
-      lockedProvider: ProviderDriverKind.make("antigravity"),
+      lockedProvider: ProviderDriverKind.make("claudeAgent"),
       lockedInstanceId: sessionEntry.instanceId,
     });
 
@@ -1572,7 +1561,7 @@ describe("deriveThreadPendingBackgroundTasks", () => {
   );
 
   it("does not list a live run's child from the provider roster as background", () => {
-    // The roster is not run-tied; Muse keys it by the child session id its rows carry.
+    // The roster is not run-tied; it is keyed by the child session id its rows carry.
     expect(
       deriveThreadPendingBackgroundTasks(
         projection({

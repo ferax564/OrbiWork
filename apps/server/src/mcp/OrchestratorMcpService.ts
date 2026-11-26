@@ -302,11 +302,11 @@ function scheduledTaskSummary(task: ScheduledTask): OrchestratorMcpScheduledTask
 }
 
 /**
- * Large catalogs (OpenCode, Cursor, Pi) can list hundreds of models, so agents
+ * Large catalogs (such as ACP agents) can list hundreds of models, so agents
  * get a short list by default and search for the rest. These providers have
  * small official catalogs, so all their current models are listed.
  */
-const FULL_CATALOG_DRIVERS: ReadonlySet<string> = new Set(["codex", "claudeAgent", "muse", "grok"]);
+const FULL_CATALOG_DRIVERS: ReadonlySet<string> = new Set(["codex", "claudeAgent"]);
 const LISTED_MODEL_LIMIT = 8;
 
 /**
@@ -394,23 +394,6 @@ const advertisedModel = (provider: ServerProvider, model: string) =>
   provider.models.find((candidate) =>
     candidate.aliases?.some((alias) => alias.toLowerCase() === model.toLowerCase()),
   );
-
-/** Antigravity 1.3 IDs append the thinking level (`gemini-3.8-flash-high`); the agent still accepts them. */
-function antigravitySuffixedModel(provider: ServerProvider, model: string) {
-  if (provider.driver !== "antigravity" || advertisedModel(provider, model)) return;
-  const separator = model.lastIndexOf("-");
-  if (separator === -1) return;
-  const family = model.slice(0, separator);
-  const value = model.slice(separator + 1);
-  const thinking = provider.models
-    .find((candidate) => candidate.slug === family)
-    ?.capabilities?.optionDescriptors?.find(
-      (descriptor) => descriptor.type === "select" && descriptor.role === "reasoning",
-    );
-  if (thinking?.type === "select" && thinking.options.some((choice) => choice.id === value)) {
-    return { model: family, thinking: { id: thinking.id, value } };
-  }
-}
 
 /** A folder's own provider config can add models that only its workspace snapshot lists. */
 export const withWorkspaceModels = (
@@ -1776,10 +1759,7 @@ const make = Effect.gen(function* () {
 
     const inheritedSelection = input.parent.thread.modelSelection;
     const requestedModel = input.target?.model;
-    const antigravityTarget =
-      requestedModel === undefined ? undefined : antigravitySuffixedModel(provider, requestedModel);
     const model =
-      antigravityTarget?.model ??
       requestedModel ??
       (instanceId === inheritedSelection.instanceId
         ? inheritedSelection.model
@@ -1805,17 +1785,14 @@ const make = Effect.gen(function* () {
           descriptors,
         )
       : undefined;
-    if (requestedOptions !== undefined || antigravityTarget !== undefined) {
+    if (requestedOptions !== undefined) {
       const selections = new Map(
-        (requestedOptions?.length === 0 ? [] : (options ?? [])).map((selection) => [
+        (requestedOptions.length === 0 ? [] : (options ?? [])).map((selection) => [
           selection.id,
           selection,
         ]),
       );
-      if (antigravityTarget !== undefined && requestedOptions?.length !== 0) {
-        selections.set(antigravityTarget.thinking.id, antigravityTarget.thinking);
-      }
-      for (const selection of requestedOptions ?? []) {
+      for (const selection of requestedOptions) {
         selections.set(selection.id, selection);
       }
       options = [...selections.values()];

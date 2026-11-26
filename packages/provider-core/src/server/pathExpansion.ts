@@ -11,7 +11,7 @@ export function expandHomePath(value: string, home: string): string {
   return value;
 }
 
-const HOME_PATH_VARIABLES = new Set(["CODEX_HOME", "CLAUDE_CONFIG_DIR", "GROK_HOME"]);
+const HOME_PATH_VARIABLES = new Set(["CODEX_HOME", "CLAUDE_CONFIG_DIR"]);
 
 export function expandHomeVariable(name: string, value: string, home: string): string {
   return HOME_PATH_VARIABLES.has(name) ? expandHomePath(value, home) : value;

@@ -7,7 +7,6 @@ import "./index.css";
 import { trackKeyboardLayout } from "./keyboardLayout";
 import { startAppServices } from "./appInit";
 import { AppRoot } from "./AppRoot";
-import { whenLocaleReady } from "./i18n/runtime";
 import { chunkLoadState } from "./lib/chunkReloadGuard";
 
 const stopTrackingKeyboardLayout = trackKeyboardLayout();
@@ -16,9 +15,7 @@ import.meta.hot?.dispose(stopTrackingKeyboardLayout);
 const router = startAppServices();
 
 export const startup = router
-  // Chained so settings have usually hydrated; English resolves without a chunk load.
   .load()
-  .then(whenLocaleReady)
   .then(() => {
     // Route chunk failures resolve router.load() and surface later through the error boundary.
     if (chunkLoadState.reloadScheduled) return;

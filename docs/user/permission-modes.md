@@ -27,26 +27,11 @@ the parent conversation with the subagent's name, so you can respond without swi
 ## Provider differences
 
 Providers enforce permissions differently. Some read-only actions can proceed in **Supervised**.
-**Auto** uses automatic review on Codex, Claude, Cursor, Grok, Antigravity, and fx; providers without
-an equivalent, including OpenCode, fall back to asking. On Grok and Antigravity, actions their review
-does not approve come to you for approval. On fx, prompts it still sends also come to you.
+**Auto** uses automatic review on Codex and Claude; providers without an equivalent fall back to
+asking.
 
-Antigravity offers **Auto** only when your Antigravity sign-in provides its Auto mode; some accounts,
-including some personal Google accounts, do not. Without it, an Antigravity thread already set to
-**Auto** runs in **Supervised**.
-
-Muse Code offers only **Supervised** and **Full access**. A Muse thread already set to another mode
-runs in **Supervised**.
-
-OrbiWork offers no **Auto-accept edits** for fx, and **Full access** only with fx 0.0.14 or later. An fx
-thread set to a mode its fx lacks runs in **Supervised**.
-
-Grok offers no **Auto-accept edits**. A Grok thread already set to it runs in **Supervised**. Grok
-file-change approvals offer **Allow all edits this session**. Its command approvals have no
-session-wide choice, because Grok would remember that command for the whole project.
-
-ACP Registry agents run their own tools in their own mode; OrbiWork answers their approval requests
-by the permission mode. See [ACP Registry permissions](./providers-acp.md#permissions-and-terminals).
+ACP agents run their own tools in their own mode; OrbiWork answers their approval requests
+by the permission mode. See [ACP agent permissions](./providers-acp.md#permissions-and-terminals).
 
 In **Full access**, commands that Codex's dangerous-command check would ask about run without
 asking. Codex still asks before network access its managed network settings don't allow, unless
@@ -58,11 +43,5 @@ the original warning. Claude can use a safe rewrite when the warning supplies on
 continues without the removal and tells you what it skipped.
 While a Claude approval is pending, type a text reply to decline that request and give feedback
 directly to the agent that asked, including a subagent. Other pending requests stay unanswered.
-
-Antigravity can still send native approval requests in **Full access**. It only offers remembered
-approvals for actions that support them.
-
-Kiro offers only **Supervised** and **Full access**. In **Supervised** Kiro also asks you to
-review a turn's file changes. See [Kiro permissions](./providers-kiro.md#permission-modes).
 
 See the [provider guides](./install.md#providers) for setup and provider-specific limits.

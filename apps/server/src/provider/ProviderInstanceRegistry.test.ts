@@ -9,7 +9,6 @@ import { setUsageLimitReadsAllowedForTests } from "@orbiwork/provider-core/serve
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
-  AntigravitySettings,
   EnvironmentId,
   type ClaudeSettings,
   type CodexSettings,
@@ -19,10 +18,11 @@ import {
   ProviderInstanceId,
   SecretProviderId,
   SettingsSecretValue,
+  makeProviderSettingsSchema,
+  secretSetting,
   type SecretReference,
 } from "@orbiwork/contracts";
 import * as ProviderLatestVersions from "@orbiwork/provider-core/server/ProviderLatestVersions";
-import { OpenCodeSettings } from "@orbiwork/provider-opencode/settings";
 import * as McpProviderSessions from "@orbiwork/provider-core/server/McpProviderSessions";
 import * as HostProcess from "@orbiwork/shared/HostProcess";
 import * as DateTime from "effect/DateTime";
@@ -1114,21 +1114,26 @@ describe("ProviderInstanceRegistry secret environment", () => {
     });
   });
 
-  it.effect.each([
-    { name: "Antigravity apiKey", schema: AntigravitySettings, field: "apiKey" },
-    { name: "OpenCode serverPassword", schema: OpenCodeSettings, field: "serverPassword" },
-  ])("hands the driver the secret its $name names", ({ schema, field }) => {
-    const reference: SecretReference = { ...secret, reference: "op://Private/Provider/key" };
-    const fixture = setup(
-      { [secret.reference]: "sk-live", [reference.reference]: "provider-live" },
-      schema,
-      { enabled: true, [field]: reference },
-    );
-    return Effect.gen(function* () {
-      yield* fixture.make;
-      expect(fixture.configs).toEqual([expect.objectContaining({ [field]: "provider-live" })]);
-    });
+  const SecretFieldSettings = makeProviderSettingsSchema({
+    enabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+    apiKey: SettingsSecretValue.pipe(Schema.withDecodingDefault(Effect.succeed("")), secretSetting),
   });
+
+  it.effect.each([{ name: "apiKey", schema: SecretFieldSettings, field: "apiKey" }])(
+    "hands the driver the secret its $name names",
+    ({ schema, field }) => {
+      const reference: SecretReference = { ...secret, reference: "op://Private/Provider/key" };
+      const fixture = setup(
+        { [secret.reference]: "sk-live", [reference.reference]: "provider-live" },
+        schema,
+        { enabled: true, [field]: reference },
+      );
+      return Effect.gen(function* () {
+        yield* fixture.make;
+        expect(fixture.configs).toEqual([expect.objectContaining({ [field]: "provider-live" })]);
+      });
+    },
+  );
 
   it.effect("keeps a working instance live when a reload cannot read its secret", () => {
     const fixture = setup({ [secret.reference]: "sk-live" });

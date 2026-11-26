@@ -29,8 +29,6 @@ const MAX_CONTENT_BLOCKS = 32;
 const MAX_ENVELOPE_DEPTH = 4;
 const MAX_ENVELOPE_NODES = 128;
 const encoder = new TextEncoder();
-// Antigravity's terminal tool prefixes an `acp-mcp-call` result's stdout with timestamps and exit status.
-const TERMINAL_OUTPUT_MARKER = "\nCommand output:\n";
 
 interface ResultReadBudget {
   remainingBytes: number;
@@ -107,12 +105,7 @@ function readResult(value: unknown, budget: ResultReadBudget, depth = 0): Result
     value.is_error === true ||
     value._tag === "OrchestratorMcpFailure" ||
     value.error != null;
-  const terminal = typeof value.output === "string" ? value.output : "";
-  const marker = terminal.indexOf(TERMINAL_OUTPUT_MARKER);
-  const content =
-    value.structuredContent ??
-    value.content ??
-    (marker === -1 ? undefined : terminal.slice(marker + TERMINAL_OUTPUT_MARKER.length));
+  const content = value.structuredContent ?? value.content;
   if (content !== undefined) {
     const nested = readResult(content, budget, depth + 1);
     return { ...nested, failed: failed || nested.failed };
@@ -206,19 +199,11 @@ export function compactDynamicToolOutput(value: unknown): CompactToolOutput | un
   return Object.keys(output).length === 0 ? undefined : output;
 }
 
-// OpenCode 2 Code Mode reports a script's nested Orbi tool calls as one item with the script's result.
-const OPENCODE_CODE_MODE_TOOL_NAME = "execute";
-
 export function htmlRenderFromToolItem(item: {
   readonly toolName: string | null | undefined;
   readonly output?: unknown;
 }): HtmlRenderReference | undefined {
-  if (
-    item.toolName !== OPENCODE_CODE_MODE_TOOL_NAME &&
-    resolveOrbiMcpToolId(item.toolName) !== HTML_RENDER_TOOL_NAME
-  ) {
-    return undefined;
-  }
+  if (resolveOrbiMcpToolId(item.toolName) !== HTML_RENDER_TOOL_NAME) return undefined;
   const output = compactDynamicToolOutput(item.output);
   return output?.isError ? undefined : output?.htmlRender;
 }
@@ -228,12 +213,7 @@ export function sentMessageFromToolItem(item: {
   readonly toolName: string | null | undefined;
   readonly output?: unknown;
 }): string | undefined {
-  if (
-    item.toolName !== OPENCODE_CODE_MODE_TOOL_NAME &&
-    resolveOrbiMcpToolId(item.toolName) !== SEND_TO_USER_TOOL_NAME
-  ) {
-    return undefined;
-  }
+  if (resolveOrbiMcpToolId(item.toolName) !== SEND_TO_USER_TOOL_NAME) return undefined;
   const output = compactDynamicToolOutput(item.output);
   return output?.isError ? undefined : output?.sentMessage;
 }

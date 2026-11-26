@@ -67,11 +67,11 @@ function makeThread(input: {
   };
 }
 
-const grokInstanceId = ProviderInstanceId.make("grok");
-const antigravityInstanceId = ProviderInstanceId.make("antigravity");
+const autoModeInstanceId = ProviderInstanceId.make("acp-with-auto");
+const noAutoModeInstanceId = ProviderInstanceId.make("acp-without-auto");
 const supportedRuntimeModesByInstance = new Map<ProviderInstanceId, ReadonlyArray<RuntimeMode>>([
-  [grokInstanceId, ["approval-required", "auto", "full-access"]],
-  [antigravityInstanceId, ["approval-required", "auto-accept-edits", "full-access"]],
+  [autoModeInstanceId, ["approval-required", "auto", "full-access"]],
+  [noAutoModeInstanceId, ["approval-required", "auto-accept-edits", "full-access"]],
 ]);
 const providerInstanceFor = (instanceId: ProviderInstanceId) =>
   ({
@@ -166,14 +166,14 @@ const layerTaskFolderPolicy = layerWithPolicy(
 ).pipe(Layer.provideMerge(layerTaskFolderStore));
 
 it.layer(layerTest)("RuntimePolicyV2", (it) => {
-  it.effect("asks for Antigravity command approval when a stored Auto thread falls back", () =>
+  it.effect("asks for ACP command approval when a stored Auto thread falls back", () =>
     Effect.gen(function* () {
       const policy = yield* RuntimePolicy.RuntimePolicyV2;
       const now = yield* DateTime.now;
       const resolve = (runtimeMode: RuntimeMode) =>
         policy.resolve({
           thread: makeThread({ now, worktreePath: null, runtimeMode }),
-          modelSelection: { instanceId: antigravityInstanceId, model: "test-model" },
+          modelSelection: { instanceId: noAutoModeInstanceId, model: "test-model" },
         });
       const request = {
         sessionId: "session-1",
@@ -200,9 +200,9 @@ it.layer(layerTest)("RuntimePolicyV2", (it) => {
           })
           .pipe(Effect.map((resolved) => resolved.runtimeMode));
 
-      assert.equal(yield* modeFor(grokInstanceId, "auto-accept-edits"), "approval-required");
-      assert.equal(yield* modeFor(grokInstanceId, "auto"), "auto");
-      assert.equal(yield* modeFor(grokInstanceId, "full-access"), "full-access");
+      assert.equal(yield* modeFor(autoModeInstanceId, "auto-accept-edits"), "approval-required");
+      assert.equal(yield* modeFor(autoModeInstanceId, "auto"), "auto");
+      assert.equal(yield* modeFor(autoModeInstanceId, "full-access"), "full-access");
       assert.equal(yield* modeFor(providerInstanceId, "auto-accept-edits"), "auto-accept-edits");
     }),
   );

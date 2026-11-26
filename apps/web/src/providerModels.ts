@@ -14,13 +14,7 @@ const EMPTY_CAPABILITIES: ModelCapabilities = createModelCapabilities({
   optionDescriptors: [],
 });
 const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
-const RUNTIME_MODEL_CATALOG_DRIVERS: ReadonlySet<string> = new Set([
-  "opencode",
-  "antigravity",
-  "cursor",
-  "pi",
-  "acpRegistry",
-]);
+const RUNTIME_MODEL_CATALOG_DRIVERS: ReadonlySet<string> = new Set(["acpRegistry"]);
 
 // These drivers discover models at runtime, so a refresh can briefly omit a model the user chose.
 export function hasRuntimeModelCatalog(provider: ProviderDriverKind): boolean {
@@ -32,22 +26,14 @@ export function isRuntimeModelDefaultAlias(
   provider: ProviderDriverKind,
   model: string | null | undefined,
 ): boolean {
-  return (
-    (provider === "antigravity" || provider === "acpRegistry") &&
-    model === DEFAULT_MODEL_BY_PROVIDER[provider]
-  );
+  return provider === "acpRegistry" && model === DEFAULT_MODEL_BY_PROVIDER[provider];
 }
 
-// Antigravity lists its default model only as an alias, which a slug lookup would call missing.
 export function keepsUnavailableModelOptions(
   provider: ProviderDriverKind,
   model: string | null | undefined,
 ): boolean {
-  return (
-    provider !== "antigravity" &&
-    !isRuntimeModelDefaultAlias(provider, model) &&
-    hasRuntimeModelCatalog(provider)
-  );
+  return !isRuntimeModelDefaultAlias(provider, model) && hasRuntimeModelCatalog(provider);
 }
 
 export function formatProviderDriverKindLabel(provider: ProviderDriverKind): string {

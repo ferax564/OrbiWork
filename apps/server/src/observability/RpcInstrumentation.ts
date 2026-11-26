@@ -14,7 +14,6 @@ type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
 const RPC_AGGREGATES = {
   [ORCHESTRATION_V2_WS_METHODS.dispatchCommand]: "orchestrationV2",
   [ORCHESTRATION_V2_WS_METHODS.getWorkflowScript]: "orchestration",
-  [ORCHESTRATION_V2_WS_METHODS.getNativeChildWork]: "orchestration",
   [ORCHESTRATION_V2_WS_METHODS.stopWorkflow]: "orchestration",
   [ORCHESTRATION_V2_WS_METHODS.forceStopThread]: "orchestration",
   [ORCHESTRATION_V2_WS_METHODS.getTurnItem]: "orchestration",
@@ -79,9 +78,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.peerLinksPairLink]: "peerLinks",
   [WS_METHODS.serverGetSettings]: "server",
   [WS_METHODS.serverUpdateSettings]: "server",
-  [WS_METHODS.serverSearchAcpRegistry]: "server",
-  [WS_METHODS.serverPrepareAcpRegistryAgent]: "server",
-  [WS_METHODS.serverUninstallAcpRegistryManagedBinary]: "server",
   [WS_METHODS.serverAcceptAcpRegistryUrlAuth]: "server",
   [WS_METHODS.serverListAcpRegistrySessions]: "server",
   [WS_METHODS.serverImportAcpRegistrySession]: "server",

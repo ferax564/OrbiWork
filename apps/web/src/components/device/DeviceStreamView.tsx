@@ -7,16 +7,12 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { renewDeviceHubAccess, useDeviceHubAccess } from "~/state/device";
-import { resolveDeviceShape } from "@orbiwork/client-runtime/device/shape-profile";
-import { deviceKeyboard, deviceModel } from "./deviceModels";
 import { fitDeviceFrame } from "./deviceFrameLayout";
-import { DeviceDuoViewport } from "./DeviceDuoViewport";
 import { DeviceDuoControls } from "./DeviceDuoControls";
 import { DeviceAndroidFoldControls } from "./DeviceAndroidFoldControls";
-import { DevicePhoneViewport } from "./DevicePhoneViewport";
 import { DeviceLoadingView } from "./DeviceLoadingView";
 import type { DeviceAxElement } from "./deviceHubApi";
-import { androidFoldViewAtom, deviceAxElementsAtom } from "./deviceHubAtoms";
+import { deviceAxElementsAtom } from "./deviceHubAtoms";
 import {
   deviceScreenKey,
   deviceStreamSessionAtom,
@@ -67,14 +63,8 @@ function screenRotation(platform: DevicePlatform, screen: DeviceScreenSize | nul
 }
 
 export interface DeviceViewControls {
-  readonly phone: boolean;
   readonly streaming: boolean;
-  readonly phoneUnavailableReason: string | null;
-  readonly showPhone: () => void;
-  readonly showFlat: () => void;
-  readonly resetView: () => void;
   readonly foldingControls?: ReactNode;
-  readonly keyboard: { readonly attached: boolean; readonly toggle: () => void } | null;
   readonly handle: DeviceStreamHandle | null;
 }
 
@@ -92,7 +82,6 @@ export function DeviceStreamView(props: {
   readonly deviceDescription?: string;
   readonly visible: boolean;
   readonly hostId: string;
-  readonly allowPhoneView?: boolean;
   readonly renderControls?: (view: DeviceViewControls) => ReactNode;
   readonly axOverlay?: boolean;
   /** Lets a parent read this view's own stream state, such as its screen size. */
@@ -100,20 +89,7 @@ export function DeviceStreamView(props: {
   /** The host serves only serve-sim's stream and input socket (Simlock). */
   readonly serveSimOnly?: boolean;
 }) {
-  const model = deviceModel(props.platform, props.deviceName ?? "");
-  const isDuo = model?.id === "iphone-duo";
   const gt = useGT();
-  const [presentation, setPresentation] = useState<"phone" | "flat">("phone");
-  const [keyboardAttached, setKeyboardAttached] = useState(false);
-  const cancelPhoneInputRef = useRef<(() => void) | null>(null);
-  const cancelPhoneInput = () => cancelPhoneInputRef.current?.();
-  const resetViewRef = useRef<(() => void) | null>(null);
-  const onResetReady = (reset: (() => void) | null) => {
-    resetViewRef.current = reset;
-  };
-  const onInputCancel = (cancel: (() => void) | null) => {
-    cancelPhoneInputRef.current = cancel;
-  };
   const access = useDeviceHubAccess(props.environmentId, props.hostId);
   const ownViewId = useId();
   const viewId = props.viewId ?? ownViewId;
@@ -132,13 +108,9 @@ export function DeviceStreamView(props: {
   );
   const client = session?.stream ?? null;
   const canvas = session?.canvas ?? null;
-  const { status, detail, hasFrame, screen, mjpegUrl, mjpegGeneration, duoControl } =
+  const { status, detail, screen, mjpegUrl, mjpegGeneration, duoControl } =
     session?.state ?? IDLE_DEVICE_STREAM_STATE;
   const inputState = session?.state.input ?? IDLE_DEVICE_STREAM_STATE.input;
-  const phoneUnavailable = session?.state.phoneUnavailable ?? false;
-  const foldAngle = useAtomValue(
-    androidFoldViewAtom(deviceScreenKey(props.environmentId, props.hostId, props.deviceId)),
-  ).angle;
   const attachMjpegImage = (image: HTMLImageElement | null) => {
     if (!client || !image) return;
     client.setMjpegImage(image);
@@ -152,18 +124,7 @@ export function DeviceStreamView(props: {
 
   const aspect = screenAspect(props.platform, screen);
 
-  const retainingFrame =
-    status === "connecting" && hasFrame && inputState.connected && screen !== null;
-  const showPhone =
-    props.allowPhoneView &&
-    (status === "streaming" || retainingFrame) &&
-    props.visible &&
-    presentation === "phone" &&
-    !phoneUnavailable &&
-    !mjpegUrl &&
-    !props.axOverlay &&
-    (!isDuo || screen?.supportsHingeAngle === true);
-  const controlsInset = props.renderControls && !showPhone ? CONTROLS_RAIL_WIDTH : 0;
+  const controlsInset = props.renderControls ? CONTROLS_RAIL_WIDTH : 0;
 
   // Fit the frame in both dimensions; pinned CSS height plus a width clamp distorts aspect-ratio.
   const [host, setHost] = useState({ width: 0, height: 0 });
@@ -229,45 +190,16 @@ export function DeviceStreamView(props: {
     client?.sendTouch("end", x, y);
   };
 
-  const phoneUnavailableReason =
-    isDuo && !screen?.supportsHingeAngle
-      ? gt("iPhone Duo 3D requires Device Hub {version} or newer", { version: "0.11.0" })
-      : phoneUnavailable
-        ? gt("3D is unavailable on this browser")
-        : mjpegUrl
-          ? gt("3D requires the H.264 stream")
-          : props.axOverlay
-            ? gt("Turn off accessibility frames to use 3D")
-            : null;
-
-  const keyboardSource = deviceKeyboard(props.platform, props.deviceName ?? "");
-  const resetView = () => {
-    if (!isDuo) {
-      const orientation = keyboardAttached ? "landscape_right" : "portrait";
-      if (screen?.orientation !== orientation) client?.setOrientation(orientation);
-    }
-    resetViewRef.current?.();
-  };
-  const profile = resolveDeviceShape({
-    platform: props.platform,
-    name: props.deviceName ?? "",
-    portraitAspect: Math.min(aspect, 1 / aspect),
-  });
-
   return (
     <div
       className={cn(
         "relative flex size-full min-h-0 min-w-0",
-        props.allowPhoneView ? "bg-background" : "bg-black/90",
+        props.renderControls ? "bg-background" : "bg-black/90",
       )}
     >
-      {props.renderControls ? (
-        <DeviceControlsSlot
-          renderControls={props.renderControls}
-          view={{
-            phone: !!showPhone,
+      {props.renderControls
+        ? props.renderControls({
             streaming: status === "streaming",
-            phoneUnavailableReason,
             foldingControls:
               props.platform === "android" && access ? (
                 <DeviceAndroidFoldControls
@@ -281,31 +213,14 @@ export function DeviceStreamView(props: {
                   deviceKey={deviceScreenKey(props.environmentId, props.hostId, props.deviceId)}
                   renewAccess={() => renewDeviceHubAccess(props.environmentId, props.hostId)}
                 />
-              ) : showPhone && isDuo && screen?.supportsHingeAngle ? (
+              ) : props.platform === "ios" && screen?.supportsHingeAngle ? (
                 <DeviceDuoControls
                   screen={screen}
                   state={duoControl}
                   enabled={inputState.connected}
-                  onCommand={(command) => {
-                    cancelPhoneInput();
-                    client?.controlDuo(command);
-                  }}
+                  onCommand={(command) => client?.controlDuo(command)}
                 />
               ) : null,
-            keyboard:
-              showPhone && keyboardSource
-                ? {
-                    attached: keyboardAttached,
-                    toggle: () => {
-                      cancelPhoneInput();
-                      if (!keyboardAttached && screen?.orientation !== "landscape_right")
-                        client?.setOrientation("landscape_right");
-                      setKeyboardAttached(!keyboardAttached);
-                    },
-                  }
-                : null,
-            showPhone: () => setPresentation("phone"),
-            showFlat: () => setPresentation("flat"),
             handle: client
               ? {
                   pressButton: client.pressButton,
@@ -313,10 +228,8 @@ export function DeviceStreamView(props: {
                   inputConnected: inputState.connected,
                 }
               : null,
-          }}
-          onResetView={resetView}
-        />
-      ) : null}
+          })
+        : null}
       <div
         ref={hostRef}
         className={cn(
@@ -354,7 +267,7 @@ export function DeviceStreamView(props: {
         }}
       >
         <div
-          className={cn("relative select-none", showPhone && "invisible pointer-events-none")}
+          className="relative select-none"
           style={{ width: frame.width, height: frame.height }}
           onPointerDown={(event) => {
             if (event.button !== 0 || !inputState.connected || activePointer.current !== null)
@@ -413,58 +326,6 @@ export function DeviceStreamView(props: {
             </div>
           ) : null}
         </div>
-        {session && showPhone && isDuo && model ? (
-          <DeviceDuoViewport
-            onFrameListener={session.setFrameListener}
-            onControlRejectedListener={session.setControlRejectedListener}
-            model={model}
-            hingePreview={
-              duoControl.requested?.control === "angle" ? duoControl.requested.value : null
-            }
-            source={session.canvas}
-            client={session.stream}
-            onInputCancel={onInputCancel}
-            onResetReady={onResetReady}
-            screen={screen}
-            onUnavailable={session.markPhoneUnavailable}
-          />
-        ) : session && showPhone ? (
-          <DevicePhoneViewport
-            profile={profile}
-            model={deviceModel(props.platform, props.deviceName ?? "")}
-            accessory={keyboardAttached ? keyboardSource : null}
-            source={session.canvas}
-            onFrameListener={session.setFrameListener}
-            client={session.stream}
-            onInputCancel={onInputCancel}
-            onResetReady={onResetReady}
-            screen={screen}
-            foldAngle={foldAngle}
-            onUnavailable={session.markPhoneUnavailable}
-          />
-        ) : null}
-        {props.allowPhoneView && !props.renderControls && status === "streaming" ? (
-          <div className="absolute top-3 left-3 flex gap-1 rounded-lg border border-border/50 bg-background/90 p-1 shadow-sm">
-            <Button
-              variant={showPhone ? "secondary" : "ghost"}
-              size="xs"
-              aria-pressed={!!showPhone}
-              disabled={!!phoneUnavailableReason}
-              title={phoneUnavailableReason ?? gt("Show 3D phone")}
-              onClick={() => setPresentation("phone")}
-            >
-              3D
-            </Button>
-            <Button
-              variant={!showPhone ? "secondary" : "ghost"}
-              size="xs"
-              aria-pressed={!showPhone}
-              onClick={() => setPresentation("flat")}
-            >
-              <T context="flat device view">Flat</T>
-            </Button>
-          </div>
-        ) : null}
         {status === "streaming" && !inputState.connected ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2">
             <span className="rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
@@ -474,15 +335,7 @@ export function DeviceStreamView(props: {
             </span>
           </div>
         ) : null}
-        {retainingFrame && showPhone ? (
-          // Shown only once the device has been silent for two seconds.
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 transition-opacity delay-2000 duration-0 starting:opacity-0">
-            <span className="rounded-md bg-background/85 px-2 py-1 text-xs text-muted-foreground">
-              <T>Waiting for device video…</T>
-            </span>
-          </div>
-        ) : null}
-        {status !== "streaming" && !(retainingFrame && showPhone) ? (
+        {status !== "streaming" ? (
           <div className="absolute inset-0">
             <DeviceLoadingView
               name={props.deviceName ?? gt("Device")}
@@ -512,12 +365,4 @@ export function DeviceStreamView(props: {
       </div>
     </div>
   );
-}
-
-function DeviceControlsSlot(props: {
-  renderControls: (view: DeviceViewControls) => ReactNode;
-  view: Omit<DeviceViewControls, "resetView">;
-  onResetView: () => void;
-}) {
-  return props.renderControls({ ...props.view, resetView: props.onResetView });
 }

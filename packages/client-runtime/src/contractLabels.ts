@@ -249,45 +249,6 @@ const INSTALL_HINTS = [
       command: "`brew install glab`",
     },
   ),
-  msg(
-    "Install the Azure command-line tools ({cli}), then enable Azure DevOps support with {command}.",
-    {
-      cli: "`az`",
-      command: "`az extension add --name azure-devops`",
-    },
-  ),
-  msg("Add a Bitbucket token in Settings → Source control & issues."),
-  msg("Install the Origin CLI with {install}, then run {login}.", {
-    install: "`curl -fsSL https://downloads.cursor.com/origin/install.sh | sh`",
-    login: "`origin auth login`",
-  }),
-  msg(
-    "Install {fj} 0.6 or later from {fjUrl} and run {fjLogin}, or install {tea} 0.16 or later from {teaUrl} and run {teaLogin} for each Forgejo or Gitea server.",
-    {
-      fj: "`fj`",
-      fjUrl: "https://codeberg.org/forgejo-contrib/forgejo-cli",
-      fjLogin: "`fj --host <server-url> auth add-token`",
-      tea: "`tea`",
-      teaUrl: "https://gitea.com/gitea/tea",
-      teaLogin: "`tea login add`",
-    },
-  ),
-  msg(
-    "Install the GitCafe CLI with {install}, then run {login}, save a token in Settings, or set {variable} on the server.",
-    {
-      install: "`bun install -g @gitcafe/cli`",
-      login: "`cafe auth login --host https://git.cafe/api`",
-      variable: "CAFE_TOKEN",
-    },
-  ),
-  msg(
-    "Install the TanStack Source CLI with {install}, then run {login}, save a token in Settings, or set {variable} on the server.",
-    {
-      install: "`curl -fsSL https://source.tanstack.com/install | sh`",
-      login: "`src auth login --web --hostname source.tanstack.com`",
-      variable: "SRC_TOKEN",
-    },
-  ),
 ];
 
 /** @public A source-control `installHint`, translated when it is one of the server's fixed hints. */

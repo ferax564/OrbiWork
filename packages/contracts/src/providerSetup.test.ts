@@ -10,7 +10,7 @@ describe("provider auth state", () => {
     const method = { id: "browser", name: "Browser", description: null, type: "agent" };
     expect(
       decodeState({
-        instanceId: "cursor",
+        instanceId: "codex",
         phase: "waiting",
         flowId: null,
         authorizationUrl: null,
@@ -21,7 +21,7 @@ describe("provider auth state", () => {
         credentialOwner: "keychain",
       }),
     ).toEqual({
-      instanceId: "cursor",
+      instanceId: "codex",
       phase: "waiting",
       flowId: null,
       authorizationUrl: null,
@@ -33,7 +33,7 @@ describe("provider auth state", () => {
 
   it("refuses sign-in URLs that are not web pages", () => {
     const state = {
-      instanceId: "cursor",
+      instanceId: "codex",
       phase: "waiting",
       flowId: "flow",
       authorizationUrl: null,

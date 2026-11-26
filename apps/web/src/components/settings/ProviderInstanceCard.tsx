@@ -163,12 +163,6 @@ function providerEnvironmentsEqual(
   );
 }
 
-function readConfigString(config: unknown, key: string): string | null {
-  if (config === null || typeof config !== "object") return null;
-  const value = (config as Record<string, unknown>)[key];
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
-
 /** Preserve explicit empty arrays/objects; clearing a custom list differs from selecting driver defaults. */
 function nextConfigBlobWithValue(
   config: unknown,
@@ -746,7 +740,6 @@ interface ProviderInstanceCardProps {
 
 const EMPTY_ACP_PROJECTS: NonNullable<ProviderInstanceCardProps["acpProjects"]> = [];
 const NO_SECRET_SOURCES: ReadonlyArray<SecretSource> = [];
-const NO_CUSTOM_MODELS: ReadonlyArray<CustomModelDefinition> = [];
 
 /**
  * Every custom model save writes the whole list, so the next edit starts from the last list sent
@@ -893,9 +886,7 @@ export function ProviderInstanceCard({
       ? (instance.config as Record<string, unknown>).customModels
       : undefined;
   const [customModels, updateCustomModels] = useCustomModelSaves(
-    instance.driver === "antigravity"
-      ? NO_CUSTOM_MODELS
-      : readCustomModelEntries(storedCustomModels),
+    readCustomModelEntries(storedCustomModels),
     (next) => {
       const nextConfig = nextConfigBlobWithValue(
         instance.config,
@@ -988,16 +979,6 @@ export function ProviderInstanceCard({
       driverKind={driverKind ?? instance.driver}
       displayName={displayName}
       accentColor={accentColor}
-      acpRegistryAgentId={
-        readConfigString(instance.config, "source") === "local"
-          ? undefined
-          : (readConfigString(instance.config, "agentId") ?? undefined)
-      }
-      acpRegistryIconUrl={
-        readConfigString(instance.config, "source") === "local"
-          ? undefined
-          : (readConfigString(instance.config, "registryIconUrl") ?? undefined)
-      }
       showBadge={Boolean(accentColor)}
       className="size-5"
       iconClassName="size-4 text-foreground/80"

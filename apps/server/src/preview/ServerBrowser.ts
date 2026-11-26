@@ -96,7 +96,6 @@ import * as PreviewBrowser from "./PreviewBrowser.ts";
 import * as PreviewBrowserHost from "./PreviewBrowserHost.ts";
 import { presentAsChrome, ServerBrowserContexts } from "./ServerBrowserContexts.ts";
 import { BrowserControlInterrupted, SessionControl } from "./SessionControl.ts";
-import { installPdfDocumentNavigation, isPdfAssetUrl } from "./PdfDocumentNavigation.ts";
 
 const SERVER_HOST_CLIENT_ID = SERVER_BROWSER_AUTOMATION_CLIENT_ID;
 // Each client's report is capped, but the saved catalog is their union, so it has no cap.
@@ -1142,7 +1141,6 @@ const make = Effect.gen(function* () {
     const page = adopted?.page ?? desktop?.page ?? (await context.newPage());
     if (!desktop) opened.push(() => page.close());
     const cdp = await context.newCDPSession(page);
-    await installPdfDocumentNavigation(cdp);
     // The desktop's page is already a normal browser. A popup's first request
     // precedes this override, so its Sec-CH-UA brands still name HeadlessChrome.
     if (!desktop) await presentAsChrome(cdp, host);
@@ -1396,11 +1394,7 @@ const make = Effect.gen(function* () {
     reportLiveTabs();
     // A desktop page navigates on its own and can finish loading before these listeners attach.
     if (desktop) void page.waitForLoadState("load").then(() => reportLoaded(tab), constVoid);
-    // Existing desktop and popup PDFs can start loading before interception attaches.
-    if (
-      snapshot.navStatus._tag === "Loading" &&
-      ((!adopted && !desktop) || isPdfAssetUrl(snapshot.navStatus.url))
-    ) {
+    if (snapshot.navStatus._tag === "Loading" && !adopted && !desktop) {
       tab.loading = true;
       const initialUrl = URL.parse(snapshot.navStatus.url);
       if (initialUrl) initialUrl.hash = "";

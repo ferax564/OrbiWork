@@ -42,6 +42,7 @@ import {
 } from "./probe.ts";
 
 const decodeSettings = Schema.decodeSync(AcpRegistrySettings);
+const decodeLegacySettings = Schema.decodeUnknownEffect(AcpRegistrySettings);
 const identity = {
   instanceId: ProviderInstanceId.make("acpRegistry_test"),
   displayName: "Test ACP",
@@ -61,11 +62,8 @@ function catalogWithInspection(
   inspection: AcpRegistrySupport.AcpRegistryInspection,
 ): AcpRegistrySupport.AcpRegistryCatalog["Service"] {
   return {
-    search: () => Effect.die("unused search"),
-    prepare: () => Effect.die("unused prepare"),
     inspect: () => Effect.succeed(inspection),
     resolve: () => Effect.die("unused resolve"),
-    uninstallManagedBinary: () => Effect.die("unused uninstall"),
   };
 }
 
@@ -79,19 +77,13 @@ function providerWithModels(
 ): ReturnType<typeof buildCheckedAcpRegistrySnapshot> {
   return buildCheckedAcpRegistrySnapshot({
     ...identity,
-    settings: decodeSettings({ agentId: "test-agent" }),
+    settings: decodeSettings({ commandPath: "test-agent" }),
     checkedAt: "2026-08-13T10:00:00.000Z",
-    inspection: {
-      status: "ready",
-      agentId: "test-agent",
-      version: "1.0.0",
-      distribution: "npx",
-    },
+    inspection: { status: "ready", version: null },
     probe: {
       probe: {
         instanceId: identity.instanceId,
         ready: true,
-        icon: null,
         authMethods: [],
         models,
         currentModelId,
@@ -110,7 +102,7 @@ describe("acpRegistrySnapshotReadiness", () => {
     const snapshot = buildCheckedAcpRegistrySnapshot({
       ...identity,
       settings: decodeSettings({
-        agentId: "test-agent",
+        commandPath: "test-agent",
         customModels: [
           toCustomModelSetting({
             slug: "gateway/my-model",
@@ -120,7 +112,7 @@ describe("acpRegistrySnapshotReadiness", () => {
         ],
       }),
       checkedAt: "2026-08-13T10:00:00.000Z",
-      inspection: { status: "ready", agentId: "test-agent", version: "1.0.0", distribution: "npx" },
+      inspection: { status: "ready", version: null },
     });
     const model = snapshot.models.find((entry) => entry.slug === "gateway/my-model");
     expect(model?.name).toBe("My model");
@@ -139,9 +131,9 @@ describe("acpRegistrySnapshotReadiness", () => {
     });
     const snapshot = buildCheckedAcpRegistrySnapshot({
       ...identity,
-      settings: decodeSettings({ source: "local", commandPath: "example" }),
+      settings: decodeSettings({ commandPath: "example" }),
       checkedAt: "2026-08-13T10:00:00.000Z",
-      inspection: { status: "ready", agentId: "example", version: null, distribution: "local" },
+      inspection: { status: "ready", version: null },
       probe: { probe, slashCommands: [], skills: [] },
     });
     expect(snapshot.version).toBe("1.5.9");
@@ -154,9 +146,9 @@ describe("acpRegistrySnapshotReadiness", () => {
     expect(
       buildCheckedAcpRegistrySnapshot({
         ...identity,
-        settings: decodeSettings({ source: "local", commandPath: "example" }),
+        settings: decodeSettings({ commandPath: "example" }),
         checkedAt: "2026-08-13T10:00:00.000Z",
-        inspection: { status: "ready", agentId: "example", version: null, distribution: "local" },
+        inspection: { status: "ready", version: null },
         probe: { probe: withoutVersion, slashCommands: [], skills: [] },
       }).version,
     ).toBeNull();
@@ -165,20 +157,13 @@ describe("acpRegistrySnapshotReadiness", () => {
   it("treats a live empty command advertisement as an authoritative replacement", () => {
     const provider = buildCheckedAcpRegistrySnapshot({
       ...identity,
-      settings: decodeSettings({ agentId: "test-agent" }),
+      settings: decodeSettings({ commandPath: "test-agent" }),
       checkedAt: "2026-08-13T10:00:00.000Z",
-      inspection: {
-        status: "ready",
-        agentId: "test-agent",
-        version: "1.0.0",
-        distribution: "npx",
-        documentationUrl: "https://example.test/agent/setup",
-      },
+      inspection: { status: "ready", version: null },
       probe: {
         probe: {
           instanceId: identity.instanceId,
           ready: true,
-          icon: null,
           authMethods: [],
           models: [],
           currentModelId: null,
@@ -199,31 +184,19 @@ describe("acpRegistrySnapshotReadiness", () => {
     expect(applyAcpRegistryAvailableCommands(provider, Option.none()).slashCommands).toEqual([
       { name: "stale" },
     ]);
-    expect(provider.iconUrl).toBe(
-      "https://cdn.agentclientprotocol.com/registry/v1/latest/test-agent.svg",
-    );
-    expect(provider.setup).toMatchObject({
-      canAuthenticate: false,
-      documentationUrl: "https://example.test/agent/setup",
-    });
+    expect(provider.setup).toMatchObject({ canAuthenticate: false });
   });
 
   it("keeps authentication unknown when an agent permits a discovery session before sign-in", () => {
     const snapshot = buildCheckedAcpRegistrySnapshot({
       ...identity,
-      settings: decodeSettings({ agentId: "test-agent" }),
+      settings: decodeSettings({ commandPath: "test-agent" }),
       checkedAt: "2026-08-13T10:00:00.000Z",
-      inspection: {
-        status: "ready",
-        agentId: "test-agent",
-        version: "1.0.0",
-        distribution: "binary",
-      },
+      inspection: { status: "ready", version: null },
       probe: {
         probe: {
           instanceId: identity.instanceId,
           ready: true,
-          icon: null,
           authMethods: [{ id: "browser", name: "Browser", description: null, type: "agent" }],
           models: [],
           currentModelId: null,
@@ -248,19 +221,13 @@ describe("acpRegistrySnapshotReadiness", () => {
   it("overlays live configuration without dropping probe-owned session capabilities", () => {
     const provider = buildCheckedAcpRegistrySnapshot({
       ...identity,
-      settings: decodeSettings({ agentId: "test-agent" }),
+      settings: decodeSettings({ commandPath: "test-agent" }),
       checkedAt: "2026-08-13T10:00:00.000Z",
-      inspection: {
-        status: "ready",
-        agentId: "test-agent",
-        version: "1.0.0",
-        distribution: "npx",
-      },
+      inspection: { status: "ready", version: null },
       probe: {
         probe: {
           instanceId: identity.instanceId,
           ready: true,
-          icon: null,
           authMethods: [],
           models: [{ id: "probe-model", name: "Probe model", description: null }],
           currentModelId: "probe-model",
@@ -421,19 +388,13 @@ describe("acpRegistrySnapshotReadiness", () => {
   it("keeps each Mistral Vibe model's own thinking levels", () => {
     const provider = buildCheckedAcpRegistrySnapshot({
       ...identity,
-      settings: decodeSettings({ agentId: "mistral-vibe" }),
+      settings: decodeSettings({ commandPath: "mistral-vibe" }),
       checkedAt: "2026-11-18T10:00:00.000Z",
-      inspection: {
-        status: "ready",
-        agentId: "mistral-vibe",
-        version: "3.1.1",
-        distribution: "binary",
-      },
+      inspection: { status: "ready", version: null },
       probe: {
         probe: {
           instanceId: identity.instanceId,
           ready: true,
-          icon: null,
           authMethods: [],
           models: [],
           currentModelId: null,
@@ -502,21 +463,15 @@ describe("acpRegistrySnapshotReadiness", () => {
     const snapshot = buildCheckedAcpRegistrySnapshot({
       ...identity,
       settings: decodeSettings({
-        agentId: "test-agent",
+        commandPath: "test-agent",
         customModels: [" custom-model ", "gpt-discovered"],
       }),
       checkedAt: "2026-08-13T10:00:00.000Z",
-      inspection: {
-        status: "ready",
-        agentId: "test-agent",
-        version: "1.0.0",
-        distribution: "npx",
-      },
+      inspection: { status: "ready", version: null },
       probe: {
         probe: {
           instanceId: identity.instanceId,
           ready: true,
-          icon: null,
           authMethods: [],
           models: [{ id: "gpt-discovered", name: "GPT Discovered", description: null }],
           currentModelId: "gpt-discovered",
@@ -562,19 +517,13 @@ describe("acpRegistrySnapshotReadiness", () => {
   it("keeps a default model only when the agent advertises none", () => {
     const snapshot = buildCheckedAcpRegistrySnapshot({
       ...identity,
-      settings: decodeSettings({ agentId: "test-agent" }),
+      settings: decodeSettings({ commandPath: "test-agent" }),
       checkedAt: "2026-08-13T10:00:00.000Z",
-      inspection: {
-        status: "ready",
-        agentId: "test-agent",
-        version: "1.0.0",
-        distribution: "uvx",
-      },
+      inspection: { status: "ready", version: null },
       probe: {
         probe: {
           instanceId: identity.instanceId,
           ready: true,
-          icon: null,
           authMethods: [],
           models: [],
           currentModelId: null,
@@ -590,61 +539,52 @@ describe("acpRegistrySnapshotReadiness", () => {
     expect(snapshot.models[0]?.isDefault).toBe(true);
   });
 
-  it.each(["registry", "local"] as const)(
-    "reports failed authentication after successful %s inspection",
-    (source) => {
-      const snapshot = buildCheckedAcpRegistrySnapshot({
-        ...identity,
-        settings: decodeSettings({
-          source,
-          ...(source === "local" ? { commandPath: "test-agent" } : { agentId: "test-agent" }),
-          authMethodId: "grok-login",
-        }),
-        checkedAt: "2026-08-13T10:00:00.000Z",
-        inspection: {
-          status: "ready",
-          agentId: "test-agent",
-          version: source === "local" ? null : "1.0.0",
-          distribution: source === "local" ? "local" : "binary",
-        },
-        probeError: new AcpRegistryOperationError({
-          reason: "authentication_failed",
-          message: "Login required.",
-          authMethods: [
-            {
-              id: "api-key",
-              name: "API key",
-              description: null,
-              type: "env_var",
-            },
-            {
-              id: "grok-login",
-              name: "Log in with Grok",
-              description: null,
-              type: "agent",
-            },
-          ],
-        }),
-      });
+  it("reports failed authentication after successful inspection", () => {
+    const snapshot = buildCheckedAcpRegistrySnapshot({
+      ...identity,
+      settings: decodeSettings({
+        commandPath: "test-agent",
+        authMethodId: "grok-login",
+      }),
+      checkedAt: "2026-08-13T10:00:00.000Z",
+      inspection: { status: "ready", version: null },
+      probeError: new AcpRegistryOperationError({
+        reason: "authentication_failed",
+        message: "Login required.",
+        authMethods: [
+          {
+            id: "api-key",
+            name: "API key",
+            description: null,
+            type: "env_var",
+          },
+          {
+            id: "grok-login",
+            name: "Log in with Grok",
+            description: null,
+            type: "agent",
+          },
+        ],
+      }),
+    });
 
-      expect(snapshot).toMatchObject({
-        installed: true,
-        version: source === "local" ? null : "1.0.0",
-        status: "warning",
-        setup: { canAuthenticate: true },
-        auth: {
-          status: "unauthenticated",
-          type: "agent",
-          label: "Log in with Grok",
-        },
-        message: 'Sign in in provider settings using "Log in with Grok".',
-      });
-    },
-  );
+    expect(snapshot).toMatchObject({
+      installed: true,
+      version: null,
+      status: "warning",
+      setup: { canAuthenticate: true },
+      auth: {
+        status: "unauthenticated",
+        type: "agent",
+        label: "Log in with Grok",
+      },
+      message: 'Sign in in provider settings using "Log in with Grok".',
+    });
+  });
 
   it.effect("runs the disposable probe only after local inspection is ready", () =>
     Effect.gen(function* () {
-      const settings = decodeSettings({ agentId: "test-agent" });
+      const settings = decodeSettings({ commandPath: "test-agent" });
       const environment = { PATH: "/provider/bin" };
       let receivedEnvironment: NodeJS.ProcessEnv | undefined;
       const snapshot = yield* checkAcpRegistryProviderStatus(
@@ -661,7 +601,6 @@ describe("acpRegistrySnapshotReadiness", () => {
               probe: {
                 instanceId: identity.instanceId,
                 ready: true as const,
-                icon: null,
                 authMethods: [],
                 models: [{ id: "agent-model", name: "Agent Model", description: null }],
                 currentModelId: "agent-model",
@@ -675,12 +614,7 @@ describe("acpRegistrySnapshotReadiness", () => {
       ).pipe(
         Effect.provideService(
           AcpRegistrySupport.AcpRegistryCatalog,
-          catalogWithInspection({
-            status: "ready",
-            agentId: "test-agent",
-            version: "1.0.0",
-            distribution: "npx",
-          }),
+          catalogWithInspection({ status: "ready", version: null }),
         ),
       );
 
@@ -698,26 +632,43 @@ describe("acpRegistrySnapshotReadiness", () => {
     Effect.gen(function* () {
       const snapshot = yield* checkAcpRegistryProviderReadiness({
         ...identity,
-        settings: decodeSettings({ agentId: "test-agent" }),
+        settings: decodeSettings({ commandPath: "test-agent" }),
         environment: { PATH: "/provider/bin" },
       }).pipe(
         Effect.provideService(
           AcpRegistrySupport.AcpRegistryCatalog,
-          catalogWithInspection({
-            status: "ready",
-            agentId: "test-agent",
-            version: "1.0.0",
-            distribution: "npx",
-          }),
+          catalogWithInspection({ status: "ready", version: null }),
         ),
       );
 
       expect(snapshot).toMatchObject({
         installed: true,
         status: "ready",
-        version: "1.0.0",
+        version: null,
         auth: { status: "unknown" },
         message: "Checking ACP authentication, models, and commands in the background...",
+      });
+    }),
+  );
+
+  it.effect("treats a legacy ACP Registry config as an unconfigured local command", () =>
+    Effect.gen(function* () {
+      const settings = yield* decodeLegacySettings({
+        source: "registry",
+        agentId: "devin",
+        distribution: "binary",
+      });
+      expect(settings).toEqual(decodeSettings({}));
+      const catalog = yield* AcpRegistrySupport.makeAcpRegistryCatalog();
+      const snapshot = yield* checkAcpRegistryProviderReadiness({
+        ...identity,
+        settings,
+        environment: {},
+      }).pipe(Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, catalog));
+      expect(snapshot).toMatchObject({
+        installed: false,
+        status: "warning",
+        message: "Configure a local ACP executable before starting a thread.",
       });
     }),
   );
@@ -801,10 +752,9 @@ describe("acpRegistrySnapshotReadiness", () => {
 describe("acpRegistryEnrichmentCache", () => {
   it("reuses a local probe until expiry even when inspection has no version", () => {
     const entry = { provider: providerWithModels([], null), expiresAt: 1_000 };
-    expect(isAcpRegistryCacheValid(entry, null, true, 999)).toBe(true);
-    expect(isAcpRegistryCacheValid(entry, null, true, 1_000)).toBe(false);
-    expect(isAcpRegistryCacheValid(entry, "2.0.0", false, 999)).toBe(false);
-    expect(isAcpRegistryCacheValid(entry, "1.0.0", false, 999)).toBe(true);
+    expect(isAcpRegistryCacheValid(entry, null, 999)).toBe(true);
+    expect(isAcpRegistryCacheValid(entry, null, 1_000)).toBe(false);
+    expect(isAcpRegistryCacheValid(entry, "2.0.0", 999)).toBe(false);
   });
   const settledConfiguration = {
     models: [
@@ -955,7 +905,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 const perModelEffortAgentSource = `
 import { appendFileSync, readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
-const [logPath, modelsPath] = process.argv.slice(2);
+const [logPath, modelsPath, version] = process.argv.slice(2);
 const levels = JSON.parse(readFileSync(modelsPath, "utf8"));
 const modelIds = Object.keys(levels);
 let current = modelIds[0];
@@ -986,7 +936,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   const { id, method, params } = JSON.parse(line);
   if (id === undefined) return;
   if (method === "initialize") {
-    send({ id, result: { protocolVersion: 1, agentCapabilities: {}, authMethods: [] } });
+    send({
+      id,
+      result: { protocolVersion: 1, agentCapabilities: {}, authMethods: [], agentInfo: { name: "fake", version } },
+    });
   } else if (method === "session/new") {
     send({ id, result: { sessionId: "probe-session", configOptions: configOptions() } });
     send({
@@ -1020,14 +973,14 @@ const driverLayer = TestProviderHost.layer({ runBackgroundWork: false }).pipe(
 );
 
 it.layer(driverLayer, { excludeTestServices: true })("AcpRegistryDriver", (it) => {
-  it.effect("creates without inspecting the agent, which may fetch the registry", () =>
+  it.effect("creates without inspecting the agent", () =>
     Effect.gen(function* () {
       const instance = yield* AcpRegistryDriver.create({
         instanceId: identity.instanceId,
         displayName: identity.displayName,
         enabled: true,
         environment: [],
-        config: decodeSettings({ agentId: "test-agent" }),
+        config: decodeSettings({ commandPath: "test-agent" }),
       }).pipe(
         Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, {
           ...catalogWithInspection({ status: "unconfigured" }),
@@ -1036,7 +989,7 @@ it.layer(driverLayer, { excludeTestServices: true })("AcpRegistryDriver", (it) =
       );
       expect(yield* instance.snapshot.getSnapshot).toMatchObject({
         installed: false,
-        message: "Checking ACP Registry agent readiness...",
+        message: "Checking ACP agent readiness...",
       });
     }),
   );
@@ -1057,18 +1010,12 @@ it.layer(driverLayer, { excludeTestServices: true })("AcpRegistryDriver", (it) =
         displayName: identity.displayName,
         enabled: true,
         environment: [],
-        config: decodeSettings({ agentId: "test-agent" }),
+        config: decodeSettings({ commandPath: "test-agent" }),
       }).pipe(
         Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, {
-          ...catalogWithInspection({
-            status: "ready",
-            agentId: "test-agent",
-            version: "1.0.0",
-            distribution: "npx",
-          }),
+          ...catalogWithInspection({ status: "ready", version: null }),
           resolve: () =>
             Effect.succeed({
-              distribution: "npx" as const,
               spawn: { command: process.execPath, args: [agentPath, modelsPath] },
             }),
         }),
@@ -1116,25 +1063,19 @@ it.layer(driverLayer, { excludeTestServices: true })("AcpRegistryDriver", (it) =
       const agentPath = path.join(directory, "agent.mjs");
       const modelsPath = path.join(directory, "models.json");
       yield* fileSystem.writeFileString(agentPath, fakeAgentSource);
-      yield* fileSystem.writeFileString(modelsPath, JSON.stringify(["model-a"]));
+      yield* fileSystem.writeFileString(modelsPath, JSON.stringify(["model-a", "model-b"]));
 
       const instance = yield* AcpRegistryDriver.create({
         instanceId: identity.instanceId,
         displayName: identity.displayName,
         enabled: true,
         environment: [],
-        config: decodeSettings({ source: "local", commandPath: "agent" }),
+        config: decodeSettings({ commandPath: "agent" }),
       }).pipe(
         Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, {
-          ...catalogWithInspection({
-            status: "ready",
-            agentId: "agent",
-            version: null,
-            distribution: "local",
-          }),
+          ...catalogWithInspection({ status: "ready", version: null }),
           resolve: () =>
             Effect.succeed({
-              distribution: "local" as const,
               spawn: { command: process.execPath, args: [agentPath, modelsPath] },
             }),
         }),
@@ -1174,18 +1115,12 @@ it.layer(driverLayer, { excludeTestServices: true })("AcpRegistryDriver", (it) =
         displayName: identity.displayName,
         enabled: true,
         environment: [],
-        config: decodeSettings({ agentId: "test-agent" }),
+        config: decodeSettings({ commandPath: "test-agent" }),
       }).pipe(
         Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, {
-          ...catalogWithInspection({
-            status: "ready",
-            agentId: "test-agent",
-            version: "1.0.0",
-            distribution: "npx",
-          }),
+          ...catalogWithInspection({ status: "ready", version: null }),
           resolve: () =>
             Effect.succeed({
-              distribution: "npx" as const,
               spawn: { command: process.execPath, args: [agentPath, modelsPath] },
             }),
         }),
@@ -1275,16 +1210,11 @@ it.layer(driverLayer, { excludeTestServices: true })("AcpRegistryDriver", (it) =
       displayName: identity.displayName,
       enabled: true,
       environment: [],
-      config: decodeSettings({ agentId: "test-agent" }),
+      config: decodeSettings({ commandPath: "test-agent" }),
     }).pipe(
       Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, {
-        ...catalogWithInspection({
-          status: "ready",
-          agentId: "test-agent",
-          version,
-          distribution: "npx",
-        }),
-        resolve: () => Effect.succeed({ distribution: "npx" as const, spawn }),
+        ...catalogWithInspection({ status: "ready", version: null }),
+        resolve: () => Effect.succeed({ spawn: { ...spawn, args: [...spawn.args, version] } }),
       }),
     );
   const effortLevels = (snapshot: ServerProvider) =>

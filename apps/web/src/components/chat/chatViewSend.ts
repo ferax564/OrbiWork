@@ -40,7 +40,6 @@ import type { ProviderInstanceEntry } from "../../providerInstances";
 import { getComposerPromptInjectionState, getComposerProviderState } from "./composerProviderState";
 import {
   formatOutgoingPrompt,
-  getAntigravitySendBlockReason,
   cloneComposerImageForRetry,
   type ComposerSendSnapshot,
   readFileAsDataUrl,
@@ -366,8 +365,6 @@ export function resolveMultipleModelTargets(input: {
     if (!provider?.enabled || !provider.isAvailable || provider.status !== "ready") {
       return { error: m(msg("Provider for {model} is unavailable.", { model: selection.model })) };
     }
-    const providerBlockReason = getAntigravitySendBlockReason(provider.snapshot, selection.model);
-    if (providerBlockReason) return { error: providerBlockReason };
     const providerState = getComposerProviderState({
       provider: provider.driverKind,
       model: selection.model,

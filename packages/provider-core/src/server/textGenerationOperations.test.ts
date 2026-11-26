@@ -16,7 +16,7 @@ it.effect("fails a thread title reply that is only the schema key", () =>
         cwd: process.cwd(),
         message: "$implement Issue #140",
         modelSelection: {
-          instanceId: ProviderInstanceId.make("pi"),
+          instanceId: ProviderInstanceId.make("acpRegistry"),
           model: "anthropic/claude-haiku-4-5",
         },
       })

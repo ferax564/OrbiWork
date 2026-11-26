@@ -7,6 +7,15 @@ import { previewFailureText } from "./previewFailureMessages";
 import { readBinaryPreview } from "./readBinaryPreview";
 
 export async function decodeImagePreview(src: string, heif: boolean, signal: AbortSignal) {
+  // HEIC goes through the attachment converter so heic-to ships in one lazy chunk, not two.
+  if (heif) {
+    const bytes = await readBinaryPreview(src, signal);
+    const { prepareImageForAttachment } = await import("~/lib/imageCompression");
+    const file = new File([bytes], "preview.heic", { type: "image/heic" });
+    const result = await prepareImageForAttachment(file, Number.POSITIVE_INFINITY);
+    if (!result.ok) throw new Error(m(msg("Could not decode this image.")));
+    return result.file;
+  }
   const worker = new Worker(new URL("./imageDecode.worker.ts", import.meta.url), {
     type: "module",
   });
@@ -29,7 +38,7 @@ export async function decodeImagePreview(src: string, heif: boolean, signal: Abo
         },
       );
       void readBinaryPreview(src, controller.signal).then(
-        (bytes) => worker.postMessage({ bytes, heif }, [bytes]),
+        (bytes) => worker.postMessage({ bytes }, [bytes]),
         reject,
       );
     });

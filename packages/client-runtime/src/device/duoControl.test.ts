@@ -1,7 +1,6 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import {
   createDuoControl,
-  createDuoPinch,
   duoFoldState,
   duoHoldOrientation,
   type DuoCommand,
@@ -54,37 +53,6 @@ it("coalesces hinge edits behind acknowledgements and lets a preset replace queu
   queue.clear();
 });
 
-it("pinches only a hit device, accumulates independently of native readback, clamps and cancels", () => {
-  let confirmed = 90;
-  const change = vi.fn();
-  const pinch = createDuoPinch({
-    angle: () => confirmed,
-    contains: (x, y) => x > 0.2 && y > 0.2,
-    change,
-  });
-  expect(pinch.begin(0.1, 0.5)).toBe(false);
-  pinch.move(1);
-  expect(change).not.toHaveBeenCalled();
-  expect(pinch.begin(0.5, 0.5)).toBe(true);
-  pinch.move(0.25);
-  expect(change).toHaveBeenLastCalledWith(120);
-  confirmed = 100;
-  pinch.move(0.25);
-  expect(change).toHaveBeenLastCalledWith(150);
-  pinch.move(2);
-  expect(change).toHaveBeenLastCalledWith(180);
-  pinch.move(-3);
-  expect(change).toHaveBeenLastCalledWith(0);
-  pinch.move(NaN);
-  pinch.end();
-  expect(change).toHaveBeenLastCalledWith(null);
-  const count = change.mock.calls.length;
-  pinch.move(1);
-  pinch.end();
-  expect(change).toHaveBeenCalledTimes(count);
-  expect(pinch.active).toBe(false);
-});
-
 // regression: #16630 fold controls follow the phone's orientation on each screen
 it.each([
   [
@@ -134,7 +102,7 @@ it("marks native stands so the fold group does not also claim them", () => {
   ).toEqual({ fold: "half", stand: true, phoneVertical: false, settled: true });
 });
 
-it("falls back like the 3D view when hinge fields are missing", () => {
+it("falls back to the screen when hinge fields are missing", () => {
   expect(duoFoldState({ screenId: 1, orientation: "portrait" })).toMatchObject({
     fold: "closed",
     phoneVertical: true,

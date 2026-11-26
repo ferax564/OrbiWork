@@ -14,19 +14,16 @@ const source = (reference: string) => ({
   reference,
 });
 
-const secretsByReference = new Map([
-  ["bitbucket#token", "bb_from_provider"],
-  ["github#token", "ghp_from_provider"],
-]);
+const secretsByReference = new Map([["github#token", "ghp_from_provider"]]);
 
 const perHostHosts = {
   github: { tokens: { "github.com": source("github#token"), "ghe.acme.test": "ghp_literal" } },
 };
 
+// `bitbucket` is a host this server no longer knows: settings saved for it stay as they are.
 const hosts = {
   bitbucket: { email: "me@example.test", accessToken: source("bitbucket#token") },
-  gitcafe: { token: source("missing#token") },
-  github: { tokens: { "github.com": "ghp_literal" } },
+  github: { tokens: { "github.com": source("github#token") } },
 };
 
 function countingResolver() {
@@ -50,20 +47,21 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const { reads, resolver } = countingResolver();
-      const resolved = yield* resolveSourceControlHostSecrets(resolver, hosts, "bitbucket");
+      const resolved = yield* resolveSourceControlHostSecrets(resolver, hosts, "github");
       assert.deepEqual(resolved, {
         ...hosts,
-        bitbucket: { email: "me@example.test", accessToken: "bb_from_provider" },
+        github: { tokens: { "github.com": "ghp_from_provider" } },
       });
-      assert.deepEqual(reads, ["bitbucket#token"]);
+      assert.deepEqual(reads, ["github#token"]);
     }),
 );
 
 it.effect("keeps a reference the provider cannot read, so it never passes for an unset one", () =>
   Effect.gen(function* () {
     const { reads, resolver } = countingResolver();
-    const resolved = yield* resolveSourceControlHostSecrets(resolver, hosts, "gitcafe");
-    assert.deepEqual(resolved.gitcafe, { token: source("missing#token") });
+    const missing = { github: { tokens: { "github.com": source("missing#token") } } };
+    const resolved = yield* resolveSourceControlHostSecrets(resolver, missing, "github");
+    assert.deepEqual(resolved, missing);
     assert.deepEqual(reads, ["missing#token"]);
   }),
 );
@@ -71,8 +69,12 @@ it.effect("keeps a reference the provider cannot read, so it never passes for an
 it.effect("leaves the resolver unused for a kind that holds no reference", () =>
   Effect.gen(function* () {
     const { reads, resolver } = countingResolver();
-    const resolved = yield* resolveSourceControlHostSecrets(resolver, hosts, "github");
-    assert.strictEqual(resolved, hosts);
+    const literal = { github: { tokens: { "github.com": "ghp_literal" } } };
+    assert.strictEqual(
+      yield* resolveSourceControlHostSecrets(resolver, literal, "github"),
+      literal,
+    );
+    assert.strictEqual(yield* resolveSourceControlHostSecrets(resolver, hosts, "bitbucket"), hosts);
     assert.deepEqual(reads, []);
   }),
 );
@@ -89,16 +91,12 @@ it.effect("replaces a per-host token reference and keeps the literal beside it",
 );
 
 it("collects the references held in credential fields and skips literal values", () => {
-  assert.deepEqual(collectSourceControlHostSecretReferences(hosts), [
-    source("missing#token"),
-    source("bitbucket#token"),
-  ]);
+  assert.deepEqual(collectSourceControlHostSecretReferences(hosts), [source("github#token")]);
   assert.deepEqual(collectSourceControlHostSecretReferences(perHostHosts), [
     source("github#token"),
   ]);
   assert.deepEqual(
     collectSourceControlHostSecretReferences({
-      bitbucket: { accessToken: "literal" },
       github: { tokens: { "github.com": "ghp_literal" } },
     }),
     [],
@@ -126,7 +124,7 @@ it.effect("reads a collected reference again once it is invalidated", () =>
           else for (const reference of references) cache.delete(reference.reference);
         }),
     });
-    const read = () => resolveSourceControlHostSecrets(resolver, hosts, "bitbucket");
+    const read = () => resolveSourceControlHostSecrets(resolver, hosts, "github");
     const usageLimitSources = {
       [UsageLimitSourceId.make("referenced")]: {
         kind: "cliproxy",
@@ -167,10 +165,7 @@ it.effect("reads a collected reference again once it is invalidated", () =>
     cache.set("voice#key", "stale");
     cache.set("expo#token", "stale");
     cache.set("simlock#token", "stale");
-    assert.deepEqual((yield* read()).bitbucket, {
-      email: "me@example.test",
-      accessToken: "stale",
-    });
+    assert.deepEqual((yield* read()).github, { tokens: { "github.com": "stale" } });
     current = "rotated";
     yield* invalidateSettingsSecrets(
       resolver,
@@ -187,15 +182,9 @@ it.effect("reads a collected reference again once it is invalidated", () =>
     assert.isFalse(cache.has("voice#key"));
     assert.isFalse(cache.has("expo#token"));
     assert.isFalse(cache.has("simlock#token"));
-    assert.deepEqual((yield* read()).bitbucket, {
-      email: "me@example.test",
-      accessToken: "rotated",
-    });
+    assert.deepEqual((yield* read()).github, { tokens: { "github.com": "rotated" } });
     current = "rotated again";
     yield* invalidateSettingsSecrets(resolver, Effect.fail("settings unreadable"));
-    assert.deepEqual((yield* read()).bitbucket, {
-      email: "me@example.test",
-      accessToken: "rotated again",
-    });
+    assert.deepEqual((yield* read()).github, { tokens: { "github.com": "rotated again" } });
   }),
 );

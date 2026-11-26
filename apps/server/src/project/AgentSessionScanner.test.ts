@@ -58,7 +58,6 @@ const layerProjectStore = (importedWorkspaceRoots: ReadonlyArray<string>) =>
 interface ScannerTestInput {
   readonly claudeHomePath: string;
   readonly codexHomePath: string;
-  readonly piAgentDir?: string;
   readonly importedWorkspaceRoots?: ReadonlyArray<string>;
   readonly configBaseDir?: string;
   readonly providerInstances?: ContractServerSettings["providerInstances"];
@@ -107,20 +106,6 @@ const layerScannerTest = (input: ScannerTestInput) =>
             [ProviderInstanceId.make("codex")]: {
               driver: ProviderDriverKind.make("codex"),
               config: { homePath: input.codexHomePath },
-            },
-            // Keeps the default Pi instance off the developer's real ~/.pi.
-            [ProviderInstanceId.make("pi")]: {
-              driver: ProviderDriverKind.make("pi"),
-              enabled: true,
-              environment: [
-                {
-                  name: "PI_CODING_AGENT_DIR",
-                  value: input.piAgentDir ?? `${input.claudeHomePath}/pi-agent`,
-                  sensitive: false,
-                },
-                { name: "PI_CODING_AGENT_SESSION_DIR", value: "", sensitive: false },
-              ],
-              config: {},
             },
             ...input.providerInstances,
           },
@@ -225,20 +210,16 @@ function makeRecordLimitTranscript(cwd: string, overflow: boolean): string {
     : records;
 }
 
-// Pi retains every entry, keeping tool results as links outside the history budget.
-function makePiToolResultTranscript(sessionId: string, cwd: string, recordCount: number): string {
-  const entry = (id: number, message: { readonly role: string; readonly content: string }) =>
-    encodeTranscriptRecord({
-      type: "message",
-      id: `e${id}`,
-      parentId: id === 0 ? null : `e${id - 1}`,
-      message,
-    });
+// Codex retains every turn_context record; bare ones keep the history budget small.
+function makeCodexRecordTranscript(sessionId: string, cwd: string, recordCount: number): string {
   return [
-    encodeTranscriptRecord({ type: "session", version: 3, id: sessionId, cwd }),
-    entry(0, { role: "user", content: "Imported prompt" }),
-    ...Array.from({ length: recordCount - 2 }, (_, index) =>
-      entry(index + 1, { role: "toolResult", content: "Tool output" }),
+    encodeTranscriptRecord({ type: "session_meta", payload: { id: sessionId, cwd } }),
+    encodeTranscriptRecord({
+      type: "event_msg",
+      payload: { type: "user_message", message: "Imported prompt" },
+    }),
+    ...Array.from({ length: recordCount - 2 }, () =>
+      encodeTranscriptRecord({ type: "turn_context" }),
     ),
   ].join("\n");
 }
@@ -824,39 +805,8 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
         const codexHomePath = yield* makeTempDir("orbiwork-codex-legacy-");
         const claudeEnvironmentHome = yield* makeTempDir("orbiwork-claude-env-");
         const codexEnvironmentHome = yield* makeTempDir("orbiwork-codex-env-");
-        const piAgentDir = yield* makeTempDir("orbiwork-pi-agent-");
-        const piSessionDir = yield* makeTempDir("orbiwork-pi-sessions-");
         const claudeWorkspace = yield* makeTempDir("orbiwork-workspace-claude-");
         const codexWorkspace = yield* makeTempDir("orbiwork-workspace-codex-");
-        const piWorkspace = yield* makeTempDir("orbiwork-workspace-pi-");
-        const piFlatWorkspace = yield* makeTempDir("orbiwork-workspace-pi-flat-");
-        const piInstanceHome = yield* makeTempDir("orbiwork-pi-instance-home-");
-        const piHomeWorkspace = yield* makeTempDir("orbiwork-workspace-pi-home-");
-
-        // Pi nests sessions per cwd by default and keeps a custom session directory flat.
-        for (const [filePath, cwd, mtime] of [
-          [
-            path.join(piAgentDir, "sessions", "--slug--", "2026-01-03_pi.jsonl"),
-            piWorkspace,
-            "2026-01-03T00:00:00.000Z",
-          ],
-          [
-            path.join(piSessionDir, "2026-01-04_pi-flat.jsonl"),
-            piFlatWorkspace,
-            "2026-01-04T00:00:00.000Z",
-          ],
-          [
-            path.join(piInstanceHome, "custom-pi", "sessions", "--slug--", "2026-01-05_pi.jsonl"),
-            piHomeWorkspace,
-            "2026-01-05T00:00:00.000Z",
-          ],
-        ] as const) {
-          yield* writeTranscript({
-            filePath,
-            contents: `${encodeTranscriptRecord({ type: "session", version: 3, id: "pi", cwd })}\n`,
-            mtimeMs: Date.parse(mtime),
-          });
-        }
         yield* writeTranscript({
           filePath: path.join(claudeEnvironmentHome, "projects", "-actual", "session.jsonl"),
           contents: claudeSessionLine(claudeWorkspace),
@@ -891,41 +841,10 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
               environment: [{ name: "CODEX_HOME", value: codexEnvironmentHome, sensitive: false }],
               config: {},
             },
-            [ProviderInstanceId.make("pi")]: {
-              driver: ProviderDriverKind.make("pi"),
-              enabled: true,
-              environment: [
-                { name: "PI_CODING_AGENT_DIR", value: piAgentDir, sensitive: false },
-                { name: "PI_CODING_AGENT_SESSION_DIR", value: "", sensitive: false },
-              ],
-              config: {},
-            },
-            [ProviderInstanceId.make("pi-flat")]: {
-              driver: ProviderDriverKind.make("pi"),
-              enabled: true,
-              environment: [
-                { name: "PI_CODING_AGENT_SESSION_DIR", value: piSessionDir, sensitive: false },
-              ],
-              config: {},
-            },
-            [ProviderInstanceId.make("pi-home")]: {
-              driver: ProviderDriverKind.make("pi"),
-              enabled: true,
-              environment: [
-                { name: "HOME", value: piInstanceHome, sensitive: false },
-                { name: "USERPROFILE", value: piInstanceHome, sensitive: false },
-                { name: "PI_CODING_AGENT_DIR", value: "~/custom-pi", sensitive: false },
-                { name: "PI_CODING_AGENT_SESSION_DIR", value: "", sensitive: false },
-              ],
-              config: {},
-            },
           },
         });
 
         expect(result.candidates.map((candidate) => [candidate.path, candidate.sources])).toEqual([
-          [piHomeWorkspace, ["pi"]],
-          [piFlatWorkspace, ["pi"]],
-          [piWorkspace, ["pi"]],
           [codexWorkspace, ["codex"]],
           [claudeWorkspace, ["claudeAgent"]],
         ]);
@@ -1611,14 +1530,13 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
       }),
     );
 
-    it.effect("imports recent Claude, Codex, and Pi sessions for the selected project only", () =>
+    it.effect("imports recent Claude and Codex sessions for the selected project only", () =>
       Effect.gen(function* () {
         const path = yield* Path.Path;
         const nowMs = Date.parse("2026-08-24T12:00:00.000Z");
         yield* TestClock.setTime(nowMs);
         const claudeHomePath = yield* makeTempDir("orbiwork-claude-home-");
         const codexHomePath = yield* makeTempDir("orbiwork-codex-home-");
-        const piAgentDir = yield* makeTempDir("orbiwork-pi-agent-");
         const workspace = yield* makeTempDir("orbiwork-workspace-");
         const otherWorkspace = yield* makeTempDir("orbiwork-workspace-other-");
 
@@ -1682,96 +1600,20 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
           ].join("\n"),
           mtimeMs: nowMs - 60 * 60 * 1000,
         });
-        const piMessage = (
-          id: string,
-          parentId: string | null,
-          message: { readonly role: string; readonly content: unknown },
-        ) =>
-          encodeTranscriptRecord({
-            type: "message",
-            id,
-            parentId,
-            timestamp: "2026-08-24T11:00:00.000Z",
-            message,
-          });
-        // The user rewound to the first prompt; the abandoned branch stays in the file.
-        yield* writeTranscript({
-          filePath: path.join(piAgentDir, "sessions", "--selected--", "2026-08-24_pi.jsonl"),
-          contents: [
-            encodeTranscriptRecord({
-              type: "session",
-              version: 3,
-              id: "pi-recent",
-              cwd: workspace,
-            }),
-            piMessage("a1", null, { role: "user", content: "Plan the change" }),
-            piMessage("a2", "a1", {
-              role: "assistant",
-              content: [{ type: "text", text: "Abandoned answer" }],
-            }),
-            piMessage("a3", "a2", { role: "user", content: "Abandoned follow-up" }),
-            piMessage("b1", "a1", {
-              role: "assistant",
-              content: [
-                { type: "thinking", thinking: "Hidden reasoning" },
-                { type: "toolCall", id: "call-1", name: "bash", arguments: {} },
-              ],
-            }),
-            piMessage("bn", "b1", { role: "toolResult", content: null }),
-            piMessage("b2", "bn", {
-              role: "toolResult",
-              content: [{ type: "text", text: "Tool output" }],
-            }),
-            piMessage("b3", "b2", {
-              role: "assistant",
-              content: [{ type: "text", text: "Active answer" }],
-            }),
-            encodeTranscriptRecord({
-              type: "session_info",
-              id: "b4",
-              parentId: "b3",
-              name: "Pi refactor",
-            }),
-          ].join("\n"),
-          mtimeMs: nowMs - 30 * 60 * 1000,
-        });
-        // Version 1 sessions predate the entry tree.
-        yield* writeTranscript({
-          filePath: path.join(piAgentDir, "sessions", "--selected--", "2025-01-01_pi-v1.jsonl"),
-          contents: [
-            encodeTranscriptRecord({ type: "session", id: "pi-v1", cwd: workspace }),
-            encodeTranscriptRecord({
-              type: "message",
-              message: { role: "user", content: "Legacy prompt" },
-            }),
-            encodeTranscriptRecord({
-              type: "message",
-              message: { role: "assistant", content: [{ type: "text", text: "Legacy answer" }] },
-            }),
-          ].join("\n"),
-          mtimeMs: nowMs - 2 * 24 * 60 * 60 * 1000,
-        });
-
         const threads = yield* runRecentThreads({
           claudeHomePath,
           codexHomePath,
-          piAgentDir,
           workspaceRoot: workspace,
         });
 
         expect(threads.map((thread) => thread.providerSessionId)).toEqual([
-          "pi-recent",
           "codex-recent",
           "claude-recent",
-          "pi-v1",
         ]);
         expect(threads.map((thread) => thread.messages.map((message) => message.text))).toEqual([
-          ["Plan the change", "Active answer"],
           ["Review this code", "Looks good"],
           ["Fix the project", "Done"],
-          ["Legacy prompt", "Legacy answer"],
         ]);
-        expect(threads[0]).toMatchObject({ source: "pi", title: "Pi refactor" });
       }),
     );
 
@@ -2486,20 +2328,21 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
         const claudeHomePath = yield* makeTempDir("orbiwork-record-budget-claude-");
         const codexHomePath = yield* makeTempDir("orbiwork-record-budget-codex-");
         const workspace = yield* makeTempDir("orbiwork-record-budget-workspace-");
-        // The newer transcript retains 100,001 records; the older one exactly 100,000.
+        // The newer transcript retains 100,001 records; Codex's history budget keeps the older one smaller.
         for (const [sessionId, recordCount, mtimeMs] of [
           ["excessive", 100_001, nowMs],
-          ["older", 100_000, nowMs - 1_000],
+          ["older", 50_000, nowMs - 1_000],
         ] as const) {
           yield* writeTranscript({
             filePath: path.join(
-              claudeHomePath,
-              "pi-agent",
+              codexHomePath,
               "sessions",
-              "--workspace--",
-              `${sessionId}.jsonl`,
+              "2026",
+              "08",
+              "24",
+              `rollout-${sessionId}.jsonl`,
             ),
-            contents: makePiToolResultTranscript(sessionId, workspace, recordCount),
+            contents: makeCodexRecordTranscript(sessionId, workspace, recordCount),
             mtimeMs,
           });
         }
@@ -2583,13 +2426,14 @@ it.layer(NodeServices.layer)("AgentSessionScanner", (it) => {
         for (const [index, recordCount] of recordCounts.entries()) {
           yield* writeTranscript({
             filePath: path.join(
-              claudeHomePath,
-              "pi-agent",
+              codexHomePath,
               "sessions",
-              "--workspace--",
-              `${index}.jsonl`,
+              "2026",
+              "08",
+              "24",
+              `rollout-${index}.jsonl`,
             ),
-            contents: makePiToolResultTranscript(`session-${index}`, workspace, recordCount),
+            contents: makeCodexRecordTranscript(`session-${index}`, workspace, recordCount),
             mtimeMs: nowMs - index * 1_000,
           });
         }

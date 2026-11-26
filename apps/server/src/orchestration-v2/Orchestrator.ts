@@ -13,7 +13,6 @@ import {
   usageLimitBlockedRun,
 } from "@orbiwork/shared/orchestrationV2ThreadError";
 import { threadIssueKeysEqual } from "@orbiwork/contracts";
-import { canonicalizeGitCafePullRequestUrl } from "@orbiwork/source-control-definitions/registry";
 import { threadPullRequestsOf } from "../sourceControl/threadPullRequests.ts";
 import {
   normalizeThreadPullRequestKey,
@@ -931,7 +930,7 @@ function legacyPullRequestLink(
   return withPullRequestWatch(
     {
       ...key,
-      url: canonicalizeGitCafePullRequestUrl(linked.url),
+      url: linked.url,
       source: "manual",
       linkedAt: DateTime.formatIso(now),
       snapshot: null,
@@ -1687,11 +1686,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
   ) {
     const adapter = yield* providerAdapters.get(providerInstanceId).pipe(mapDispatchError(command));
     const { driver } = adapter;
-    if (driver === "opencode" || driver === "antigravity") {
-      const capabilities = yield* adapter.getCapabilities().pipe(mapDispatchError(command));
-      return capabilities.turns.supportsNativeGoals === true ? driver : undefined;
-    }
-    return driver === "codex" || driver === "claudeAgent" ? driver : undefined;
+    if (driver === "codex" || driver === "claudeAgent") return driver;
+    const capabilities = yield* adapter.getCapabilities().pipe(mapDispatchError(command));
+    return capabilities.turns.supportsNativeGoals === true ? driver : undefined;
   });
 
   /** Unsupported goal controls can become new objectives in native providers. */
@@ -1704,14 +1701,6 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       const goalCommand = parseGoalCommand(message);
       if (goalCommand === null || goalCommand.type === "set") return;
       const driver = yield* goalDriverFor(command, providerInstanceId);
-      if (driver === "antigravity") {
-        return yield* new OrchestratorDispatchError({
-          commandId: command.commandId,
-          commandType: command.type,
-          cause:
-            "Antigravity accepts /goal followed by an objective. Interrupt the running turn, then ask Antigravity to stop the current goal.",
-        });
-      }
       if (goalCommand.type !== "pause" && goalCommand.type !== "resume") return;
       if (driver !== "claudeAgent") return;
       return yield* new OrchestratorDispatchError({
@@ -5174,14 +5163,14 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
               ? {
                   ...existing,
                   source: command.source,
-                  url: canonicalizeGitCafePullRequestUrl(command.url),
+                  url: command.url,
                   ...(command.repositoryWebUrl !== undefined && {
                     repositoryWebUrl: command.repositoryWebUrl,
                   }),
                 }
               : {
                   ...key,
-                  url: canonicalizeGitCafePullRequestUrl(command.url),
+                  url: command.url,
                   ...(command.repositoryWebUrl !== undefined && {
                     repositoryWebUrl: command.repositoryWebUrl,
                   }),
@@ -5210,7 +5199,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
                 ? [
                     {
                       ...branchKey,
-                      url: canonicalizeGitCafePullRequestUrl(branch.url),
+                      url: branch.url,
                       source: "manual" as const,
                       linkedAt: DateTime.formatIso(now),
                       snapshot: null,
@@ -5326,7 +5315,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
                   ...linked.filter((link) => !threadPullRequestKeysEqual(link, key)),
                   {
                     ...key,
-                    url: canonicalizeGitCafePullRequestUrl(command.link.url),
+                    url: command.link.url,
                     ...((command.link.repositoryWebUrl ?? dismissed?.repositoryWebUrl) !==
                       undefined && {
                       repositoryWebUrl:

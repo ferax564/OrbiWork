@@ -5,7 +5,7 @@ import { AcpRegistrySettings } from "./settings.ts";
 
 export const acpRegistryClient = defineProviderClient({
   driverKind: ProviderDriverKind.make("acpRegistry"),
-  label: "ACP Registry",
+  label: "ACP agent",
   settingsSchema: AcpRegistrySettings,
   hasDefaultInstance: false,
   icon: {

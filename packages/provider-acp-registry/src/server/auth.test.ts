@@ -29,14 +29,6 @@ const terminalMethod = {
   env: { LOGIN: "yes", OVERRIDE: "method" },
 };
 const resolved: AcpRegistrySupport.ResolvedAcpRegistryAgent = {
-  agent: {
-    id: "test-agent",
-    name: "Test",
-    version: "1.0.0",
-    description: "Test",
-    distribution: {},
-  },
-  distribution: "binary",
   spawn: {
     command: "/managed/agent",
     args: ["--acp"],
@@ -44,23 +36,14 @@ const resolved: AcpRegistrySupport.ResolvedAcpRegistryAgent = {
   },
 };
 const catalog: AcpRegistrySupport.AcpRegistryCatalog["Service"] = {
-  inspect: () =>
-    Effect.succeed({
-      status: "ready",
-      agentId: "test-agent",
-      version: "1.0.0",
-      distribution: "binary",
-    }),
+  inspect: () => Effect.succeed({ status: "ready", version: null }),
   resolve: () => Effect.succeed(resolved),
-  search: () => Effect.die("unused"),
-  prepare: () => Effect.die("unused"),
-  uninstallManagedBinary: () => Effect.die("unused"),
 };
 
 const makeHarness = (
   method: AcpSchema.AuthMethod,
   failVerification = false,
-  settings = decodeSettings({ agentId: "test-agent" }),
+  settings = decodeSettings({ commandPath: "test-agent" }),
   providerInstanceId = instanceId,
   authenticateError?: AcpRequestError,
 ) =>
@@ -149,16 +132,7 @@ const makeHarness = (
           };
         }),
     }).pipe(
-      Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, {
-        ...catalog,
-        inspect: () =>
-          Effect.sync(() => ({
-            status: "ready" as const,
-            agentId: "test-agent",
-            version,
-            distribution: "binary" as const,
-          })),
-      }),
+      Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, catalog),
       Effect.provideService(PtyAdapter.PtyAdapter, {
         spawn: (input) =>
           Effect.sync(() => {
@@ -220,22 +194,12 @@ const makeHarness = (
     };
   }).pipe(Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, catalog));
 
-it.effect("keeps local credentials separate from a matching registry agent ID", () =>
+it.effect("binds credentials to the instance", () =>
   Effect.gen(function* () {
-    const registry = yield* makeHarness(browserMethod);
-    const local = yield* makeHarness(
-      browserMethod,
-      false,
-      decodeSettings({ source: "local", commandPath: "/different/agent" }),
-      ProviderInstanceId.make("test-agent"),
-    );
-    assert.deepEqual(registry.controller.credentialBinding, {
+    const h = yield* makeHarness(browserMethod);
+    assert.deepEqual(h.controller.credentialBinding, {
       owner: "provider",
-      key: "acp:test-agent",
-    });
-    assert.deepEqual(local.controller.credentialBinding, {
-      owner: "provider",
-      key: "acp:local:test-agent",
+      key: "acp:local:acp-auth-test",
     });
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );
@@ -268,7 +232,7 @@ it.effect(
       yield* h.phase("succeeded");
       assert.deepEqual(h.authenticated, ["browser"]);
       assert.deepEqual(h.changed, [true]);
-      assert.deepEqual(h.closed, [1, 2]);
+      assert.deepEqual(h.closed, [1, 2, 3]);
       yield* h.controller.logout(Effect.void);
       assert.deepEqual(h.changed, [true, false]);
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
@@ -319,7 +283,7 @@ it.effect(
       assert.deepEqual(h.authenticated, []);
       yield* Deferred.succeed(h.verify, undefined);
       yield* h.phase("succeeded");
-      assert.deepEqual(h.started, [3]);
+      assert.deepEqual(h.started, [4]);
       assert.deepEqual(h.changed, [true]);
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
 );
@@ -389,7 +353,7 @@ it.effect("surfaces the agent error message when authenticate fails with AcpRequ
     const h = yield* makeHarness(
       browserMethod,
       false,
-      decodeSettings({ agentId: "test-agent" }),
+      decodeSettings({ commandPath: "test-agent" }),
       instanceId,
       error,
     );

@@ -44,9 +44,8 @@ import * as KeyedLock from "@orbiwork/shared/KeyedLock";
 import { AgentScope } from "@orbiwork/shared/AgentScope";
 import { stripAppImageRuntimeEnv } from "@orbiwork/shared/appImageRuntimeEnv";
 import * as HostProcess from "@orbiwork/shared/HostProcess";
-import { SpawnExecutableResolution, mergePathEntries } from "@orbiwork/shared/shell";
+import { SpawnExecutableResolution } from "@orbiwork/shared/shell";
 
-import { acpRegistryManagedBinaryDirectories } from "@orbiwork/provider-acp-registry/server";
 import { getTerminalLabel } from "@orbiwork/shared/terminalLabels";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -1715,8 +1714,6 @@ interface TerminalManagerOptions {
   ptyAdapter: PtyAdapter.PtyAdapter["Service"];
   shellResolver?: () => string;
   env?: NodeJS.ProcessEnv;
-  managedBinaryCacheDir?: string;
-  managedBinaryToolsDir?: string;
   subprocessInspector?: TerminalSubprocessInspector;
   processTable?: Effect.Effect<
     ReadonlyArray<ResourceMonitorProcessTableEntry>,
@@ -1790,7 +1787,7 @@ export const resolveProviderInstanceTerminalEnvironment = Effect.fn(
 export const make = Effect.fn("TerminalManager.make")(function* (
   deriveConfigMap: typeof deriveProviderInstanceConfigMap,
 ) {
-  const { terminalLogsDir, providerStatusCacheDir, baseDir } = yield* ServerConfig.ServerConfig;
+  const { terminalLogsDir } = yield* ServerConfig.ServerConfig;
   const ptyAdapter = yield* PtyAdapter.PtyAdapter;
   const portDiscovery = yield* PortScanner.PortDiscovery;
   const nativeTelemetry = yield* NativeTelemetryClient.NativeTelemetryClient;
@@ -1815,8 +1812,6 @@ export const make = Effect.fn("TerminalManager.make")(function* (
         (cause) => new TerminalSubprocessCheckError({ cause, command: "resource-monitor" }),
       ),
     ),
-    managedBinaryCacheDir: providerStatusCacheDir,
-    managedBinaryToolsDir: path.join(baseDir, "tools"),
     registerTerminalProcesses: portDiscovery.registerTerminalProcesses,
     unregisterTerminal: portDiscovery.unregisterTerminal,
     resolveProviderInstanceEnvironment,
@@ -1835,7 +1830,6 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
   const historyLineLimit = options.historyLineLimit ?? DEFAULT_HISTORY_LINE_LIMIT;
   const historyByteLimit = options.historyByteLimit ?? DEFAULT_HISTORY_BYTE_LIMIT;
   const platform = yield* HostProcess.Platform;
-  const architecture = yield* HostProcess.Architecture;
   const agentScope = yield* AgentScope;
   const resolveExecutable = yield* SpawnExecutableResolution;
   // Inherit the full environment minus createTerminalSpawnEnv's blocklist; allowlists silently drop user tooling variables.
@@ -2914,38 +2908,6 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
               yield* HostProcess.HomeDirectory,
               session.threadId,
             );
-            // Append managed install directories so agent commands resolve without shadowing user/system tools.
-            if (
-              options.managedBinaryCacheDir !== undefined &&
-              options.managedBinaryToolsDir !== undefined
-            ) {
-              const managedDirectories = yield* acpRegistryManagedBinaryDirectories({
-                cacheDir: options.managedBinaryCacheDir,
-                toolsDir: options.managedBinaryToolsDir,
-                platform,
-                architecture,
-              }).pipe(
-                Effect.provideService(FileSystem.FileSystem, fileSystem),
-                Effect.provideService(Path.Path, path),
-              );
-              if (managedDirectories.length > 0) {
-                const delimiter = platform === "win32" ? ";" : ":";
-                const pathKey =
-                  platform === "win32"
-                    ? (Object.keys(terminalEnv).find(
-                        (candidate) => candidate.toLowerCase() === "path",
-                      ) ?? "PATH")
-                    : "PATH";
-                const merged = mergePathEntries(
-                  terminalEnv[pathKey],
-                  managedDirectories.join(delimiter),
-                  platform,
-                );
-                if (merged !== undefined) {
-                  terminalEnv[pathKey] = merged;
-                }
-              }
-            }
             const spawnResult = yield* trySpawn(shellCandidates, terminalEnv, session);
             ptyProcess = spawnResult.process;
             startedShell = spawnResult.shellLabel;

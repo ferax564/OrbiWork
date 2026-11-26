@@ -8,7 +8,7 @@ import { useRef, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { AndroidFoldError, setAndroidFold, type AndroidFoldPosture } from "./deviceFold";
-import { androidFoldReadAtom, androidFoldViewAtom, foldAngle, NOOP_ATOM } from "./deviceHubAtoms";
+import { androidFoldReadAtom, androidFoldViewAtom, NOOP_ATOM } from "./deviceHubAtoms";
 import { DeviceDuoGlyph } from "./DeviceDuoGlyph";
 
 const isAndroidFoldError = Schema.is(AndroidFoldError);
@@ -40,13 +40,11 @@ export function DeviceAndroidFoldControls(props: {
 
   if (!fold?.supported || !props.visible) return null;
 
-  const setAngle = (angle: number) => setView((current) => ({ ...current, angle }));
   const change = (posture: AndroidFoldPosture) => {
     if (busy.current || !props.enabled) return;
     busy.current = true;
     setPending(true);
     setError(null);
-    setAngle(posture === "closed" ? 0 : 180);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 12_000);
     const send = (access: DeviceHubAccess) =>
@@ -59,9 +57,8 @@ export function DeviceAndroidFoldControls(props: {
         if (!renewed || controller.signal.aborted) throw cause;
         return send(renewed);
       })
-      .then((next) => setView({ fold: next, angle: foldAngle(next) }))
+      .then((next) => setView({ fold: next }))
       .catch((cause: unknown) => {
-        setAngle(foldAngle(fold));
         setError(
           controller.signal.aborted
             ? gt("Fold command timed out.")

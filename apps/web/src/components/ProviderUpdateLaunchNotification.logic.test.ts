@@ -372,11 +372,10 @@ describe("getProviderUpdateRunToastView", () => {
   });
 
   it("preserves the local server restart instruction after a successful update", () => {
-    const message =
-      "OpenCode CLI updated. Restart the configured local OpenCode server to use the new version.";
+    const message = "Codex CLI updated. Restart the running Codex server to use the new version.";
     const updated = {
       ...provider({
-        driver: driver("opencode"),
+        driver: driver("codex"),
         version: "2.1.2",
         advisoryStatus: "current",
         updateState: updateState("succeeded", message),
@@ -385,23 +384,23 @@ describe("getProviderUpdateRunToastView", () => {
     };
     expect(
       getProviderUpdateRunToastView([
-        run("Linux", "opencode", AsyncResult.success({ providers: [updated] })),
-        run("Laptop", "opencode", AsyncResult.success({ providers: [updated] })),
+        run("Linux", "codex", AsyncResult.success({ providers: [updated] })),
+        run("Laptop", "codex", AsyncResult.success({ providers: [updated] })),
       ]),
     ).toMatchObject({
       type: "success",
-      description: `Linux · OpenCode: ${message}\nLaptop · OpenCode: ${message}`,
+      description: `Linux · Codex: ${message}\nLaptop · Codex: ${message}`,
     });
     expect(
       getProviderUpdateSidebarPillView([updated], {
         visibleAfterIso: sessionStartedAt,
       }),
-    ).toMatchObject({ title: "OpenCode updated: v2.2.5", description: message });
+    ).toMatchObject({ title: "Codex updated: v2.2.5", description: message });
 
     const restarted = { ...updated, version: "2.2.5" };
     expect(
       getProviderUpdateRunToastView([
-        run("Linux", "opencode", AsyncResult.success({ providers: [restarted] })),
+        run("Linux", "codex", AsyncResult.success({ providers: [restarted] })),
       ]),
     ).toMatchObject({ description: "New sessions will use the updated provider." });
   });

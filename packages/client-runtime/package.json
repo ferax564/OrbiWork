@@ -51,10 +51,6 @@
       "types": "./src/workflows.ts",
       "default": "./src/workflows.ts"
     },
-    "./locales": {
-      "types": "./src/locales.ts",
-      "default": "./src/locales.ts"
-    },
     "./model-search": {
       "types": "./src/modelSearch.ts",
       "default": "./src/modelSearch.ts"
@@ -539,29 +535,9 @@
       "types": "./src/device/frame.ts",
       "default": "./src/device/frame.ts"
     },
-    "./device/phone-viewer": {
-      "types": "./src/device/phoneViewer.ts",
-      "default": "./src/device/phoneViewer.ts"
-    },
-    "./device/phone-interaction": {
-      "types": "./src/device/phoneInteraction.ts",
-      "default": "./src/device/phoneInteraction.ts"
-    },
-    "./device/shape-profile": {
-      "types": "./src/device/shapeProfile.ts",
-      "default": "./src/device/shapeProfile.ts"
-    },
     "./device/screenshot": {
       "types": "./src/device/screenshot.ts",
       "default": "./src/device/screenshot.ts"
-    },
-    "./device/model": {
-      "types": "./src/device/model.ts",
-      "default": "./src/device/model.ts"
-    },
-    "./device/duo-viewer": {
-      "types": "./src/device/duoViewer.ts",
-      "default": "./src/device/duoViewer.ts"
     },
     "./device/duo-control": {
       "types": "./src/device/duoControl.ts",
@@ -666,13 +642,6 @@
     "@orbiwork/issue-tracker-linear": "workspace:*",
     "@orbiwork/provider-acp-registry": "workspace:*",
     "@orbiwork/provider-core": "workspace:*",
-    "@orbiwork/provider-cursor": "workspace:*",
-    "@orbiwork/provider-fx": "workspace:*",
-    "@orbiwork/provider-grok": "workspace:*",
-    "@orbiwork/provider-kiro": "workspace:*",
-    "@orbiwork/provider-muse": "workspace:*",
-    "@orbiwork/provider-opencode": "workspace:*",
-    "@orbiwork/provider-pi": "workspace:*",
     "@orbiwork/secret-provider-definitions": "workspace:*",
     "@orbiwork/shared": "workspace:*",
     "@orbiwork/source-control-core": "workspace:*",
@@ -681,13 +650,11 @@
     "effect": "catalog:",
     "gt-i18n": "1.0.40",
     "jszip": "3.10.1",
-    "three": "0.180.0",
     "unbash": "^5.0.0"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@types/mdast": "^4.0.4",
-    "@types/three": "0.180.0",
     "remark-gfm": "catalog:",
     "remark-parse": "catalog:",
     "unified": "catalog:",

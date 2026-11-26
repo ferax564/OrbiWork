@@ -454,16 +454,16 @@ describe("change request reference autolinks", () => {
 });
 
 describe("change request media urls", () => {
-  // regression: GitCafe's `/api/attachments/<id>` uploads rendered as missing local files
+  // regression: a forge's root-relative uploads rendered as missing local files
   it.each([
-    ["/api/attachments/attach_1", "https://git.cafe/api/attachments/attach_1"],
+    ["/api/attachments/attach_1", "https://forge.example.test/api/attachments/attach_1"],
     ["//cdn.example.com/a.png", "//cdn.example.com/a.png"],
     ["/\\evil.example.com/a.png", "/\\evil.example.com/a.png"],
     ["https://example.com/a.png", "https://example.com/a.png"],
     ["docs/a.png", "docs/a.png"],
   ])("resolves %s against the forge", (url, expected) => {
     expect(
-      resolveChangeRequestMediaUrl(url, "https://git.cafe/ferax564/orbiwork/pulls/31251"),
+      resolveChangeRequestMediaUrl(url, "https://forge.example.test/ferax564/orbiwork/pulls/31251"),
     ).toBe(expected);
   });
 });

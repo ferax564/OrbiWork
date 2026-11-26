@@ -79,7 +79,7 @@ export class RuntimePolicyV2 extends Context.Service<RuntimePolicyV2, RuntimePol
   "orbi/orchestration-v2/RuntimePolicy/RuntimePolicyV2",
 ) {}
 
-export function providerRuntimeMode(
+function providerRuntimeMode(
   runtimeMode: RuntimeMode,
   supportedRuntimeModes: ReadonlyArray<RuntimeMode> | undefined,
 ): RuntimeMode {

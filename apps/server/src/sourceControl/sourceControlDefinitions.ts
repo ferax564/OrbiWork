@@ -1,27 +1,9 @@
-import * as AzureDevOpsDriver from "@orbiwork/source-control-azure-devops/server/driver";
-import * as BitbucketDriver from "@orbiwork/source-control-bitbucket/server/driver";
-import * as CursorOriginDriver from "@orbiwork/source-control-cursor-origin/server/driver";
 import { builtInSourceControlDefinitions } from "@orbiwork/source-control-definitions/registry";
-import * as ForgejoDriver from "@orbiwork/source-control-forgejo/server/driver";
-import * as GitCafeDriver from "@orbiwork/source-control-gitcafe/server/driver";
 import * as GitHubDriver from "@orbiwork/source-control-github/server/driver";
 import * as GitLabDriver from "@orbiwork/source-control-gitlab/server/driver";
-import * as TanStackSourceDriver from "@orbiwork/source-control-tanstack-source/server/driver";
 
-/**
- * In the shared registry's order, which is the order hosts are listed and probed in. Feature
- * flags leave some out; see `builtInDrivers.ts`.
- */
-export const BUILT_IN_SOURCE_CONTROL_DRIVER_LIST = [
-  GitHubDriver.driver,
-  CursorOriginDriver.driver,
-  GitLabDriver.driver,
-  GitCafeDriver.driver,
-  TanStackSourceDriver.driver,
-  ForgejoDriver.driver,
-  BitbucketDriver.driver,
-  AzureDevOpsDriver.driver,
-];
+/** In the shared registry's order, which is the order hosts are listed and probed in. */
+export const BUILT_IN_SOURCE_CONTROL_DRIVER_LIST = [GitHubDriver.driver, GitLabDriver.driver];
 
 export const sourceControlDefinitions = builtInSourceControlDefinitions;
 
@@ -46,7 +28,6 @@ export function changeRequestsClosedBy(command: string): ReadonlySet<number> | "
   for (const { changeRequestCloseCommand: close } of sourceControlDefinitions.definitions) {
     if (close === undefined) continue;
     for (const match of command.matchAll(new RegExp(close.source, `${close.flags}g`))) {
-      // From the match's start, since Azure's match runs through `--id` to `--status`.
       const args = command.slice(match.index).split(/[;&|\n]/u, 1)[0] ?? "";
       // Every host's merge and close takes one change request, so any later one is option text.
       let target: string | undefined;

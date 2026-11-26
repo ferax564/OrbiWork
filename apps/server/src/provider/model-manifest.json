@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-20T23:50:00Z",
+  "updatedAt": "2026-11-26T12:00:00Z",
   "compatibility": [
     {
       "driver": "codex",
@@ -31,104 +31,6 @@
         { "range": ">=2.1.111 <2.1.280", "status": "graceful" },
         { "range": "<2.1.111", "status": "unsupported" }
       ]
-    },
-    {
-      "driver": "cursor",
-      "orbiWorkRange": ">=0.0.42",
-      "versionPattern": "^(\\d{4}\\.\\d{2}\\.\\d{2})-[a-f0-9]+$",
-      "recommendedRange": ">=2026.05.09",
-      "ranges": [
-        { "range": ">=2026.05.09", "status": "supported" },
-        { "range": "<2026.05.09", "status": "unknown" }
-      ]
-    },
-    {
-      "driver": "grok",
-      "orbiWorkRange": ">=0.0.42",
-      "recommendedRange": ">=1.0.13",
-      "ranges": [
-        { "range": ">=1.0.13", "status": "supported" },
-        { "range": "<1.0.13", "status": "broken" }
-      ]
-    },
-    {
-      "driver": "opencode",
-      "orbiWorkRange": ">=0.0.42 <0.0.46",
-      "recommendedRange": ">=1.14.19 <2.0.0",
-      "recommendedVersion": "1.14.19",
-      "ranges": [
-        { "range": ">=2.0.0", "status": "broken" },
-        { "range": ">=1.14.19 <2.0.0", "status": "supported" },
-        { "range": "<1.14.19", "status": "broken" }
-      ]
-    },
-    {
-      "driver": "opencode",
-      "orbiWorkRange": ">=0.0.46",
-      "versionPattern": "^(\\d+\\.\\d+\\.\\d+)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
-      "recommendedRange": ">=2.0.18",
-      "ranges": [
-        { "range": ">=2.0.18", "status": "supported" },
-        { "range": ">=2.0.0 <2.0.18", "status": "unsupported" },
-        { "range": ">=1.14.19 <2.0.0", "status": "graceful" },
-        { "range": "<1.14.19", "status": "broken" }
-      ]
-    },
-    {
-      "driver": "antigravity",
-      "orbiWorkRange": ">=0.0.42 <0.1.10",
-      "versionPattern": "^(?:agy_acp_server_)?(\\d+\\.\\d+\\.\\d+)(?:-[0-9A-Za-z.-]+)?$",
-      "recommendedRange": "=1.4.5 || =1.4.1",
-      "ranges": [
-        { "range": "=1.4.5", "status": "supported" },
-        { "range": "=1.4.1", "status": "supported" },
-        { "range": "=1.3.0", "status": "supported" },
-        { "range": "=1.1.1", "status": "supported" }
-      ]
-    },
-    {
-      "driver": "antigravity",
-      "orbiWorkRange": ">=0.1.10",
-      "versionPattern": "^(?:agy_acp_server_)?(\\d+\\.\\d+\\.\\d+)(?:-[0-9A-Za-z.-]+)?$",
-      "recommendedRange": ">=1.5.12 <2",
-      "ranges": [
-        { "range": ">=1.5.0 <2", "status": "supported" },
-        { "range": "<1.5.0", "status": "broken" }
-      ]
-    },
-    {
-      "driver": "kiro",
-      "orbiWorkRange": ">=0.0.46",
-      "recommendedRange": ">=2.27.0",
-      "ranges": [{ "range": ">=2.27.0", "status": "supported" }]
-    },
-    {
-      "driver": "pi",
-      "orbiWorkRange": ">=0.0.46",
-      "recommendedRange": ">=1.0.0",
-      "ranges": [
-        { "range": ">=0.84.3", "status": "supported" },
-        { "range": "<0.84.3", "status": "broken" }
-      ]
-    },
-    {
-      "driver": "muse",
-      "orbiWorkRange": ">=0.0.46",
-      "versionPattern": "^(\\d+\\.\\d+\\.\\d+)-R\\d+(?:\\.\\d+)?$",
-      "recommendedRange": ">=1.4.2",
-      "ranges": [
-        { "range": ">=1.4.2", "status": "supported" },
-        { "range": "<1.4.2", "status": "unknown" }
-      ]
-    },
-    {
-      "driver": "fx",
-      "orbiWorkRange": ">=0.0.46",
-      "recommendedRange": ">=0.0.13",
-      "ranges": [
-        { "range": ">=0.0.13", "status": "supported" },
-        { "range": "<0.0.13", "status": "unsupported" }
-      ]
     }
   ],
   "currentModels": {
@@ -139,15 +41,7 @@
       "gpt-daybreak-blue-latest",
       "gpt-daybreak-red-latest"
     ],
-    "claudeAgent": ["claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
-    "antigravity": [
-      "gemini-4-carbon",
-      "gemini-4-argon",
-      "gemini-3.8-flash",
-      "gemini-3.8-flash-high",
-      "gemini-3.8-flash-medium",
-      "gemini-3.8-flash-low"
-    ]
+    "claudeAgent": ["claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
   },
   "providers": {
     "codex": {
@@ -946,53 +840,6 @@
           "status": "legacy",
           "profile": "haiku-4-5"
         }
-      ]
-    },
-    "antigravity": {
-      "defaults": {
-        "chat": "gemini-3.8-flash-high"
-      },
-      "profiles": {},
-      "models": [
-        {
-          "slug": "gemini-4-carbon",
-          "name": "Gemini 4 Carbon",
-          "status": "current",
-          "releasedAt": "2026-11-10"
-        },
-        { "slug": "gemini-4-argon", "name": "Gemini 4 Argon", "status": "current" },
-        { "slug": "gemini-3.8-flash", "name": "Gemini 3.8 Flash", "status": "current" },
-        {
-          "slug": "gemini-3.8-flash-high",
-          "name": "Gemini 3.8 Flash (High)",
-          "status": "current"
-        },
-        {
-          "slug": "gemini-3.8-flash-medium",
-          "name": "Gemini 3.8 Flash (Medium)",
-          "status": "current"
-        },
-        {
-          "slug": "gemini-3.8-flash-low",
-          "name": "Gemini 3.8 Flash (Low)",
-          "status": "current"
-        },
-        { "slug": "gemini-3.7-flash-high", "name": "Gemini 3.7 Flash (High)", "status": "legacy" },
-        {
-          "slug": "gemini-3.7-flash-medium",
-          "name": "Gemini 3.7 Flash (Medium)",
-          "status": "legacy"
-        },
-        { "slug": "gemini-3.7-flash-low", "name": "Gemini 3.7 Flash (Low)", "status": "legacy" },
-        { "slug": "gemini-3.6-flash-high", "name": "Gemini 3.6 Flash (High)", "status": "legacy" },
-        {
-          "slug": "gemini-3.6-flash-medium",
-          "name": "Gemini 3.6 Flash (Medium)",
-          "status": "legacy"
-        },
-        { "slug": "gemini-3.6-flash-low", "name": "Gemini 3.6 Flash (Low)", "status": "legacy" },
-        { "slug": "gemini-pro-agent", "name": "Gemini 3.1 Pro (High)", "status": "legacy" },
-        { "slug": "gemini-3.1-pro-low", "name": "Gemini 3.1 Pro (Low)", "status": "legacy" }
       ]
     }
   }

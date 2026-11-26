@@ -46,10 +46,10 @@ const isServerProviderUpdateError = Schema.is(ServerProviderUpdateError);
 
 const CODEX_DRIVER = ProviderDriverKind.make("codex");
 const NATIVE_CLI_DRIVER = ProviderDriverKind.make("nativeCli");
-const OPENCODE_DRIVER = ProviderDriverKind.make("opencode");
+const NPM_CLI_DRIVER = ProviderDriverKind.make("npmCli");
 const CODEX_INSTANCE_ID = ProviderInstanceId.make("codex");
 const NATIVE_CLI_INSTANCE_ID = ProviderInstanceId.make("nativeCli");
-const OPENCODE_INSTANCE_ID = ProviderInstanceId.make("opencode");
+const NPM_CLI_INSTANCE_ID = ProviderInstanceId.make("npmCli");
 const encoder = new TextEncoder();
 
 // Pin Linux so raw command/args assertions bypass Windows shim resolution.
@@ -67,11 +67,11 @@ function lifecycleFor(provider: ProviderDriverKind): ProviderMaintenanceCapabili
   }
   return makeProviderMaintenanceCapabilities({
     provider,
-    packageName: provider === OPENCODE_DRIVER ? "opencode-ai" : "@openai/codex",
+    packageName: provider === NPM_CLI_DRIVER ? "npm-cli" : "@openai/codex",
     updateExecutable: "npm",
     updateArgs:
-      provider === OPENCODE_DRIVER
-        ? ["install", "-g", "opencode-ai@latest"]
+      provider === NPM_CLI_DRIVER
+        ? ["install", "-g", "npm-cli@latest"]
         : ["install", "-g", "@openai/codex@latest"],
     updateLockKey: "npm-global",
   });
@@ -97,10 +97,10 @@ const baseNativeCliProvider: ServerProvider = {
   driver: NATIVE_CLI_DRIVER,
 };
 
-const baseOpenCodeProvider: ServerProvider = {
+const baseNpmCliProvider: ServerProvider = {
   ...baseProvider,
-  instanceId: OPENCODE_INSTANCE_ID,
-  driver: OPENCODE_DRIVER,
+  instanceId: NPM_CLI_INSTANCE_ID,
+  driver: NPM_CLI_DRIVER,
 };
 
 const layerLatestVersionHttpClient = (version: string) =>
@@ -245,7 +245,7 @@ const makeTestRunner = (
   manifest: ModelManifest.ModelManifestData = {
     version: 1,
     currentModels: {},
-    compatibility: [CODEX_DRIVER, OPENCODE_DRIVER].map((driver) => ({
+    compatibility: [CODEX_DRIVER, NPM_CLI_DRIVER].map((driver) => ({
       driver,
       orbiWorkRange: ">=0.0.42",
       ranges: [],
@@ -1100,14 +1100,10 @@ describe("providerMaintenanceRunner", () => {
     const log: Array<string> = [];
     return Effect.gen(function* () {
       const { registry } = yield* makeRegistry(
-        [
-          baseProvider,
-          { ...baseProvider, instanceId: CODEX_WORK_INSTANCE_ID },
-          baseOpenCodeProvider,
-        ],
+        [baseProvider, { ...baseProvider, instanceId: CODEX_WORK_INSTANCE_ID }, baseNpmCliProvider],
         { installedVersionAfterUpdate: "1.0.0" },
       );
-      // OpenCode installs into the same npm prefix, so it shares the lock key but not the package.
+      // Another npm CLI installs into the same prefix, so it shares the lock key but not the package.
       const updater = yield* makeTestRunner(registry);
       const gate = yield* ProviderInstallationGate.ProviderInstallationGate;
 
@@ -1121,7 +1117,7 @@ describe("providerMaintenanceRunner", () => {
         .pipe(Effect.forkScoped);
       const other = yield* gate
         .execute(
-          OPENCODE_INSTANCE_ID,
+          NPM_CLI_INSTANCE_ID,
           Effect.sync(() => log.push("other driver ran")),
         )
         .pipe(Effect.forkScoped);
@@ -1233,7 +1229,7 @@ describe("providerMaintenanceRunner", () => {
         );
 
         yield* Effect.gen(function* () {
-          const { registry } = yield* makeRegistry(baseOpenCodeProvider);
+          const { registry } = yield* makeRegistry(baseNpmCliProvider);
           const updater = yield* makeTestRunner({
             ...registry,
             setProviderMaintenanceActionState: Effect.fn(
@@ -1248,7 +1244,7 @@ describe("providerMaintenanceRunner", () => {
             }),
           });
 
-          const caller = yield* updater.updateProvider(OPENCODE_DRIVER).pipe(Effect.forkChild);
+          const caller = yield* updater.updateProvider(NPM_CLI_DRIVER).pipe(Effect.forkChild);
           yield* Deferred.await(spawned);
           yield* Fiber.interrupt(caller);
 
@@ -1303,9 +1299,9 @@ describe("providerMaintenanceRunner", () => {
       );
 
       yield* Effect.gen(function* () {
-        const { registry } = yield* makeRegistry(baseOpenCodeProvider);
+        const { registry } = yield* makeRegistry(baseNpmCliProvider);
         const updater = yield* makeTestRunner(registry);
-        yield* updater.updateProvider(OPENCODE_DRIVER).pipe(Effect.forkScoped);
+        yield* updater.updateProvider(NPM_CLI_DRIVER).pipe(Effect.forkScoped);
         yield* Deferred.await(spawned);
         yield* TestClock.adjust("31 minutes");
 
@@ -1317,7 +1313,7 @@ describe("providerMaintenanceRunner", () => {
         // npm is still replacing the install, so a retry must not start a second installer.
         yield* Effect.yieldNow.pipe(Effect.repeat({ times: 20 }));
         const retry = yield* Effect.raceFirst(
-          updater.updateProvider(OPENCODE_DRIVER).pipe(
+          updater.updateProvider(NPM_CLI_DRIVER).pipe(
             Effect.flip,
             Effect.map((error) => error.reason),
           ),
@@ -1449,10 +1445,10 @@ it.effect.each([
   },
   { mode: "legacy", version: "1.14.20", installation: {}, status: "succeeded" },
 ] as const)(
-  "verifies the $mode OpenCode update using the refreshed installation",
+  "verifies the $mode npm update using the refreshed installation",
   ({ mode, version, installation, status }) => {
     const calls: string[] = [];
-    const capabilities = lifecycleFor(OPENCODE_DRIVER);
+    const capabilities = lifecycleFor(NPM_CLI_DRIVER);
     const pinnedCapabilities = {
       ...capabilities,
       update: { ...capabilities.update!, lockKey: "npm-global:/fixture" },
@@ -1462,7 +1458,7 @@ it.effect.each([
       currentModels: {},
       compatibility: [
         {
-          driver: OPENCODE_DRIVER,
+          driver: NPM_CLI_DRIVER,
           orbiWorkRange: ">=0.0.42",
           recommendedVersion: "1.14.20",
           ranges: [{ range: "=1.14.20", status: "supported" }],
@@ -1470,7 +1466,7 @@ it.effect.each([
       ],
     };
     return Effect.gen(function* () {
-      const { registry, providersRef } = yield* makeRegistry({ ...baseOpenCodeProvider, version });
+      const { registry, providersRef } = yield* makeRegistry({ ...baseNpmCliProvider, version });
       const httpClient = yield* HttpClient.HttpClient;
       const latestVersions = yield* ProviderLatestVersions.ProviderLatestVersions;
       const updater = yield* makeTestRunner(
@@ -1489,7 +1485,7 @@ it.effect.each([
             Effect.gen(function* () {
               assert.strictEqual(calls.length, 1);
               const refreshed = yield* enrichProviderSnapshotWithVersionAdvisory(
-                { ...baseOpenCodeProvider, version, ...installation },
+                { ...baseNpmCliProvider, version, ...installation },
                 pinnedCapabilities,
               ).pipe(
                 Effect.provideService(HttpClient.HttpClient, httpClient),
@@ -1507,7 +1503,7 @@ it.effect.each([
       );
 
       const result = yield* updater.updateProvider({
-        provider: OPENCODE_DRIVER,
+        provider: NPM_CLI_DRIVER,
         ...(mode.startsWith("default") ? {} : { targetVersion: "1.14.20" }),
       });
 
@@ -1515,16 +1511,16 @@ it.effect.each([
         calls,
         mode === "default-precurrent"
           ? []
-          : [`npm install -g opencode-ai@${mode.startsWith("default") ? "latest" : "1.14.20"}`],
+          : [`npm install -g npm-cli@${mode.startsWith("default") ? "latest" : "1.14.20"}`],
       );
       const provider = result.providers[0];
       assert.ok(provider);
       assert.strictEqual(provider.updateState?.status, status);
-      if (mode === "default" || mode === "default-precurrent" || mode === "targeted") {
-        assert.strictEqual(
-          provider.updateState?.message,
-          "OpenCode CLI updated. Restart the configured local OpenCode server to use the new version.",
-        );
+      if (mode === "default" || mode === "targeted") {
+        assert.strictEqual(provider.updateState?.message, "Provider updated.");
+      }
+      if (mode === "default-precurrent") {
+        assert.strictEqual(provider.updateState?.message, "Already up to date.");
       }
       assert.strictEqual(provider.version, version);
       assert.strictEqual("installedVersion" in provider, mode !== "legacy");

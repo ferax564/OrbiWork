@@ -40,9 +40,9 @@ describe("deriveProviderModelsForDisplay", () => {
 });
 
 describe("provider environment helpers", () => {
-  const cursorApiKeyField = {
-    name: "CURSOR_API_KEY",
-    label: "Cursor API key",
+  const apiKeyField = {
+    name: "ANTHROPIC_API_KEY",
+    label: "Anthropic API key",
     sensitive: true,
   };
 
@@ -50,12 +50,12 @@ describe("provider environment helpers", () => {
     expect(
       nextProviderEnvironmentWithFieldValue(
         [{ name: "EXTRA_FLAG", value: "1", sensitive: false }],
-        cursorApiKeyField,
-        "  cursor-key  ",
+        apiKeyField,
+        "  anthropic-key  ",
       ),
     ).toEqual([
       { name: "EXTRA_FLAG", value: "1", sensitive: false },
-      { name: "CURSOR_API_KEY", value: "cursor-key", sensitive: true },
+      { name: "ANTHROPIC_API_KEY", value: "anthropic-key", sensitive: true },
     ]);
   });
 
@@ -64,30 +64,28 @@ describe("provider environment helpers", () => {
       nextProviderEnvironmentWithFieldValue(
         [
           {
-            name: "CURSOR_API_KEY",
+            name: "ANTHROPIC_API_KEY",
             value: "",
             sensitive: true,
             valueRedacted: true,
           },
         ],
-        cursorApiKeyField,
+        apiKeyField,
         "new-key",
       ),
-    ).toEqual([{ name: "CURSOR_API_KEY", value: "new-key", sensitive: true }]);
+    ).toEqual([{ name: "ANTHROPIC_API_KEY", value: "new-key", sensitive: true }]);
   });
 
   it("points a stored provider secret at a secret provider and drops the stored value", () => {
     const secret = {
       provider: SecretProviderId.make("personal"),
-      reference: "op://Private/Cursor/credential",
+      reference: "op://Private/Anthropic/credential",
     };
-    const stored = [{ name: "CURSOR_API_KEY", value: "", sensitive: true, valueRedacted: true }];
-    const referenced = nextProviderEnvironmentWithFieldSecret(stored, cursorApiKeyField, secret);
+    const stored = [{ name: "ANTHROPIC_API_KEY", value: "", sensitive: true, valueRedacted: true }];
+    const referenced = nextProviderEnvironmentWithFieldSecret(stored, apiKeyField, secret);
 
-    expect(referenced).toEqual([{ name: "CURSOR_API_KEY", value: secret, sensitive: true }]);
-    expect(
-      nextProviderEnvironmentWithFieldSecret(referenced, cursorApiKeyField, undefined),
-    ).toEqual([]);
+    expect(referenced).toEqual([{ name: "ANTHROPIC_API_KEY", value: secret, sensitive: true }]);
+    expect(nextProviderEnvironmentWithFieldSecret(referenced, apiKeyField, undefined)).toEqual([]);
   });
 
   it("applies the secure field default when replacing an existing non-sensitive value", () => {

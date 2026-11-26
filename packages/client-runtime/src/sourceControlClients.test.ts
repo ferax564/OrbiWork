@@ -1,8 +1,7 @@
-import { ProjectId, SourceControlProviderKind } from "@orbiwork/contracts";
+import { SourceControlProviderKind } from "@orbiwork/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { appSignInTargetForRemote, sourceControlClients } from "./sourceControlClients.ts";
-import { normalizeThreadPullRequestKey } from "./threadPullRequests.ts";
 
 const parse = (url: string) => {
   const parsed = sourceControlClients.parseChangeRequestUrl(url);
@@ -18,66 +17,6 @@ describe("sourceControlClients.parseChangeRequestUrl", () => {
       host: "github.com",
       repository: "ferax564/orbiwork",
       number: 123,
-    });
-  });
-
-  it("reads a GitCafe pull request at its canonical /pull/ path and the older /pulls/ path", () => {
-    for (const path of ["pull", "pulls"]) {
-      const url = `https://git.cafe/Ferax564/OrbiWork/${path}/23897`;
-      expect(parse(url), path).toEqual({
-        host: "git.cafe",
-        repository: "ferax564/orbiwork",
-        number: 23897,
-      });
-      expect(kindOf(url), path).toBe("gitcafe");
-    }
-    expect(parse("https://staging.git.cafe/team/repo/pull/7/files")).toEqual({
-      host: "staging.git.cafe",
-      repository: "team/repo",
-      number: 7,
-    });
-  });
-
-  it("reads a TanStack Source pull request under its @owner path, not as GitHub's /pull/", () => {
-    const url = "https://source.tanstack.com/@TanStack/router/pull/8882/files";
-    expect(parse(url)).toEqual({
-      host: "source.tanstack.com",
-      repository: "tanstack/router",
-      number: 8882,
-    });
-    expect(kindOf(url)).toBe("tanstack-source");
-    expect(sourceControlClients.parseChangeRequestUrl(url)?.link.repositoryUrl).toBe(
-      "https://source.tanstack.com/@TanStack/router",
-    );
-  });
-
-  it("reads a Cursor Origin pull request under Origin's git host, not as GitHub's /pull/", () => {
-    for (const url of [
-      "https://cursor.com/codebase/Acme.Team/Web-App/pull/42",
-      "http://www.cursor.com/codebase/Acme.Team/Web-App/pull/42/files?w=1#diff",
-    ]) {
-      expect(parse(url), url).toEqual({
-        host: "origin.cursor.com",
-        repository: "acme.team/web-app",
-        number: 42,
-      });
-      expect(kindOf(url), url).toBe("cursor-origin");
-    }
-    expect(
-      sourceControlClients.parseChangeRequestUrl("https://cursor.com/codebase/acme/web/pull/42")
-        ?.link.repositoryUrl,
-    ).toBe("https://cursor.com/codebase/acme/web");
-    expect(parse("https://cursor.com/codebase/acme/web")).toBeNull();
-    expect(kindOf("https://www.cursor.com/updates/pull/42")).toBeUndefined();
-    expect(kindOf("https://github.com/acme/web/pull/42")).toBe("github");
-  });
-
-  it("reads Forgejo URLs even when the hostname contains github", () => {
-    expect(parse("https://github.internal/team/repo/pulls/7")).toEqual({
-      host: "github.internal",
-      authority: "github.internal",
-      repository: "team/repo",
-      number: 7,
     });
   });
 
@@ -113,57 +52,6 @@ describe("sourceControlClients.parseChangeRequestUrl", () => {
     ).toBe("https://gitlab.com/team/apps/web/-/merge_requests/42");
   });
 
-  it("reads Bitbucket and both Azure DevOps URL forms", () => {
-    expect(parse("https://bitbucket.org/workspace/repo/pull-requests/5")).toEqual({
-      host: "bitbucket.org",
-      repository: "workspace/repo",
-      number: 5,
-    });
-    expect(parse("https://dev.azure.com/acme/platform/_git/orbiwork/pullrequest/17")).toEqual({
-      host: "dev.azure.com",
-      repository: "acme/platform/_git/orbiwork",
-      number: 17,
-    });
-    expect(parse("https://acme.visualstudio.com/platform/_git/orbiwork/pullrequest/17")).toEqual({
-      host: "acme.visualstudio.com",
-      repository: "platform/_git/orbiwork",
-      number: 17,
-    });
-  });
-
-  it("reads Azure DevOps Server links and keeps servers on different ports distinct", () => {
-    for (const host of ["scm.example.test", "git.cafe", "code.bitbucket.example.test"]) {
-      const repository = "tfs/collection/project/_git/repo";
-      const linked = {
-        projectId: ProjectId.make("project-1"),
-        host,
-        repository,
-        number: 123,
-        url: `https://${host.toUpperCase()}:8443/tfs/Collection/Project/_git/Repo/pullrequest/123`,
-      };
-      const other = { ...linked, url: linked.url.replace(":8443/", ":9443/") };
-      expect.soft(parse(linked.url), host).toEqual({
-        host,
-        authority: `${host}:8443`,
-        repository,
-        number: 123,
-      });
-      expect
-        .soft(
-          sourceControlClients.isSameChangeRequest(linked.url, `${linked.url}?view=files`),
-          host,
-        )
-        .toBe(true);
-      expect
-        .soft(sourceControlClients.isSameChangeRequest(linked.url, other.url), host)
-        .toBe(false);
-      expect.soft([linked, other].map(normalizeThreadPullRequestKey), host).toEqual([
-        { host: `${host}:8443`, repository, number: 123 },
-        { host: `${host}:9443`, repository, number: 123 },
-      ]);
-    }
-  });
-
   it("survives trailing segments, a trailing slash and a query string", () => {
     expect(parse("https://github.com/ferax564/orbiwork/pull/123/files?w=1")).toEqual({
       host: "github.com",
@@ -180,9 +68,6 @@ describe("sourceControlClients.parseChangeRequestUrl", () => {
   it("claims nothing it cannot be sure of", () => {
     for (const link of [
       "https://github.com/ferax564/orbiwork/issues/123",
-      "https://git.cafe/ferax564/orbiwork/issues/23897",
-      "https://git.cafe/ferax564/orbiwork/pull/abc",
-      "https://git.cafe/ferax564/orbiwork",
       "https://github.com/ferax564/orbiwork/commit/0a1b2c3",
       "https://github.com/ferax564/orbiwork",
       "https://github.com/ferax564/orbiwork/pull/abc",
@@ -213,28 +98,6 @@ describe("sourceControlClients.isSameChangeRequest", () => {
       ),
     ).toBe(true);
   });
-
-  it.each([
-    ["http://forge.example:3000/git/team/repo/pulls/42/files", true],
-    ["http://forge.example:4000/git/team/repo/pulls/42", false],
-    ["http://forge.example/git/team/repo/pulls/42", false],
-  ])("matches Forgejo links by web authority: %s", (url, expected) => {
-    expect(
-      sourceControlClients.isSameChangeRequest(
-        "http://forge.example:3000/git/team/repo/pulls/42",
-        url,
-      ),
-    ).toBe(expected);
-  });
-
-  it("keeps Forgejo and GitHub path shapes distinct on a GitHub-named host", () => {
-    expect(
-      sourceControlClients.isSameChangeRequest(
-        "https://github.internal/team/repo/pulls/42",
-        "https://github.internal/team/repo/pull/42",
-      ),
-    ).toBe(false);
-  });
 });
 
 describe("change request URLs built from a parsed link", () => {
@@ -249,32 +112,13 @@ describe("change request URLs built from a parsed link", () => {
   };
 
   it.each([
-    [
-      "http://git.example.test:3000/team/repo/pulls/42/files",
-      "http://git.example.test:3000/team/repo/pulls/43",
-    ],
     ["https://github.com/pull/1/pull/42/files", "https://github.com/pull/1/pull/43"],
     [
-      "https://dev.azure.com/acme/project/_git/web/pullrequest/42?view=files",
-      "https://dev.azure.com/acme/project/_git/web/pullrequest/43",
+      "https://gitlab.com/team/web/-/merge_requests/42/diffs",
+      "https://gitlab.com/team/web/-/merge_requests/43",
     ],
   ])("builds a canonical sibling of %s", (url, expected) => {
     expect(sibling(url, 43)).toBe(expected);
-  });
-
-  it.each([
-    ["ssh.dev.azure.com", "v3/org/project/web"],
-    ["org.visualstudio.com", "defaultcollection/project/_git/web"],
-    ["dev.azure.com", "org/project/_git/web"],
-  ])("reads back the Azure browser URL built from the remote %s/%s", (host, repository) => {
-    const url = sourceControlClients
-      .get("azure-devops")
-      .changeRequestUrl({ host, repository, number: 42 });
-    expect(parse(url!)).toEqual({
-      host: "dev.azure.com",
-      repository: "org/project/_git/web",
-      number: 42,
-    });
   });
 });
 
@@ -282,16 +126,8 @@ describe("sourceControlClients.recognizeRemote", () => {
   const kindOfRemote = (url: string) => sourceControlClients.recognizeRemote(url)?.kind ?? null;
 
   it("asks hosts in a fixed order when one hostname carries several hosts' labels", () => {
-    expect(kindOfRemote("https://gitea.github.example/o/r")).toBe("forgejo");
-    expect(kindOfRemote("https://forgejo.gitlab.example/o/r")).toBe("forgejo");
     expect(kindOfRemote("https://gitlab.github.example/o/r")).toBe("github");
     expect(kindOfRemote("https://bitbucket.gitlab.example/o/r")).toBe("gitlab");
-    expect(kindOfRemote("https://bitbucket.visualstudio.com/p/_git/r")).toBe("azure-devops");
-    expect(kindOfRemote("git@git.cafe:ferax564/orbiwork.git")).toBe("gitcafe");
-    expect(kindOfRemote("https://origin.cursor.com/acme/web.git")).toBe("cursor-origin");
-    expect(kindOfRemote("https://source.tanstack.com/@TanStack/router.git")).toBe(
-      "tanstack-source",
-    );
   });
 
   it("reads a remote no host claims as an unknown host, and a local path as no host", () => {
@@ -318,40 +154,9 @@ describe("sourceControlClients repository keys", () => {
   it.each([
     ["git@github.com:Ferax564/OrbiWork.git", "github.com/ferax564/orbiwork"],
     ["ssh://git@gitlab.company.com:2222/team/project.git", "gitlab.company.com/team/project"],
-    [
-      "git@ssh.dev.azure.com:v3/OrbiWork/Platform/OrbiWork",
-      "dev.azure.com/orbiwork/platform/_git/orbiwork",
-    ],
-    [
-      "OrbiWork@vs-ssh.visualstudio.com:v3/OrbiWork/Platform/OrbiWork",
-      "orbiwork.visualstudio.com/platform/_git/orbiwork",
-    ],
-    [
-      "https://OrbiWork.visualstudio.com/DefaultCollection/Platform/_git/OrbiWork",
-      "orbiwork.visualstudio.com/defaultcollection/platform/_git/orbiwork",
-    ],
-    ["git@ssh.dev.azure.com:v3/o/p", "ssh.dev.azure.com/v3/o/p"],
-    ["ssh.dev.azure.com/v3/o/p/r", "ssh.dev.azure.com/v3/o/p/r"],
     ["C:/repos/project", "c:/repos/project"],
-    // The owner's `@` is the web's spelling; the API and every key name it without.
-    ["https://source.tanstack.com/@TanStack/router.git", "source.tanstack.com/tanstack/router"],
   ])("keys %s as %s", (remote, key) => {
     expect(sourceControlClients.repositoryKeyFromRemote(remote)).toBe(key);
-  });
-
-  it("compares Azure DevOps spellings on dev.azure.com and leaves other keys alone", () => {
-    expect(
-      sourceControlClients.canonicalRepositoryKey(
-        "org.visualstudio.com/defaultcollection/project/_git/repo",
-      ),
-    ).toBe("dev.azure.com/org/project/_git/repo");
-    expect(sourceControlClients.findByRepositoryKey("dev.azure.com/o/r")?.kind).toBe(
-      "azure-devops",
-    );
-    expect(sourceControlClients.canonicalRepositoryKey("tfs.corp.example/c/p/_git/r")).toBe(
-      "tfs.corp.example/c/p/_git/r",
-    );
-    expect(sourceControlClients.findByRepositoryKey("github.com/o/r")).toBeUndefined();
   });
 });
 
@@ -361,8 +166,7 @@ describe("sourceControlClients project hosts", () => {
     locator: { remoteUrl: "http://forge.example:3000/team/repo.git" },
   };
 
-  it("keeps an HTTP remote's port for Forgejo only, and falls back to the kind without a key", () => {
-    expect(sourceControlClients.changeRequestHost(identity, "forgejo")).toBe("forge.example:3000");
+  it("keys change requests by the repository's host, and falls back to the kind without a key", () => {
     expect(sourceControlClients.changeRequestHost(identity, "gitlab")).toBe("forge.example");
     expect(sourceControlClients.changeRequestHost(identity, undefined)).toBe("forge.example");
     expect(
@@ -373,7 +177,7 @@ describe("sourceControlClients project hosts", () => {
     ).toBe("github");
   });
 
-  it("selects a repository by its path except where the host's tools take a name", () => {
+  it("selects a repository by its path", () => {
     const repository = {
       displayName: "group/subgroup/service",
       owner: "group",
@@ -386,12 +190,6 @@ describe("sourceControlClients project hosts", () => {
         provider: SourceControlProviderKind.make("gitlab"),
       }),
     ).toBe("group/subgroup/service");
-    expect(
-      sourceControlClients.repositorySelector({
-        ...repository,
-        provider: SourceControlProviderKind.make("azure-devops"),
-      }),
-    ).toBe("service");
     expect(sourceControlClients.repositorySelector({ owner: "o", name: "r" })).toBe("o/r");
   });
 
@@ -424,14 +222,38 @@ describe("sourceControlClients.findByPublicDomain", () => {
     const kindOf = (hostname: string) => sourceControlClients.findByPublicDomain(hostname)?.kind;
     expect(kindOf("gist.github.com")).toBe("github");
     expect(kindOf("GitLab.com")).toBe("gitlab");
-    expect(kindOf("codeberg.org")).toBe("forgejo");
-    expect(kindOf("git.cafe")).toBe("gitcafe");
+    expect(kindOf("codeberg.org")).toBeUndefined();
     expect(kindOf("notgithub.com")).toBeUndefined();
     expect(kindOf("github.com.example")).toBeUndefined();
   });
 
   it("leaves findByPublicHost to the public host alone", () => {
     expect(sourceControlClients.findByPublicHost("gist.github.com")).toBeUndefined();
+  });
+});
+
+describe("hosts OrbiWork no longer integrates with", () => {
+  // Projects, links and settings saved before a forge was removed still name it.
+  it.each(["azure-devops", "bitbucket", "forgejo", "gitcafe", "cursor-origin", "tanstack-source"])(
+    "reads %s as an unknown host",
+    (kind) => {
+      expect(sourceControlClients.find(kind)).toBeUndefined();
+      expect(sourceControlClients.get(kind).kind).toBe("unknown");
+      expect(
+        sourceControlClients.repositorySelector({
+          provider: SourceControlProviderKind.make(kind),
+          displayName: "team/web",
+        }),
+      ).toBe("team/web");
+    },
+  );
+
+  it.each([
+    "https://bitbucket.org/team/web/pull-requests/5",
+    "https://dev.azure.com/acme/platform/_git/web/pullrequest/17",
+    "https://codeberg.org/team/web/pulls/7",
+  ])("links nothing for %s", (url) => {
+    expect(sourceControlClients.parseChangeRequestUrl(url)).toBeNull();
   });
 });
 

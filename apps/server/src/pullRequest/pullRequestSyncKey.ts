@@ -14,8 +14,8 @@ export function pullRequestSyncKey(
   const host = identity
     ? sourceControlDefinitions.changeRequestHost(identity, identity.provider)
     : undefined;
-  // A host whose tools select a repository by something other than its path (Azure DevOps takes
-  // the bare name) can only key such a reference through the project's own repository.
+  // A host whose tools select a repository by something other than its path can only key such a
+  // reference through the project's own repository.
   const definition = identity?.provider
     ? sourceControlDefinitions.find(identity.provider)
     : undefined;

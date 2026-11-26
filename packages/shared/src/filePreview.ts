@@ -15,22 +15,11 @@ export type FilePreviewKind =
   | "image"
   | "video"
   | "audio"
-  | "pdf"
   | "html"
   | "markdown"
   | "mermaid"
   | "font"
   | "archive"
-  | "sqlite"
-  | "docx"
-  | "xlsx"
-  | "pptx"
-  | "odt"
-  | "ods"
-  | "odp"
-  | "rtf"
-  | "epub"
-  | "ipynb"
   | "text"
   | "unsupported";
 
@@ -43,11 +32,7 @@ export function filePreviewKind(
   const extension = name.slice(name.lastIndexOf("."));
   const generic = !mime || GENERIC_MIME_TYPES.has(mime) || mime === "text/plain";
   const richDocuments = options?.richDocuments !== false;
-  const office = richDocuments ? officePreviewKind(file) : null;
-  if (office) return office;
-  const binary = binaryPreviewKind(file);
-  if (binary) return binary;
-  if (mime === "application/pdf") return "pdf";
+  if (binaryPreviewKind(file)) return "archive";
   if (mime === "text/html") return "html";
   if (mime === "text/markdown" || mime === "text/x-markdown") return "markdown";
   if (richDocuments && mime === "text/vnd.mermaid") return "mermaid";
@@ -64,12 +49,11 @@ export function filePreviewKind(
   if (mime.startsWith("video/") && !generic) return "video";
   if (mime.startsWith("audio/")) return "audio";
   if (generic) {
-    if (extension === ".pdf") return "pdf";
     if (/^\.html?$/.test(extension)) return "html";
     if (/^\.(md|markdown|mdown|mkd|mdx)$/.test(extension)) return "markdown";
     if (richDocuments && /^\.(mmd|mermaid)$/.test(extension)) return "mermaid";
     if (richDocuments && isWorkspaceFontPreviewPath(name)) return "font";
-    if (richDocuments && extension === ".rtf") return "text";
+    if (extension === ".rtf" || extension === ".ipynb") return "text";
     const media = mediaMimeTypeFromExtension(extension);
     if (media?.startsWith("image/")) return "image";
     if (media?.startsWith("video/")) return "video";
@@ -86,7 +70,7 @@ export function filePreviewKind(
   }
   if (
     mime.startsWith("text/") ||
-    /^(application\/(json|.*\+json|xml|.*\+xml|javascript|x-javascript|yaml|x-yaml|toml|sql))$/.test(
+    /^(application\/(json|.*\+json|rtf|xml|.*\+xml|javascript|x-javascript|yaml|x-yaml|toml|sql))$/.test(
       mime,
     )
   )
@@ -100,18 +84,13 @@ const BINARY_MIME_TYPES = new Map([
   [".tar", "application/x-tar"],
   [".gz", "application/gzip"],
   [".tgz", "application/gzip"],
-  [".sqlite", "application/vnd.sqlite3"],
-  [".sqlite3", "application/vnd.sqlite3"],
-  [".db", "application/vnd.sqlite3"],
 ]);
 
 export function binaryPreviewKind(file: {
   readonly name: string;
   readonly mimeType?: string;
-}): "archive" | "sqlite" | null {
+}): "archive" | null {
   const mime = file.mimeType?.split(";", 1)[0]?.trim().toLowerCase() ?? "";
-  if (["application/vnd.sqlite3", "application/x-sqlite3", "application/x-sqlite"].includes(mime))
-    return "sqlite";
   if (
     [
       "application/zip",
@@ -127,45 +106,10 @@ export function binaryPreviewKind(file: {
     return "archive";
   if (mime && !GENERIC_MIME_TYPES.has(mime) && mime !== "text/plain") return null;
   const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-  const inferred = BINARY_MIME_TYPES.get(extension);
-  return inferred === "application/vnd.sqlite3" ? "sqlite" : inferred ? "archive" : null;
+  return BINARY_MIME_TYPES.has(extension) ? "archive" : null;
 }
 
 export const FILE_TEXT_PREVIEW_MAX_BYTES = 1024 * 1024;
-
-const OFFICE_MIME_TYPES = {
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  odt: "application/vnd.oasis.opendocument.text",
-  ods: "application/vnd.oasis.opendocument.spreadsheet",
-  odp: "application/vnd.oasis.opendocument.presentation",
-  rtf: "application/rtf",
-  epub: "application/epub+zip",
-  ipynb: "application/x-ipynb+json",
-} as const;
-
-export type OfficePreviewKind = keyof typeof OFFICE_MIME_TYPES;
-
-export function officePreviewKind(file: {
-  readonly name: string;
-  readonly mimeType?: string;
-}): OfficePreviewKind | null {
-  const mime = file.mimeType?.split(";", 1)[0]?.trim().toLowerCase() ?? "";
-  if (mime === "text/rtf") return "rtf";
-  for (const kind of Object.keys(OFFICE_MIME_TYPES) as OfficePreviewKind[]) {
-    if (mime === OFFICE_MIME_TYPES[kind]) return kind;
-    if (
-      (!mime ||
-        GENERIC_MIME_TYPES.has(mime) ||
-        mime === "text/plain" ||
-        (kind === "ipynb" && mime === "application/json")) &&
-      file.name.toLowerCase().endsWith(`.${kind}`)
-    )
-      return kind;
-  }
-  return null;
-}
 
 export function decodeFilePreviewText(bytes: Uint8Array, truncated = false) {
   const bounded = bytes.subarray(0, FILE_TEXT_PREVIEW_MAX_BYTES);
@@ -182,12 +126,11 @@ export function decodeFilePreviewText(bytes: Uint8Array, truncated = false) {
   }
 }
 
-export const WORKSPACE_BROWSER_PREVIEW_EXTENSIONS = [".htm", ".html", ".pdf"] as const;
+export const WORKSPACE_BROWSER_PREVIEW_EXTENSIONS = [".htm", ".html"] as const;
 
 const BROWSER_MIME_TYPE_BY_EXTENSION = new Map([
   [".htm", "text/html"],
   [".html", "text/html"],
-  [".pdf", "application/pdf"],
 ]);
 
 const FONT_MIME_TYPE_BY_EXTENSION = new Map([
@@ -209,9 +152,6 @@ export function hostPreviewMimeTypeFromExtension(extension: string): string | nu
     BROWSER_MIME_TYPE_BY_EXTENSION.get(extension.toLowerCase()) ??
     FONT_MIME_TYPE_BY_EXTENSION.get(extension.toLowerCase()) ??
     BINARY_MIME_TYPES.get(extension.toLowerCase()) ??
-    (Object.hasOwn(OFFICE_MIME_TYPES, extension.toLowerCase().slice(1))
-      ? OFFICE_MIME_TYPES[extension.toLowerCase().slice(1) as OfficePreviewKind]
-      : null) ??
     null
   );
 }
@@ -235,7 +175,6 @@ export function isWorkspacePreviewEntryPath(path: string): boolean {
     isWorkspaceBrowserPreviewPath(path) ||
     isWorkspaceImagePreviewPath(path) ||
     isWorkspaceFontPreviewPath(path) ||
-    officePreviewKind({ name: path }) !== null ||
     binaryPreviewKind({ name: path }) !== null
   );
 }

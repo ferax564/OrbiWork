@@ -2,7 +2,6 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   getProviderIdentityDraft,
-  resolveAcpRegistryWizardNavigation,
   resolveWizardNavigation,
   updateProviderIdentityDraft,
 } from "./AddProviderInstanceDialog.logic";
@@ -28,46 +27,26 @@ describe("resolveWizardNavigation", () => {
   });
 });
 
-describe("ACP Registry wizard", () => {
-  it("requires a prepared result or valid manual configuration before Identity", () => {
-    expect(
-      resolveAcpRegistryWizardNavigation(0, 1, {
-        instanceIdError: null,
-        selectionError: "Select an ACP or configure one manually.",
-      }),
-    ).toEqual({
-      kind: "blocked",
-      step: 0,
-      error: "Select an ACP or configure one manually.",
+describe("provider identity drafts", () => {
+  it("keeps each driver's identity draft separate", () => {
+    const acpDrafts = updateProviderIdentityDraft({}, "acpRegistry", {
+      label: "Local ACP",
+      instanceIdOverride: "acpRegistry_local_acp",
     });
 
-    expect(
-      resolveAcpRegistryWizardNavigation(0, 1, {
-        instanceIdError: null,
-        selectionError: null,
-      }),
-    ).toEqual({ kind: "navigate", step: 1 });
-  });
-
-  it("keeps registry-prefilled identity separate from other drivers", () => {
-    const registryDrafts = updateProviderIdentityDraft({}, "acpRegistry", {
-      label: "Gemini CLI",
-      instanceIdOverride: "acpRegistry_gemini_cli",
-    });
-
-    expect(getProviderIdentityDraft(registryDrafts, "codex")).toEqual({
+    expect(getProviderIdentityDraft(acpDrafts, "codex")).toEqual({
       label: "",
       accentColor: "",
       instanceIdOverride: null,
     });
 
-    const drafts = updateProviderIdentityDraft(registryDrafts, "codex", {
+    const drafts = updateProviderIdentityDraft(acpDrafts, "codex", {
       label: "Work",
       instanceIdOverride: "codex_work",
     });
     expect(getProviderIdentityDraft(drafts, "acpRegistry")).toMatchObject({
-      label: "Gemini CLI",
-      instanceIdOverride: "acpRegistry_gemini_cli",
+      label: "Local ACP",
+      instanceIdOverride: "acpRegistry_local_acp",
     });
   });
 });

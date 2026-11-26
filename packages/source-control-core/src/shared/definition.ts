@@ -362,8 +362,8 @@ export interface SourceControlDefinition {
    */
   readonly repositorySelector?: (identity: RepositorySelectorIdentity) => string | null;
   /**
-   * The container the project's issues live in, where that is not its repository: Azure DevOps
-   * keeps work items per project. Null when the repository cannot be placed.
+   * The container the project's issues live in, where that is not its repository. Null when the
+   * repository cannot be placed.
    */
   readonly issueScope?: (identity: IssueScopeIdentity) => string | null;
   /**
@@ -503,7 +503,7 @@ export function defineSourceControl<const Definition extends SourceControlDefini
   return definition;
 }
 
-export function isChangeRequestAuthorityOfProject(
+function isChangeRequestAuthorityOfProject(
   identity: ChangeRequestProjectIdentity,
   link: ChangeRequestLink | CommitLink,
 ): boolean {

@@ -86,7 +86,7 @@ describe("thread workflows", () => {
       thread: {
         id: "thread",
         activeProviderThreadId: "provider-thread",
-        modelSelection: { instanceId: "cursor", model: "grok-4.7" },
+        modelSelection: { instanceId: "acpRegistry", model: "agent-default" },
       },
       runs: [{ id: "run", status: "completed" }],
       providerSessions: [],
@@ -94,9 +94,9 @@ describe("thread workflows", () => {
         {
           id: "provider-thread",
           appThreadId: "thread",
-          providerInstanceId: "cursor",
+          providerInstanceId: "acpRegistry",
           providerSessionId: "detached-session",
-          nativeThreadRef: { driver: "cursor", nativeId: "agent-123", strength: "strong" },
+          nativeThreadRef: { driver: "acpRegistry", nativeId: "agent-123", strength: "strong" },
         },
       ],
     } as unknown as OrchestrationV2ThreadProjection;

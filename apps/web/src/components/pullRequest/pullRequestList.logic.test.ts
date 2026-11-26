@@ -518,19 +518,19 @@ describe("merging the environments' own listings", () => {
     expect(merged?.entries).toEqual([{ ...older, environmentId: ENV_1 }]);
   });
 
-  it("keeps Azure pull requests from distinct projects with the same repository name and number", () => {
+  it("keeps pull requests from distinct projects with the same repository name and number", () => {
     const first = entry({
-      provider: SourceControlProviderKind.make("azure-devops"),
-      host: "dev.azure.com",
+      provider: SourceControlProviderKind.make("gitlab"),
+      host: "gitlab.example.test",
       repository: "web",
       number: 4,
-      projectId: "azure-first" as ProjectId,
-      url: "https://dev.azure.com/acme/first/_git/web/pullrequest/4",
+      projectId: "first" as ProjectId,
+      url: "https://gitlab.example.test/first/web/-/merge_requests/4",
     });
     const second = {
       ...first,
-      projectId: "azure-second" as ProjectId,
-      url: "https://dev.azure.com/acme/second/_git/web/pullrequest/4",
+      projectId: "second" as ProjectId,
+      url: "https://gitlab.example.test/second/web/-/merge_requests/4",
     };
     const merged = mergePullRequestLists([[ENV_1, answer({ entries: [first, second] })]]);
     expect(merged?.entries).toEqual(
@@ -850,42 +850,6 @@ describe("refresh page size", () => {
 });
 
 describe("findProjectForRepository", () => {
-  it("resolves Azure bare names using matching project and environment scope", () => {
-    const azure = (id: string, environmentId: string, path: string) => ({
-      id,
-      environmentId,
-      repositoryIdentity: {
-        canonicalKey: `dev.azure.com/${path}`,
-        locator: { source: "git-remote" as const, remoteName: "origin", remoteUrl: "" },
-        provider: SourceControlProviderKind.make("azure-devops"),
-        displayName: path,
-        owner: "contoso",
-        name: path.split("/").at(-1)!,
-      },
-    });
-    const payments = azure("p1", ENV_1, "contoso/payments/_git/api");
-    const billing = azure("p2", ENV_1, "contoso/billing/_git/api");
-    const remoteBilling = azure("p2", ENV_2, "contoso/billing/_git/api");
-    const unrelated = azure("p3", ENV_2, "contoso/billing/_git/web");
-    const projects = [payments, billing, remoteBilling, unrelated];
-
-    expect(findProjectForRepository(projects, { repository: "api" })).toBe(payments);
-    expect(
-      findProjectForRepository(projects, {
-        repository: "api",
-        scopedProjectId: "p2",
-        scopedEnvironmentId: ENV_2,
-      }),
-    ).toBe(remoteBilling);
-    expect(
-      findProjectForRepository(projects, {
-        repository: "api",
-        scopedProjectId: "p3",
-        scopedEnvironmentId: ENV_2,
-      }),
-    ).toBe(payments);
-  });
-
   it("keeps repository matches on the selected environment when project IDs overlap", () => {
     const project = (id: string, environmentId: string, repository: string) => ({
       id,

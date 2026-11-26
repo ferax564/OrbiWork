@@ -332,7 +332,7 @@ export const make = Effect.gen(function* () {
   // A shell merge or close sends no event, and the branch lookup caches an open pull request for
   // a minute, so these threads' next lookup reads the host fresh.
   const shellClosedThreads = new Set<ThreadId>();
-  // Each summary read can be a host CLI process (one `az` per read on Azure DevOps), so a quiet
+  // Each summary read can be a host CLI process (one `glab` per read on GitLab), so a quiet
   // open pull request is read on the sync reactor's quiet cadence rather than every sweep.
   const quietOpenReadAt = new Map<string, number>();
   const quietReadKey = (reference: {
@@ -340,8 +340,8 @@ export const make = Effect.gen(function* () {
     readonly repository: string;
     readonly number: number;
   }) => `${reference.projectId}\0${reference.repository.toLowerCase()}\0${reference.number}`;
-  // A host can finish a merge minutes after the app's merge action and its refresh, and Azure's
-  // updatedAt never moves while open, so pull requests stay on the fast cadence for a while after.
+  // A host can finish a merge minutes after the app's merge action and its refresh, and a host's
+  // updatedAt need not move while open, so pull requests stay on the fast cadence for a while after.
   // Sweeps that started before the pause fail the same check, so their reads record nothing.
   let quietPausedAtMs = Number.NEGATIVE_INFINITY;
   const pauseQuietReads = Effect.fn("ThreadSettlementServiceV2.pauseQuietReads")(function* () {

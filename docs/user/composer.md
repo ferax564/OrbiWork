@@ -44,8 +44,7 @@ Attach up to 100 files per message. Each image can be up to 10 MiB, with at most
 50 MiB each, subject to the environment's upload support and limit. The agent
 receives them on the environment's machine. Provider and model limits still
 apply, including images already in the conversation. A video attachment gives
-the agent a file path; only [Antigravity](./providers-antigravity.md#skills-and-attachments)
-sends supported videos to Gemini models as video.
+the agent a file path.
 
 Uploads begin when you add an attachment. All uploads must finish before the
 message can send. Retry or remove a failed upload. On web and desktop, reloading
@@ -96,8 +95,7 @@ start of the composer to edit the most recently queued message. Change
 ## Custom models
 
 On web and desktop, use Settings → Providers → **Models** to add an unlisted model with a custom
-name and options. Only options supported by the provider integration affect turns. Antigravity
-uses its account catalog and does not support custom models.
+name and options. Only options supported by the provider integration affect turns.
 
 To rename a built-in model on every client, edit the server's `settings.json` in its `userdata`
 directory. Add a custom model entry with the built-in model ID and a new name under that provider
@@ -263,15 +261,15 @@ Claude instances can also compact idle threads for you. See
 
 ## Goals
 
-With Codex, Claude, and OpenCode 2.2.5 or later, send `/goal` followed by what "done" means, for example
+With Codex and Claude, send `/goal` followed by what "done" means, for example
 `/goal all tests in packages/api pass`. The agent keeps working across turns
 until it judges the goal met. The thread shows **Goal** while it works, and a
 line at the end of the thread shows the goal and
 its progress.
 
 - `/goal` alone shows the current goal. `/goal clear` removes it.
-- Codex and OpenCode also support `/goal pause` and `/goal resume`. Stopping
-  their goal pauses it. Codex also pauses when its work ends without meeting the goal.
+- Codex also supports `/goal pause` and `/goal resume`. Stopping
+  its goal pauses it. Codex also pauses when its work ends without meeting the goal.
 - Stopping Claude ends the current turn, but the goal stays set. Claude checks it
   again at the end of your next message.
 - Sending a new goal, or `/goal resume`, while the agent works stops the current
@@ -316,7 +314,7 @@ file attachment limits apply.
 
 Type `@` and part of a model or provider name, such as `@opus`, to name that model for the
 agent, for example when delegating. It does not change the thread's model. Join words with
-`:`, `/` or `-`, as in `@opus:opencode`.
+`:`, `/` or `-`, as in `@opus:claude`.
 
 Images keep their thumbnail shelf above the text and also get a chip at your cursor, so you can
 say exactly which image you mean. Deleting an image chip leaves the image on the shelf; removing
@@ -361,11 +359,14 @@ Follow an agent's file link to read a report or other file outside the workspace
 These files open read-only. An HTML file outside the workspace cannot load scripts,
 styles, or images from neighboring files.
 
-## HTML and PDF files in the file viewer
+## HTML files in the file viewer
 
-On web and desktop, HTML and PDF files open as rendered pages. Switch an HTML
+On web and desktop, HTML files open as rendered pages. Switch an HTML
 file to source view to read its markup; a link to a specific line opens source
 automatically. HTML previews cannot access your OrbiWork session.
 
-The file viewer recognizes images, HTML, and PDF files by their filename extension,
+The file viewer recognizes images and HTML files by their filename extension,
 including filenames or folders containing `#` or `?`.
+
+PDFs, Office documents, and SQLite databases have no in-app viewer. Save the file
+from the viewer to open it in another app.

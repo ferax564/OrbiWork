@@ -373,7 +373,6 @@ describe("BrowserDocumentFrame", () => {
         <BrowserDocumentFrame
           src={src}
           title="Report"
-          pdf={false}
           documentKey={`report:${revision}`}
           documentId="report"
         />
@@ -434,7 +433,6 @@ describe("BrowserDocumentFrame", () => {
         <BrowserDocumentFrame
           src={src}
           title="Report"
-          pdf={false}
           documentKey={`report:${revision}`}
           documentId="report"
         />

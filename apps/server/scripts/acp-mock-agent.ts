@@ -17,7 +17,6 @@ import type * as AcpCompat from "effect-acp/compat";
 import { beginAcpMockPrompt } from "./acpMockCancellationState.ts";
 
 const requestLogPath = process.env.ORBI_ACP_REQUEST_LOG_PATH;
-const antigravityProfile = process.env.ORBI_ACP_ANTIGRAVITY === "1";
 // GitHub Copilot CLI advertises URL-shaped session mode ids.
 const copilotModesProfile = process.env.ORBI_ACP_COPILOT_MODES === "1";
 const copilotModeId = (name: string) =>
@@ -51,23 +50,15 @@ const decodeElicitationSchema = Schema.decodeUnknownSync(
   Schema.fromJsonString(AcpSchema.ElicitationSchema),
 );
 const elicitationResponseLogPath = process.env.ORBI_ACP_ELICITATION_RESPONSE_LOG_PATH;
-const grokKillTaskShape = process.env.ORBI_ACP_GROK_KILL_TASK_SHAPE;
-const emitGrokBackgroundTaskPoll = process.env.ORBI_ACP_GROK_BACKGROUND_TASK_COMPLETION === "poll";
 const emitForeignSessionUpdates = process.env.ORBI_ACP_EMIT_FOREIGN_SESSION_UPDATES === "1";
-const omitInitializeModelState = process.env.ORBI_ACP_OMIT_INITIALIZE_MODEL_STATE === "1";
 const completeFirstPromptOnCancel = process.env.ORBI_ACP_COMPLETE_FIRST_PROMPT_ON_CANCEL === "1";
 const floodStderr = process.env.ORBI_ACP_FLOOD_STDERR === "1";
 const hangPromptForever = process.env.ORBI_ACP_HANG_PROMPT_FOREVER === "1";
-const agentVersion = process.env.ORBI_ACP_AGENT_VERSION ?? "0.0.0";
-const geminiApiKey = process.env.GEMINI_API_KEY;
 const idleError = process.env.ORBI_ACP_IDLE_ERROR;
 const emitTrackedToolCallKindThenHang = process.env.ORBI_ACP_EMIT_TRACKED_TOOL_CALL_KIND_THEN_HANG;
 const clientFsProbePath = process.env.ORBI_ACP_CLIENT_FS_PROBE_PATH;
 const clientFsProbeLogPath = process.env.ORBI_ACP_CLIENT_FS_PROBE_LOG_PATH;
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown));
-const emitEmptySuccessfulBash = process.env.ORBI_ACP_EMIT_EMPTY_SUCCESSFUL_BASH === "1";
-const emitEmptySuccessfulBashThenHang =
-  process.env.ORBI_ACP_EMIT_EMPTY_SUCCESSFUL_BASH_THEN_HANG === "1";
 const failLoadSession = process.env.ORBI_ACP_FAIL_LOAD_SESSION === "1";
 const failLoadSessionAfterConfigReplay =
   process.env.ORBI_ACP_FAIL_LOAD_SESSION_AFTER_CONFIG_REPLAY === "1";
@@ -81,14 +72,6 @@ const loadReplyDelayMs = Number(process.env.ORBI_ACP_LOAD_REPLY_DELAY_MS ?? "0")
 const loadNeverReplies = process.env.ORBI_ACP_LOAD_NEVER_REPLIES === "1";
 const rejectPromptUntilLoaded = process.env.ORBI_ACP_REJECT_PROMPT_UNTIL_LOADED === "1";
 const failPrompt = process.env.ORBI_ACP_FAIL_PROMPT === "1";
-// JSON for the `data` of an "Internal error" response to `session/new`, as
-// Antigravity sends when its runtime cannot reach its local harness.
-const newSessionErrorData =
-  process.env.ORBI_ACP_NEW_SESSION_ERROR_DATA === undefined
-    ? undefined
-    : Schema.decodeSync(Schema.fromJsonString(Schema.Unknown))(
-        process.env.ORBI_ACP_NEW_SESSION_ERROR_DATA,
-      );
 const failPromptOrdinal = Number(process.env.ORBI_ACP_FAIL_PROMPT_ORDINAL);
 const compactionPromptOrdinals = new Set(
   (process.env.ORBI_ACP_COMPACTION_PROMPT_ORDINALS ?? "").split(",").map(Number),
@@ -99,7 +82,6 @@ const openCompactionPromptOrdinals = new Set(
 );
 const failSetModeConfigOption = process.env.ORBI_ACP_FAIL_SET_MODE_CONFIG_OPTION === "1";
 const emitEmptyDefaultAgentOption = process.env.ORBI_ACP_EMIT_EMPTY_DEFAULT_AGENT_OPTION === "1";
-const promptResponseText = process.env.ORBI_ACP_PROMPT_RESPONSE_TEXT;
 const promptDelayMs = Number(process.env.ORBI_ACP_PROMPT_DELAY_MS ?? "0");
 const terminalOutputBytes = Number(process.env.ORBI_ACP_EMIT_TERMINAL_OUTPUT_BYTES ?? "0");
 const supportsSessionLifecycle = process.env.ORBI_ACP_SESSION_LIFECYCLE === "1";
@@ -118,33 +100,14 @@ const permissionOptionIds = {
 };
 const sessionId = "mock-session-1";
 
-let currentModeId = antigravityProfile
-  ? (process.env.ORBI_ACP_INITIAL_MODE ?? "default")
-  : copilotModesProfile
-    ? copilotModeId("agent")
-    : "ask";
-let currentModelId = antigravityProfile ? "gemini-test-low" : "default";
-let parameterizedModelPicker = false;
-let currentReasoning = "medium";
-let currentContext = "272k";
-let currentFast = false;
+let currentModeId = copilotModesProfile ? copilotModeId("agent") : "ask";
+let currentModelId = "default";
 let currentAgent = "";
 let authenticated = !requiresAuthentication;
 let promptCount = 0;
 const cancelledSessions = new Set<string>();
 const sessionsLoading = new Set<string>();
 let configuredProvider: AcpSchema.ProviderCurrentConfig | null = null;
-
-function promptIdFromRequestMeta(
-  request: Pick<AcpSchema.PromptRequest, "_meta">,
-): string | undefined {
-  const meta = request._meta;
-  if (meta === null || typeof meta !== "object") {
-    return undefined;
-  }
-  const promptId = meta.promptId ?? meta.requestId;
-  return typeof promptId === "string" && promptId.length > 0 ? promptId : undefined;
-}
 
 function writeJsonRpcNotification(method: string, params: unknown): void {
   process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", method, params })}\n`);
@@ -159,139 +122,6 @@ process.once("SIGINT", () => {
 });
 
 function configOptions(): ReadonlyArray<AcpSchema.SessionConfigOption> {
-  if (antigravityProfile) {
-    return [
-      {
-        configId: "model",
-        name: "Model",
-        category: "model",
-        type: "select",
-        currentValue: currentModelId,
-        options: antigravityModels.map((model) => ({ value: model.modelId, name: model.name })),
-      },
-      {
-        configId: "mode",
-        name: "Mode",
-        category: "mode",
-        type: "select",
-        currentValue: currentModeId,
-        options: availableModes.map((mode) => ({ value: mode.id, name: mode.name })),
-      },
-    ];
-  }
-  if (parameterizedModelPicker) {
-    const baseOptions: Array<AcpSchema.SessionConfigOption> = [
-      {
-        configId: "mode",
-        name: "Mode",
-        category: "mode",
-        type: "select",
-        currentValue: currentModeId,
-        options: availableModes.map((mode) => ({
-          value: mode.id,
-          name: mode.name,
-          ...(mode.description ? { description: mode.description } : {}),
-        })),
-      },
-      {
-        configId: "model",
-        name: "Model",
-        category: "model",
-        type: "select",
-        currentValue: currentModelId,
-        options: [
-          { value: "default", name: "Auto" },
-          { value: "composer-2", name: "Composer 2" },
-          { value: "gpt-5.4", name: "GPT-5.4" },
-          { value: "claude-opus-4-6", name: "Opus 4.6" },
-        ],
-      },
-    ];
-
-    switch (currentModelId) {
-      case "gpt-5.4":
-        return [
-          ...baseOptions,
-          {
-            configId: "reasoning",
-            name: "Reasoning",
-            category: "thought_level",
-            type: "select",
-            currentValue: currentReasoning,
-            options: [
-              { value: "none", name: "None" },
-              { value: "low", name: "Low" },
-              { value: "medium", name: "Medium" },
-              { value: "high", name: "High" },
-              { value: "extra-high", name: "Extra High" },
-            ],
-          },
-          {
-            configId: "context",
-            name: "Context",
-            category: "model_config",
-            type: "select",
-            currentValue: currentContext,
-            options: [
-              { value: "272k", name: "272K" },
-              { value: "1m", name: "1M" },
-            ],
-          },
-          {
-            configId: "fast",
-            name: "Fast",
-            category: "model_config",
-            type: "select",
-            currentValue: String(currentFast),
-            options: [
-              { value: "false", name: "Off" },
-              { value: "true", name: "Fast" },
-            ],
-          },
-        ];
-      case "composer-2":
-        return [
-          ...baseOptions,
-          {
-            configId: "fast",
-            name: "Fast",
-            category: "model_config",
-            type: "select",
-            currentValue: String(currentFast),
-            options: [
-              { value: "false", name: "Off" },
-              { value: "true", name: "Fast" },
-            ],
-          },
-        ];
-      case "claude-opus-4-6":
-        return [
-          ...baseOptions,
-          {
-            configId: "reasoning",
-            name: "Reasoning",
-            category: "thought_level",
-            type: "select",
-            currentValue: currentReasoning,
-            options: [
-              { value: "low", name: "Low" },
-              { value: "medium", name: "Medium" },
-              { value: "high", name: "High" },
-            ],
-          },
-          {
-            configId: "thinking",
-            name: "Thinking",
-            category: "model_config",
-            type: "boolean",
-            currentValue: true,
-          },
-        ];
-      default:
-        return baseOptions;
-    }
-  }
-
   return [
     // Mirrors GitHub Copilot, whose default agent is the empty-valued choice.
     ...(emitEmptyDefaultAgentOption
@@ -337,69 +167,29 @@ function configOptions(): ReadonlyArray<AcpSchema.SessionConfigOption> {
   ];
 }
 
-function modelConfigOptionsFor(modelId: string): ReadonlyArray<AcpSchema.SessionConfigOption> {
-  const previousModelId = currentModelId;
-  try {
-    currentModelId = modelId;
-    return configOptions().filter(
-      (option) => option.category !== "mode" && option.category !== "model",
-    );
-  } finally {
-    currentModelId = previousModelId;
-  }
-}
-
-function availableModels(): ReadonlyArray<{
-  readonly value: string;
-  readonly name: string;
-  readonly configOptions: ReadonlyArray<AcpSchema.SessionConfigOption>;
-}> {
-  return [
-    { value: "default", name: "Auto" },
-    { value: "composer-2", name: "Composer 2" },
-    { value: "gpt-5.4", name: "GPT-5.4" },
-    { value: "claude-opus-4-6", name: "Opus 4.6" },
-  ].map((model) => ({
-    value: model.value,
-    name: model.name,
-    configOptions: modelConfigOptionsFor(model.value),
-  }));
-}
-
-const antigravityModels = [
-  { modelId: "gemini-test-low", name: "Gemini Test Low" },
-  { modelId: "gemini-test-high", name: "Gemini Test High" },
-] satisfies ReadonlyArray<AcpCompat.ModelInfo>;
-
-const availableModes: ReadonlyArray<AcpCompat.SessionMode> = antigravityProfile
+const availableModes: ReadonlyArray<AcpCompat.SessionMode> = copilotModesProfile
   ? [
-      { id: "default", name: "Default" },
-      { id: "auto_edit", name: "Auto edit" },
-      { id: "yolo", name: "YOLO" },
+      { id: copilotModeId("agent"), name: "Agent" },
+      { id: copilotModeId("plan"), name: "Plan" },
+      { id: copilotModeId("autopilot"), name: "Autopilot" },
     ]
-  : copilotModesProfile
-    ? [
-        { id: copilotModeId("agent"), name: "Agent" },
-        { id: copilotModeId("plan"), name: "Plan" },
-        { id: copilotModeId("autopilot"), name: "Autopilot" },
-      ]
-    : [
-        {
-          id: "ask",
-          name: "Ask",
-          description: "Request permission before making any changes",
-        },
-        {
-          id: "architect",
-          name: "Architect",
-          description: "Design and plan software systems without implementation",
-        },
-        {
-          id: "code",
-          name: "Code",
-          description: "Write and modify code with full tool access",
-        },
-      ];
+  : [
+      {
+        id: "ask",
+        name: "Ask",
+        description: "Request permission before making any changes",
+      },
+      {
+        id: "architect",
+        name: "Architect",
+        description: "Design and plan software systems without implementation",
+      },
+      {
+        id: "code",
+        name: "Code",
+        description: "Write and modify code with full tool access",
+      },
+    ];
 
 function modeState(): AcpCompat.SessionModeState {
   return {
@@ -408,11 +198,10 @@ function modeState(): AcpCompat.SessionModeState {
   };
 }
 
-// Grok ACP advertises versioned model ids, never the CLI product name.
-const grokAcpModels: ReadonlyArray<AcpCompat.ModelInfo> = [
+const mockAcpModels: ReadonlyArray<AcpCompat.ModelInfo> = [
   {
-    modelId: "grok-4.6",
-    name: "Grok 4.6",
+    modelId: "mock-model",
+    name: "Mock Model",
     _meta: {
       totalContextTokens: 500_000,
       contextWindows: [256_000, 500_000],
@@ -425,85 +214,17 @@ const grokAcpModels: ReadonlyArray<AcpCompat.ModelInfo> = [
       ],
     },
   },
-  { modelId: "grok-mock-alt", name: "Grok Mock Alt" },
+  { modelId: "mock-model-alt", name: "Mock Model Alt" },
 ];
 
 function modelState(): AcpCompat.SessionModelState {
-  if (antigravityProfile) {
-    return { currentModelId, availableModels: antigravityModels };
-  }
-  const modelId = grokAcpModels.some((model) => model.modelId === currentModelId)
+  const modelId = mockAcpModels.some((model) => model.modelId === currentModelId)
     ? currentModelId
-    : "grok-4.6";
+    : "mock-model";
   return {
     currentModelId: modelId,
-    availableModels: grokAcpModels,
+    availableModels: mockAcpModels,
   };
-}
-
-function emitGrokKillTaskScenario(
-  sessionId: string,
-  promptId: string | undefined,
-  shape: string,
-): void {
-  const taskId = "call-fb9d0000-0000-0000-0000-000000000026-29";
-  const outcome =
-    shape === "already_exited" || shape === "known_failure" ? "already_exited" : "killed";
-  writeJsonRpcNotification("session/update", {
-    sessionId,
-    update: {
-      sessionUpdate: "tool_call_update",
-      toolCallId: "kill-target-command",
-      title: "run_terminal_command",
-      kind: "execute",
-      status: "in_progress",
-      rawInput: { command: "sleep 40" },
-    },
-  });
-  writeJsonRpcNotification("session/update", {
-    sessionId,
-    update: {
-      sessionUpdate: "tool_call_update",
-      toolCallId: "kill-target-command",
-      status: "completed",
-      rawOutput: {
-        type: "BackgroundTaskStarted",
-        task_id: taskId,
-        task_type: "bash",
-        command: "sleep 40",
-      },
-    },
-  });
-  if (shape === "known_failure") {
-    writeJsonRpcNotification("_x.ai/task_completed", {
-      sessionId,
-      update: {
-        sessionUpdate: "task_completed",
-        task_snapshot: { task_id: taskId, kind: "bash", exit_code: 7, output: "known failure\n" },
-      },
-    });
-  }
-  writeJsonRpcNotification("session/update", {
-    sessionId,
-    update: {
-      sessionUpdate: "tool_call_update",
-      toolCallId: "kill-command",
-      title: `kill ${taskId} (${outcome})`,
-      kind: "other",
-      status: "completed",
-      rawInput: {
-        task_id: taskId,
-        ...(shape === "output_only" ? {} : { variant: "KillTask" }),
-      },
-      ...(shape === "variant_only" ? {} : { rawOutput: { type: "KillTask", outcome } }),
-    },
-  });
-  writeJsonRpcNotification("_x.ai/session/prompt_complete", {
-    sessionId,
-    promptId,
-    stopReason: "end_turn",
-    agentResult: null,
-  });
 }
 
 const program = Effect.gen(function* () {
@@ -511,18 +232,6 @@ const program = Effect.gen(function* () {
   const nativeCancelRequested = yield* Deferred.make<void>();
   const nativeCancelRelease = yield* Deferred.make<void>();
   const delayedLoadReplied = yield* Deferred.make<void>();
-  const publishAntigravityCommands = (targetSessionId: string) =>
-    agent.client.sessionUpdate({
-      sessionId: targetSessionId,
-      update: {
-        sessionUpdate: "available_commands_update",
-        availableCommands: [
-          { name: "plan", description: "Plan a task", input: { hint: "task" } },
-          { name: "logout", description: "Sign out" },
-        ],
-      },
-    });
-
   const finishPrompt = (
     targetSessionId: string,
     stopReason: AcpSchema.StopReason,
@@ -540,7 +249,7 @@ const program = Effect.gen(function* () {
       })
       .pipe(Effect.as(_meta === undefined ? {} : { _meta }));
 
-  yield* agent.handleInitialize((request) =>
+  yield* agent.handleInitialize(() =>
     Effect.gen(function* () {
       if (floodStderr) {
         yield* Effect.promise(
@@ -550,11 +259,10 @@ const program = Effect.gen(function* () {
             }),
         );
       }
-      parameterizedModelPicker = request.capabilities?._meta?.parameterizedModelPicker === true;
       return {
         protocolVersion: 2,
-        info: { name: "orbi-acp-mock-agent", version: agentVersion },
-        ...(omitInitializeModelState ? {} : { _meta: { modelState: modelState() } }),
+        info: { name: "orbi-acp-mock-agent", version: "0.0.0" },
+        _meta: { modelState: modelState() },
         capabilities: {
           session: {
             ...(supportsSessionLifecycle ? { fork: {}, additionalDirectories: {} } : {}),
@@ -585,19 +293,9 @@ const program = Effect.gen(function* () {
     }),
   );
 
-  // Antigravity requires GEMINI_API_KEY for API key authentication.
   yield* agent.handleAuthenticate((request) =>
     Effect.gen(function* () {
-      if (antigravityProfile) {
-        if (
-          request.methodId !== "oauth-personal" &&
-          !(request.methodId === "gemini-api-key" && geminiApiKey)
-        ) {
-          return yield* AcpError.AcpRequestError.invalidParams(
-            `Mock Antigravity rejected auth method ${request.methodId}.`,
-          );
-        }
-      } else if (advertisedAuthMethodId && request.methodId !== advertisedAuthMethodId) {
+      if (advertisedAuthMethodId && request.methodId !== advertisedAuthMethodId) {
         return yield* AcpError.AcpRequestError.invalidParams(
           `Unknown mock authentication method: ${request.methodId}`,
         );
@@ -606,10 +304,6 @@ const program = Effect.gen(function* () {
       return {};
     }),
   );
-  if (antigravityProfile) {
-    yield* agent.handleLogout(() => Effect.succeed({}));
-  }
-
   yield* agent.handleLogout(() =>
     Effect.sync(() => {
       authenticated = false;
@@ -626,12 +320,6 @@ const program = Effect.gen(function* () {
   yield* agent.handleCreateSession(() =>
     Effect.gen(function* () {
       yield* requireAuthentication();
-      if (newSessionErrorData !== undefined) {
-        return yield* AcpError.AcpRequestError.internalError("Internal error", newSessionErrorData);
-      }
-      if (antigravityProfile) {
-        yield* publishAntigravityCommands(sessionId);
-      }
       if (advertisedCommandNames.length > 0) {
         yield* agent.client.sessionUpdate({
           sessionId,
@@ -661,9 +349,6 @@ const program = Effect.gen(function* () {
           content: { type: "text", text: "native-resume-started" },
         },
       });
-      if (antigravityProfile) {
-        yield* publishAntigravityCommands(request.sessionId);
-      }
       return {
         modes: modeState(),
         models: modelState(),
@@ -894,15 +579,6 @@ const program = Effect.gen(function* () {
       if (request.configId === "agent" && typeof request.value === "string") {
         currentAgent = request.value;
       }
-      if (request.configId === "reasoning" && typeof request.value === "string") {
-        currentReasoning = request.value;
-      }
-      if (request.configId === "context" && typeof request.value === "string") {
-        currentContext = request.value;
-      }
-      if (request.configId === "fast") {
-        currentFast = request.value === true || request.value === "true";
-      }
       return {
         configOptions: configOptions(),
       };
@@ -937,48 +613,6 @@ const program = Effect.gen(function* () {
       }
       beginAcpMockPrompt(cancelledSessions, requestedSessionId);
       promptCount += 1;
-      if (idleError === "grok-background" && promptCount === 1) {
-        // The structured completion lands before the prompt settles, so it is buffered.
-        const taskId = "call-idle-error-background";
-        writeJsonRpcNotification("session/update", {
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "tool_call",
-            toolCallId: taskId,
-            title: "run_terminal_command",
-            kind: "execute",
-            status: "in_progress",
-            rawInput: { command: "sleep 1; echo done" },
-          },
-        });
-        writeJsonRpcNotification("session/update", {
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "tool_call_update",
-            toolCallId: taskId,
-            status: "completed",
-            rawOutput: {
-              type: "BackgroundTaskStarted",
-              task_id: taskId,
-              task_type: "bash",
-              status: "running",
-              command: "sleep 1; echo done",
-            },
-          },
-        });
-        writeJsonRpcNotification("_x.ai/task_completed", {
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "task_completed",
-            task_snapshot: { task_id: taskId, kind: "bash", exit_code: 0, output: "done\n" },
-          },
-        });
-        writeJsonRpcNotification("session/update", {
-          sessionId: requestedSessionId,
-          update: { sessionUpdate: "state_update", state: "idle", stopReason: "error" },
-        });
-        return {};
-      }
       if (idleError !== undefined && promptCount === 1) {
         const toolCallId = "tool-call-idle-error-1";
         writeJsonRpcNotification("session/update", {
@@ -1170,7 +804,7 @@ const program = Effect.gen(function* () {
       }
 
       if (emitNotice) {
-        // A notice in fx 0.0.14's shape for a skipped skill, between two chunks of one message.
+        // An agent notice for a skipped skill, between two chunks of one message.
         const chunk = (text: string) =>
           writeJsonRpcNotification("session/update", {
             sessionId: requestedSessionId,
@@ -1308,7 +942,7 @@ const program = Effect.gen(function* () {
             rawInput: { path: "src/env.ts" },
             locations: [{ path: "src/env.ts" }],
           },
-          // Antigravity reports an image read with only a text result, never the image bytes.
+          // Some agents report an image read with only a text result, never the image bytes.
           {
             sessionUpdate: "tool_call_update",
             toolCallId: "structured-image-read",
@@ -1353,10 +987,10 @@ const program = Effect.gen(function* () {
             status: "completed",
             rawInput: { query: "FIXME" },
           },
-          // Grok backend searches: the query only arrives in the completed rawOutput.
+          // Backend searches: the query only arrives in the completed rawOutput.
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "grok-x-search",
+            toolCallId: "x-search",
             title: "X search:",
             kind: "search",
             status: "in_progress",
@@ -1364,19 +998,19 @@ const program = Effect.gen(function* () {
           },
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "grok-x-search",
+            toolCallId: "x-search",
             title: "X search:",
             status: "completed",
             rawOutput: {
               call_id: "xs_call-1",
               input: '{"query":"conversation_id:42","limit":"10","mode":"Latest"}',
               name: "x_keyword_search",
-              id: "grok-x-search",
+              id: "x-search",
             },
           },
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "grok-web-search",
+            toolCallId: "backend-web-search",
             title: "Web search:",
             kind: "search",
             status: "completed",
@@ -1391,13 +1025,13 @@ const program = Effect.gen(function* () {
                   { type: "url", url: "https://github.com/ferax564/orbiwork" },
                 ],
               },
-              id: "grok-web-search",
+              id: "backend-web-search",
               status: "completed",
             },
           },
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "grok-web-fetch",
+            toolCallId: "web-fetch",
             title: "Fetch: https://orbiwork.invalid",
             kind: "fetch",
             status: "completed",
@@ -1410,7 +1044,7 @@ const program = Effect.gen(function* () {
           },
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "antigravity-shell",
+            toolCallId: "shell-search-tool",
             title: "run_command",
             kind: "execute",
             status: "completed",
@@ -1419,7 +1053,7 @@ const program = Effect.gen(function* () {
           },
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "antigravity-web-search",
+            toolCallId: "web-search-tool",
             title: "Web search",
             kind: "search",
             status: "completed",
@@ -1429,7 +1063,7 @@ const program = Effect.gen(function* () {
           },
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "antigravity-run-search-web",
+            toolCallId: "run-search-web",
             title: "Running search_web",
             kind: "search",
             status: "completed",
@@ -1437,7 +1071,7 @@ const program = Effect.gen(function* () {
           },
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "antigravity-web-search-streamed",
+            toolCallId: "web-search-streamed",
             title: "Web search",
             kind: "search",
             status: "in_progress",
@@ -1446,12 +1080,12 @@ const program = Effect.gen(function* () {
           },
           {
             sessionUpdate: "tool_call_content_chunk",
-            toolCallId: "antigravity-web-search-streamed",
+            toolCallId: "web-search-streamed",
             content: { type: "content", content: { type: "text", text: " (updated)" } },
           },
           {
             sessionUpdate: "tool_call_update",
-            toolCallId: "antigravity-web-search-streamed",
+            toolCallId: "web-search-streamed",
             status: "completed",
           },
           {
@@ -1594,105 +1228,7 @@ const program = Effect.gen(function* () {
         return yield* AcpError.AcpRequestError.internalError("Mock prompt failure");
       }
 
-      if (hangPromptForever || (emitEmptySuccessfulBashThenHang && promptCount === 2)) {
-        return yield* Effect.never;
-      }
-
-      if (grokKillTaskShape !== undefined) {
-        emitGrokKillTaskScenario(
-          requestedSessionId,
-          promptIdFromRequestMeta(request),
-          grokKillTaskShape,
-        );
-        // Keep the prompt RPC and peer alive after the kill result.
-        return yield* Effect.never;
-      }
-
-      if (emitEmptySuccessfulBash || (emitEmptySuccessfulBashThenHang && promptCount === 1)) {
-        const update = {
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "tool_call_update",
-            toolCallId: "tool-call-empty-success-1",
-            title: "Terminal",
-            kind: "execute",
-            status: "completed",
-            rawInput: { command: "true" },
-            rawOutput: { type: "Bash", exit_code: 0 },
-          },
-        } as const;
-        yield* agent.client.sessionUpdate(update);
-        yield* Effect.sleep("25 millis");
-        yield* agent.client.sessionUpdate(update);
-        return yield* finishPrompt(requestedSessionId, "end_turn");
-      }
-
-      if (emitGrokBackgroundTaskPoll) {
-        const toolCallId = "call-fb9d0000-0000-0000-0000-000000000026-29";
-        const command = "sleep 40; echo done-a";
-        writeJsonRpcNotification("session/update", {
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "tool_call_update",
-            toolCallId,
-            title: "run_terminal_command",
-            kind: "execute",
-            status: "in_progress",
-            rawInput: { command },
-          },
-        });
-        writeJsonRpcNotification("session/update", {
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "tool_call_update",
-            toolCallId,
-            status: "completed",
-            rawOutput: {
-              type: "BackgroundTaskStarted",
-              task_id: toolCallId,
-              task_type: "bash",
-              status: "running",
-              command,
-            },
-          },
-        });
-        writeJsonRpcNotification("session/update", {
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "tool_call_update",
-            toolCallId: "call-background-poll",
-            title: "get_command_or_subagent_output",
-            kind: "other",
-            status: "completed",
-            rawOutput: {
-              type: "TaskOutput",
-              Result: {
-                task_id: toolCallId,
-                command,
-                status: "completed",
-                exit_code: 0,
-                output: "done-a",
-              },
-            },
-          },
-        });
-
-        yield* agent.client.sessionUpdate({
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "agent_message_chunk",
-            content: { type: "text", text: "The background command finished." },
-          },
-        });
-        writeJsonRpcNotification("_x.ai/session/update", {
-          sessionId: requestedSessionId,
-          update: {
-            sessionUpdate: "turn_completed",
-            prompt_id: promptIdFromRequestMeta(request),
-            stop_reason: "end_turn",
-          },
-        });
-        // Neither the prompt RPC nor the process ends, matching the Grok incident.
+      if (hangPromptForever) {
         return yield* Effect.never;
       }
 
@@ -2081,7 +1617,7 @@ const program = Effect.gen(function* () {
         update: {
           sessionUpdate: "agent_message_chunk",
           messageId: "mock-agent-message",
-          content: { type: "text", text: promptResponseText ?? "hello from mock" },
+          content: { type: "text", text: "hello from mock" },
         },
       });
 
@@ -2143,12 +1679,6 @@ const program = Effect.gen(function* () {
         return {};
       });
     }
-    if (method === "cursor/list_available_models") {
-      return Effect.succeed({
-        models: availableModels(),
-      });
-    }
-
     if (method !== "session/mode/set") {
       return Effect.fail(AcpError.AcpRequestError.methodNotFound(method));
     }

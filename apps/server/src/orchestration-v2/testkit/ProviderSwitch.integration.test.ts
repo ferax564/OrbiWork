@@ -56,11 +56,7 @@ import * as EffectOutbox from "../EffectOutbox.ts";
 import * as ProviderAdapterRegistry from "../ProviderAdapterRegistry.ts";
 import * as ProviderSessionManager from "../ProviderSessionManager.ts";
 import { makeProviderFailure } from "@orbiwork/provider-core/server/failure";
-import {
-  CLAUDE_MODEL_SELECTION,
-  CODEX_MODEL_SELECTION,
-  GROK_MODEL_SELECTION,
-} from "./fixtures/shared.ts";
+import { CLAUDE_MODEL_SELECTION, CODEX_MODEL_SELECTION } from "./fixtures/shared.ts";
 import * as ProviderReplayHarness from "./ProviderReplayHarness.ts";
 import { checkpointWorkspace } from "@orbiwork/provider-testing/replayWorkspace";
 import * as ProviderAdapter from "@orbiwork/provider-core/server/ProviderAdapter";
@@ -71,7 +67,11 @@ const threadId = ThreadId.make("thread:provider-switch");
 const projectId = ProjectId.make("project:provider-switch");
 const CODEX_DRIVER = ProviderDriverKind.make("codex");
 const CLAUDE_DRIVER = ProviderDriverKind.make("claudeAgent");
-const GROK_DRIVER = ProviderDriverKind.make("acp");
+const ACP_DRIVER = ProviderDriverKind.make("acp");
+const ACP_MODEL_SELECTION = {
+  instanceId: ProviderInstanceId.make("acp"),
+  model: "acp-default",
+} satisfies ModelSelection;
 
 interface CapturedTurn {
   readonly driver: ProviderDriverKind;
@@ -2117,7 +2117,7 @@ describe("orchestration v2 provider switching", () => {
             responseByRunOrdinal: { 2: `Source work ${"s".repeat(12_000)}` },
             capturedTurns,
           }),
-          // Without a generation every ensureThread returns the same native id, like Muse.
+          // Without a generation every ensureThread returns the same native id.
           makeTestAdapter({
             instanceId: CLAUDE_MODEL_SELECTION.instanceId,
             driver: CLAUDE_DRIVER,
@@ -2175,7 +2175,7 @@ describe("orchestration v2 provider switching", () => {
       yield* unverifiedReplacementHarness(
         "unverified-replacement-reused-resume",
         [
-          // Without a generation every ensureThread returns the same native id, like Muse.
+          // Without a generation every ensureThread returns the same native id.
           makeTestAdapter({
             instanceId: CLAUDE_MODEL_SELECTION.instanceId,
             driver: CLAUDE_DRIVER,
@@ -2477,10 +2477,10 @@ describe("orchestration v2 provider switching", () => {
   it.live.each([
     {
       name: "an ACP rollback that starts a fresh agent session",
-      instanceId: GROK_MODEL_SELECTION.instanceId,
-      driver: GROK_DRIVER,
+      instanceId: ACP_MODEL_SELECTION.instanceId,
+      driver: ACP_DRIVER,
       capabilities: AcpProviderCapabilitiesV2,
-      modelSelection: GROK_MODEL_SELECTION,
+      modelSelection: ACP_MODEL_SELECTION,
       rollback: "replaces_native_thread",
       failResumeAfterRollback: false,
       history: "plain",
@@ -2500,7 +2500,7 @@ describe("orchestration v2 provider switching", () => {
       withholds: ["favourite animal is an otter"],
     },
     {
-      // Pi forks into a new native thread that still holds the kept turns.
+      // Some providers fork into a new native thread that still holds the kept turns.
       name: "a native rollback that forks a new native thread",
       instanceId: CLAUDE_MODEL_SELECTION.instanceId,
       driver: CLAUDE_DRIVER,
@@ -2514,10 +2514,10 @@ describe("orchestration v2 provider switching", () => {
     },
     {
       name: "an ACP rollback where no attempt recorded its native session",
-      instanceId: GROK_MODEL_SELECTION.instanceId,
-      driver: GROK_DRIVER,
+      instanceId: ACP_MODEL_SELECTION.instanceId,
+      driver: ACP_DRIVER,
       capabilities: AcpProviderCapabilitiesV2,
-      modelSelection: GROK_MODEL_SELECTION,
+      modelSelection: ACP_MODEL_SELECTION,
       rollback: "replaces_native_thread",
       failResumeAfterRollback: false,
       history: "legacy_all_turns",
@@ -2526,10 +2526,10 @@ describe("orchestration v2 provider switching", () => {
     },
     {
       name: "an ACP rollback of a forked thread to its baseline",
-      instanceId: GROK_MODEL_SELECTION.instanceId,
-      driver: GROK_DRIVER,
+      instanceId: ACP_MODEL_SELECTION.instanceId,
+      driver: ACP_DRIVER,
       capabilities: AcpProviderCapabilitiesV2,
-      modelSelection: GROK_MODEL_SELECTION,
+      modelSelection: ACP_MODEL_SELECTION,
       rollback: "replaces_native_thread",
       failResumeAfterRollback: false,
       history: "forked_to_baseline",
@@ -2538,10 +2538,10 @@ describe("orchestration v2 provider switching", () => {
     },
     {
       name: "an ACP rollback in a thread restarted with fresh context",
-      instanceId: GROK_MODEL_SELECTION.instanceId,
-      driver: GROK_DRIVER,
+      instanceId: ACP_MODEL_SELECTION.instanceId,
+      driver: ACP_DRIVER,
       capabilities: AcpProviderCapabilitiesV2,
-      modelSelection: GROK_MODEL_SELECTION,
+      modelSelection: ACP_MODEL_SELECTION,
       rollback: "replaces_native_thread",
       failResumeAfterRollback: false,
       history: "after_fresh_context",
@@ -2794,7 +2794,7 @@ describe("orchestration v2 provider switching", () => {
     [
       "an ACP start that rejected the model",
       new ProviderAdapter.ProviderAdapterTurnStartError({
-        driver: GROK_DRIVER,
+        driver: ACP_DRIVER,
         threadId,
         providerThreadId: ProviderThreadId.make("provider-thread:acp-refused-start"),
         runId: RunId.make("run:acp-refused-start"),
@@ -3261,10 +3261,10 @@ describe("orchestration v2 provider switching", () => {
               capturedTurns,
             }),
             makeTestAdapter({
-              instanceId: GROK_MODEL_SELECTION.instanceId,
-              driver: GROK_DRIVER,
+              instanceId: ACP_MODEL_SELECTION.instanceId,
+              driver: ACP_DRIVER,
               capabilities: AcpProviderCapabilitiesV2,
-              modelSelection: GROK_MODEL_SELECTION,
+              modelSelection: ACP_MODEL_SELECTION,
               responseByRunOrdinal: { 2: "Implemented.", 3: "Continued." },
               capturedTurns,
             }),
@@ -3313,10 +3313,10 @@ describe("orchestration v2 provider switching", () => {
             });
             yield* dispatch("source", originalPrompt, CODEX_MODEL_SELECTION);
             yield* waitForRun(1);
-            yield* dispatch("slash", firstMessage, GROK_MODEL_SELECTION);
+            yield* dispatch("slash", firstMessage, ACP_MODEL_SELECTION);
             yield* waitForRun(2);
             const slashTurn = (yield* Ref.get(capturedTurns)).at(-1)!;
-            assert.equal(slashTurn.driver, GROK_DRIVER);
+            assert.equal(slashTurn.driver, ACP_DRIVER);
             if (!verbatim) {
               assert.include(slashTurn.text, originalPrompt);
               assert.include(slashTurn.text, `User message:\n${firstMessage}`);
@@ -3328,7 +3328,7 @@ describe("orchestration v2 provider switching", () => {
               "ACP only expands a native slash command when the prompt starts with it",
             );
 
-            yield* dispatch("next", "Continue", GROK_MODEL_SELECTION);
+            yield* dispatch("next", "Continue", ACP_MODEL_SELECTION);
             yield* waitForRun(3);
             const next = (yield* Ref.get(capturedTurns)).at(-1)!;
             assert.include(next.text, originalPrompt);
@@ -3755,7 +3755,7 @@ describe("orchestration v2 provider switching", () => {
     }),
   );
 
-  it.live("hands completed Grok steering context to earlier queued Codex and later Claude", () =>
+  it.live("hands completed ACP steering context to earlier queued Codex and later Claude", () =>
     Effect.gen(function* () {
       const cwd = yield* checkpointWorkspace("queued-steer-provider-switch");
       const capturedTurns = yield* Ref.make<ReadonlyArray<CapturedTurn>>([]);
@@ -3779,11 +3779,11 @@ describe("orchestration v2 provider switching", () => {
           capturedTurns,
         }),
         makeTestAdapter({
-          instanceId: GROK_MODEL_SELECTION.instanceId,
-          driver: GROK_DRIVER,
+          instanceId: ACP_MODEL_SELECTION.instanceId,
+          driver: ACP_DRIVER,
           capabilities: AcpProviderCapabilitiesV2,
-          modelSelection: GROK_MODEL_SELECTION,
-          responseByRunOrdinal: { 1: "Grok steered response" },
+          modelSelection: ACP_MODEL_SELECTION,
+          responseByRunOrdinal: { 1: "ACP steered response" },
           capturedTurns,
         }),
       ]);
@@ -3874,12 +3874,12 @@ describe("orchestration v2 provider switching", () => {
           Stream.runHead,
           Effect.forkScoped,
         );
-        yield* dispatch("grok-steer", GROK_MODEL_SELECTION, {
+        yield* dispatch("acp-steer", ACP_MODEL_SELECTION, {
           type: "steer_active",
           targetRunId: beforeSteer.runs[0]!.id,
         });
         const afterSteer = yield* orchestrator.getThreadProjection(queuedThreadId);
-        assert.deepEqual(afterSteer.thread.modelSelection, GROK_MODEL_SELECTION);
+        assert.deepEqual(afterSteer.thread.modelSelection, ACP_MODEL_SELECTION);
         const interruptedTurn = afterSteer.providerTurns.find(
           (turn) => turn.runAttemptId === beforeSteer.runs[0]?.activeAttemptId,
         )!;
@@ -3945,7 +3945,7 @@ describe("orchestration v2 provider switching", () => {
       assert.deepEqual(
         projection.runs.map((run) => [run.providerInstanceId, run.status]),
         [
-          [GROK_MODEL_SELECTION.instanceId, "completed"],
+          [ACP_MODEL_SELECTION.instanceId, "completed"],
           [CODEX_MODEL_SELECTION.instanceId, "completed"],
           [CLAUDE_MODEL_SELECTION.instanceId, "completed"],
         ],
@@ -3953,10 +3953,10 @@ describe("orchestration v2 provider switching", () => {
       const turns = yield* Ref.get(capturedTurns);
       assert.deepEqual(
         turns.map((turn) => turn.driver),
-        [CODEX_DRIVER, GROK_DRIVER, CODEX_DRIVER, CLAUDE_DRIVER],
+        [CODEX_DRIVER, ACP_DRIVER, CODEX_DRIVER, CLAUDE_DRIVER],
       );
-      assert.include(turns[2]?.text ?? "", "Grok steered response");
-      assert.include(turns[3]?.text ?? "", "Grok steered response");
+      assert.include(turns[2]?.text ?? "", "ACP steered response");
+      assert.include(turns[3]?.text ?? "", "ACP steered response");
       assert.include(turns[3]?.text ?? "", "Codex queued response");
       assert.deepEqual(
         projection.contextHandoffs.map((handoff) => handoff.targetRunId),
@@ -4774,12 +4774,12 @@ describe("orchestration v2 provider switching", () => {
               modelSelection,
               dispatchMode: { type: "queue_after_active" },
             });
-          const selectGrok = (attempt: string) =>
+          const selectAcp = (attempt: string) =>
             orchestrator.dispatch({
               type: "thread.model-selection.set",
               commandId: CommandId.make(`command:retained-session-background:select:${attempt}`),
               threadId,
-              modelSelection: GROK_MODEL_SELECTION,
+              modelSelection: ACP_MODEL_SELECTION,
             });
           yield* orchestrator.dispatch({
             type: "thread.create",
@@ -4814,7 +4814,7 @@ describe("orchestration v2 provider switching", () => {
           );
           assert.equal(codexSession?.status, "ready");
 
-          const refused = yield* selectGrok("busy").pipe(Effect.flip);
+          const refused = yield* selectAcp("busy").pipe(Effect.flip);
           assert.include(String(refused.cause), "still running background agents or commands");
           yield* worker.drain();
           const unchanged = yield* orchestrator.getThreadProjection(threadId);
@@ -4825,10 +4825,10 @@ describe("orchestration v2 provider switching", () => {
           );
 
           yield* Ref.set(codexBackgroundWork, false);
-          yield* selectGrok("idle");
+          yield* selectAcp("idle");
           yield* worker.drain();
           const switched = yield* orchestrator.getThreadProjection(threadId);
-          assert.equal(switched.thread.providerInstanceId, GROK_MODEL_SELECTION.instanceId);
+          assert.equal(switched.thread.providerInstanceId, ACP_MODEL_SELECTION.instanceId);
           assert.notInclude(
             switched.providerSessions.map((session) => session.id),
             codexSession!.id,
@@ -4869,10 +4869,10 @@ describe("orchestration v2 provider switching", () => {
                   capturedTurns,
                 }),
                 makeTestAdapter({
-                  instanceId: GROK_MODEL_SELECTION.instanceId,
-                  driver: GROK_DRIVER,
+                  instanceId: ACP_MODEL_SELECTION.instanceId,
+                  driver: ACP_DRIVER,
                   capabilities: AcpProviderCapabilitiesV2,
-                  modelSelection: GROK_MODEL_SELECTION,
+                  modelSelection: ACP_MODEL_SELECTION,
                   responseByRunOrdinal: {},
                   capturedTurns,
                 }),

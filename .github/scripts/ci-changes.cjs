@@ -31,8 +31,7 @@ const RUST = /^native\/(resource-monitor|kde-snap-shot|hyprland-snap-shot)\//;
 
 // These tests read other packages without declaring dependencies.
 const TEST_ONLY_DEPS = {
-  "@orbiwork/provider-pi": ["@orbiwork/client-runtime"],
-  "@orbiwork/scripts": ["@orbiwork/desktop", "@orbiwork/web", "orbi", "@orbiwork/provider-cursor"],
+  "@orbiwork/scripts": ["@orbiwork/desktop", "@orbiwork/web", "orbi"],
 };
 // The server bundles the web build without importing it.
 const BUILD_ONLY_DEPS = { orbi: ["@orbiwork/web"] };

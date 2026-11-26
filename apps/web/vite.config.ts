@@ -11,7 +11,6 @@ import "vite-plus/test/config";
 import { defineConfig, type Connect, type Plugin } from "vite-plus";
 import * as Hash from "effect/Hash";
 import pkg from "./package.json" with { type: "json" };
-import pdfjsPkg from "pdfjs-dist/package.json" with { type: "json" };
 
 import {
   DEV_PROXIED_ORIGIN_PRESERVING_PREFIXES,
@@ -93,22 +92,8 @@ const browserTestProject = {
       "@effect/vitest",
       "@pierre/diffs/ssr",
       "effect/testing",
-      "saxes",
-      "@betteroffice/docx/editor",
-      "@betteroffice/docx/layout",
-      "@betteroffice/docx/layout/render",
-      "@betteroffice/docx/yrs",
-      "@betteroffice/fonts",
-      "@betteroffice/pptx",
-      "@betteroffice/xlsx",
-      "@betteroffice/xlsx/headless",
-      "fast-xml-parser",
-      "entities",
       "dompurify",
       "heic-to/csp",
-      "jszip",
-      "pdfjs-dist",
-      "sql.js",
       "tiff",
     ],
   },
@@ -390,15 +375,6 @@ export default defineConfig(({ command }) => {
       manifest: true,
       sourcemap: buildSourcemap,
       ...(builtDev ? { watch: { exclude: rolldownWatchExclude } } : {}),
-      rolldownOptions: {
-        output: {
-          // PDF.js resolves decoder modules and ICC data relative to wasmUrl.
-          assetFileNames: (asset) =>
-            asset.originalFileNames.some((path) => /[/\\]pdfjs-dist[/\\]wasm[/\\]/.test(path))
-              ? `assets/pdfjs-${pdfjsPkg.version}/[name][extname]`
-              : "assets/[name]-[hash][extname]",
-        },
-      },
     },
     worker: { format: "es" },
     test: {
