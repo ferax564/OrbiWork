@@ -1,18 +1,12 @@
 # Threads from older OrbiWork versions
 
-On your first V2 launch, OrbiWork copies the V1 database, `state.sqlite`, into `statev2.sqlite`
-in the same data directory and migrates the copy. Your threads appear automatically, with full
-transcripts imported as needed. You do not need to run an import command.
+OrbiWork no longer imports a V1 database (`state.sqlite`), and it opens only a `statev2.sqlite`
+that is already at the current schema. A database an older build left part-way is refused at
+startup with a message that names where its history stops; start the build that wrote it, or move
+the data directory aside to start fresh.
 
-V1 continues using its original database while V2 uses the copy. The database import can run while
-V1 is open. Opening V2 again resumes your V2 history. The copy happens only once: later conversations
-and changes in either version do not sync to the other. Settings, attachments, and workspace files
-remain shared.
-
-The V2 desktop app uses a separate browser profile, so browser cookies and caches do not carry
-over from V1. You may need to sign in again to websites opened inside the app. On its first launch,
-the V2 desktop app copies stashed prompts, unsent drafts, layout, and theme from V1. Anything you
-change in V2 afterwards stays in V2.
+The rest of this page describes threads that an earlier build already imported from V1. They stay
+in the database and keep working.
 
 The migrated thread keeps its title, project, provider and model selection, permission and
 interaction modes, branch or worktree, archive state, settlement state, snooze and pin state, and

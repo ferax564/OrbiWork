@@ -4,7 +4,7 @@ import * as Schema from "effect/Schema";
 
 import packageJson from "../../package.json" with { type: "json" };
 import { BUILD_MIGRATION_HEAD, recordedMigrations } from "../persistence/databaseMigrationHead.ts";
-import { skippedV2Migrations } from "../persistence/Migrations.ts";
+import { unsupportedMigrationHistory } from "../persistence/Migrations.ts";
 import type * as ProcessRunner from "../processRunner.ts";
 import {
   pinnedRuntimeCommand,
@@ -76,12 +76,12 @@ export function runServicePreflight(input: {
     };
   }
 
-  const incompatible = skippedV2Migrations(recorded);
-  if (incompatible.length > 0) {
+  const incompatible = unsupportedMigrationHistory(recorded);
+  if (incompatible !== undefined) {
     return {
       status: "blocked",
       version,
-      reason: `This database has incompatible migration history: ${incompatible.join(", ")}. Start the build that wrote it, or report this migration history so an upgrade path can be added.`,
+      reason: `orbi@${version} cannot open this database's migration history: ${incompatible}. Start the build that wrote it, or move the state directory aside to start fresh.`,
     };
   }
 

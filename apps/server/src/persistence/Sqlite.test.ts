@@ -128,7 +128,6 @@ it.effect("upgrades an existing database on a read-write worker connection", () 
     yield* Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       yield* sql`PRAGMA journal_mode = WAL;`;
-      yield* runMigrations({ toMigrationInclusive: 81 });
     }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: dbPath })));
     const startedBefore = workerData.length;
 
@@ -192,23 +191,20 @@ const ownOrbiHome = Effect.fn(function* () {
   );
 });
 
-const migrateTo = (toMigrationInclusive?: number) =>
-  Effect.gen(function* () {
-    const { dbPath } = yield* ServerConfig.ServerConfig;
-    yield* runMigrations({ toMigrationInclusive }).pipe(
-      Effect.provide(NodeSqliteClient.layer({ filename: dbPath })),
-    );
-  });
+const migrate = Effect.gen(function* () {
+  const { dbPath } = yield* ServerConfig.ServerConfig;
+  yield* runMigrations().pipe(Effect.provide(NodeSqliteClient.layer({ filename: dbPath })));
+});
 
-const latestRecordedMigrationId = Effect.gen(function* () {
+const tableCount = Effect.gen(function* () {
   const { dbPath } = yield* ServerConfig.ServerConfig;
   const rows = yield* Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    return yield* sql<{ readonly id: number }>`
-      SELECT MAX(migration_id) AS id FROM effect_sql_migrations
+    return yield* sql<{ readonly count: number }>`
+      SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table'
     `;
   }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: dbPath })));
-  return rows[0]?.id;
+  return rows[0]?.count;
 });
 
 const layerOrbiHome = ServerConfig.layerTest(process.cwd(), { prefix: "orbi-sqlite-cli-" });
@@ -216,8 +212,6 @@ const layerOrbiHome = ServerConfig.layerTest(process.cwd(), { prefix: "orbi-sqli
 it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("layerCliConfig", (it) => {
   it.effect("does not migrate a Orbi home a running server owns", () =>
     Effect.gen(function* () {
-      const recorded = Math.max(...migrationManifest.map(([id]) => id)) - 1;
-      yield* migrateTo(recorded);
       yield* ownOrbiHome();
 
       const opened = yield* Effect.void.pipe(
@@ -225,7 +219,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("layerCliConfig",
         Effect.result,
       );
 
-      assert.equal(yield* latestRecordedMigrationId, recorded);
+      assert.equal(yield* tableCount, 0);
       assert.equal(opened._tag, "Failure");
       if (opened._tag === "Failure") {
         assert.instanceOf(opened.failure, SqlitePersistence.ServerOwnsDatabaseError);
@@ -235,7 +229,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("layerCliConfig",
 
   it.effect("opens a current Orbi home while a running server owns it", () =>
     Effect.gen(function* () {
-      yield* migrateTo();
+      yield* migrate;
       yield* ownOrbiHome();
 
       yield* Effect.void.pipe(Effect.provide(SqlitePersistence.layerCliConfig));

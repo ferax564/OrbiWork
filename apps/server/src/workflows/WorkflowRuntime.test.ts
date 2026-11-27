@@ -17,7 +17,7 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
-import WorkflowsMigration from "../persistence/Migrations/110_Workflows.ts";
+import { runMigrations } from "../persistence/Migrations.ts";
 import { type AgentResult, WorkflowAgents } from "./WorkflowAgents.ts";
 import * as WorkflowEngine from "./WorkflowEngine.ts";
 import * as WorkflowRuntime from "./WorkflowRuntime.ts";
@@ -52,7 +52,7 @@ const setup = Effect.fn("setup")(function* (
   yield* fileSystem.makeDirectory(directory);
   yield* fileSystem.writeFileString(at("hold.ts"), hold);
   const database = NodeSqliteClient.layer({ filename: path.join(home, "state.sqlite") });
-  yield* Effect.provide(WorkflowsMigration, database);
+  yield* Effect.provide(runMigrations(), database);
   const made = WorkflowRuntime.make(
     Effect.succeed(
       (definitions: ReadonlyArray<WorkflowDefinition>) =>

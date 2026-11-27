@@ -26,7 +26,6 @@ import * as Stream from "effect/Stream";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as Statement from "effect/sql/Statement";
 
-import delegatedRecoveryIndexes from "../persistence/Migrations/079_DelegatedRecoveryIndexes.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
@@ -596,9 +595,6 @@ it.effect("maintains delegated candidate indexes across legacy rows and payload 
         },
       },
     });
-    yield* sql`DROP INDEX orchestration_v2_projection_threads_subagent_result_idx`;
-    yield* sql`DROP INDEX orchestration_v2_projection_runs_delegated_delivery_idx`;
-    yield* delegatedRecoveryIndexes;
     assert.deepEqual(yield* projections.getRecoveryThreadIds("subagent-results"), [existing]);
     assert.deepEqual(yield* projections.getRecoveryThreadIds("delegated-completions"), [existing]);
   }).pipe(Effect.provide(layerTest)),

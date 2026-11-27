@@ -197,7 +197,7 @@ describe("check:changed", () => {
     const launches = (file: string) => decide([file], packages, false).outputs.desktop_launch;
     for (const file of [
       "apps/server/src/orchestration-v2/ThreadSettlementService.ts",
-      "apps/server/src/persistence/Migrations/054_ProjectionThreadsAutoSettleDisabledAt.ts",
+      "apps/server/src/persistence/Migrations/111_Baseline.ts",
       "apps/web/src/components/sidebar/SidebarThreadRow.tsx",
       "apps/desktop/src/backend/DesktopBackendManager.ts",
       "apps/desktop/src/electron/ElectronProtocol.ts",

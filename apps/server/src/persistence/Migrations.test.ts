@@ -9,8 +9,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 
 import { migrationManifest, runMigrations } from "./Migrations.ts";
 
-const v2Migrations = migrationManifest.filter(([id]) => id >= 55);
-const newerMigrationId = Math.max(...migrationManifest.map(([id]) => id)) + 1;
+const memory = NodeSqliteClient.layer({ filename: ":memory:" });
 
 const history = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -20,7 +19,7 @@ const history = Effect.gen(function* () {
   return rows.map((row) => [row.migration_id, row.name] as const);
 });
 
-const v2TableCount = Effect.gen(function* () {
+const tableCount = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const rows = yield* sql`
     SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'orchestration_v2_%'
@@ -28,176 +27,87 @@ const v2TableCount = Effect.gen(function* () {
   return rows.length;
 });
 
+const recordHistory = (rows: ReadonlyArray<readonly [number, string]>) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`
+      CREATE TABLE effect_sql_migrations (
+        migration_id INTEGER PRIMARY KEY NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        name VARCHAR(255) NOT NULL
+      )
+    `;
+    for (const [id, name] of rows) {
+      yield* sql`INSERT INTO effect_sql_migrations (migration_id, name) VALUES (${id}, ${name})`;
+    }
+  });
+
 describe("runMigrations", () => {
-  it.effect("refuses to start when another migration took a V2 id", () =>
+  it.effect("builds a new database from the baseline, then finds nothing to do", () =>
     Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations({ toMigrationInclusive: 54 });
-      yield* sql`
-        INSERT INTO effect_sql_migrations (migration_id, name) VALUES (55, 'FutureMainMigration')
-      `;
-      const before = yield* history;
-
-      assert.deepStrictEqual(yield* runMigrations({ toMigrationInclusive: 54 }), []);
-      const exit = yield* Effect.exit(runMigrations());
-
-      assert.isTrue(Exit.isFailure(exit));
-      assert.include(String(exit), "55_OrchestrationV2 (recorded: FutureMainMigration)");
-      assert.deepStrictEqual(yield* history, before);
-      assert.strictEqual(yield* v2TableCount, 0);
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
-  );
-
-  it.effect("refuses to start when a later id would skip V2 migrations", () =>
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations({ toMigrationInclusive: 54 });
-      yield* sql`
-        INSERT INTO effect_sql_migrations (migration_id, name)
-        VALUES (${newerMigrationId}, 'FutureMainMigration')
-      `;
-      const before = yield* history;
-
-      const exit = yield* Effect.exit(runMigrations());
-
-      assert.isTrue(Exit.isFailure(exit));
-      for (const [id, name] of v2Migrations) {
-        assert.include(String(exit), `${id}_${name} (recorded: nothing)`);
-      }
-      assert.deepStrictEqual(yield* history, before);
-      assert.strictEqual(yield* v2TableCount, 0);
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
-  );
-
-  it.effect("upgrades a database at exactly 54, then rechecks it without a write lock", () =>
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations({ toMigrationInclusive: 54 });
-      assert.deepStrictEqual(yield* runMigrations(), v2Migrations);
-      assert.deepStrictEqual(yield* history, migrationManifest);
-      assert.isAbove(yield* v2TableCount, 0);
-
-      // query_only rejects BEGIN IMMEDIATE, which CLI startup would otherwise take on the live database.
-      yield* sql`PRAGMA query_only = ON`;
+      assert.deepStrictEqual(yield* runMigrations(), [[111, "Baseline"]]);
+      assert.deepStrictEqual(yield* history, [[111, "Baseline"]]);
+      assert.isAbove(yield* tableCount, 0);
       assert.deepStrictEqual(yield* runMigrations(), []);
-      assert.deepStrictEqual(yield* history, migrationManifest);
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
+    }).pipe(Effect.provide(memory)),
   );
 
-  it.effect("drops the unused correlation index and keeps correlation values", () =>
+  it.effect("builds the schema without search when SQLite cannot create the index", () =>
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations({ toMigrationInclusive: 54 });
-      yield* sql`
-        INSERT INTO orchestration_events (
-          event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at,
-          command_id, causation_event_id, correlation_id, actor_kind, payload_json, metadata_json
-        )
-        VALUES (
-          'event-1', 'thread', 'thread-1', 0, 'thread.created', '2026-01-01T00:00:00.000Z',
-          'command-1', NULL, 'correlation-1', 'client', '{}', '{}'
-        )
-      `;
+      // An existing table fails the index creation with SQLITE_ERROR, as a missing FTS5 option does.
+      yield* sql`CREATE TABLE orchestration_v2_message_search (text TEXT)`;
 
-      yield* runMigrations();
-
-      const indexes = yield* sql<{ readonly name: string }>`
-        SELECT name FROM sqlite_master
-        WHERE type = 'index' AND tbl_name = 'orchestration_events' AND sql IS NOT NULL
+      assert.deepStrictEqual(yield* runMigrations(), [[111, "Baseline"]]);
+      const triggers = yield* sql<{ readonly name: string }>`
+        SELECT name FROM sqlite_master WHERE type = 'trigger'
       `;
-      const indexNames = indexes.map((row) => row.name);
-      assert.notInclude(indexNames, "idx_orch_events_correlation_id");
-      for (const kept of [
-        "idx_orch_events_stream_version",
-        "idx_orch_events_stream_sequence",
-        "idx_orch_events_command_id",
-        "idx_orchestration_events_agent_stream_sequence",
-      ]) {
-        assert.include(indexNames, kept);
-      }
-      const events = yield* sql<{ readonly correlation_id: string | null }>`
-        SELECT correlation_id FROM orchestration_events WHERE event_id = 'event-1'
-      `;
-      assert.deepStrictEqual(events, [{ correlation_id: "correlation-1" }]);
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
+      assert.isAbove(triggers.length, 0);
+      assert.isEmpty(triggers.filter((row) => row.name.includes("message_search")));
+    }).pipe(Effect.provide(memory)),
   );
 
-  it.effect.each([30, 54])("still starts with a site-local migration at id %s", (id) =>
+  it.effect("leaves a database at the last pre-baseline migration as it is", () =>
     Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations({ toMigrationInclusive: 54 });
-      yield* sql`
-        UPDATE effect_sql_migrations SET name = 'SiteLocalMigration' WHERE migration_id = ${id}
-      `;
+      const before = [
+        [110, "Workflows"],
+        [111, "SupersededRunAttemptIndex"],
+      ] as const;
+      yield* recordHistory(before);
 
-      assert.deepStrictEqual(yield* runMigrations(), v2Migrations);
-      assert.isAbove(yield* v2TableCount, 0);
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
-  );
-
-  it.effect("only checks V2 migrations within the requested limit", () =>
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations({ toMigrationInclusive: 55 });
-      yield* sql`
-        INSERT INTO effect_sql_migrations (migration_id, name)
-        VALUES (56, 'SiteLocalMigration'), (${newerMigrationId}, 'NewerV2Migration')
-      `;
-      const before = yield* history;
-
-      assert.deepStrictEqual(yield* runMigrations({ toMigrationInclusive: 55 }), []);
-      const exit = yield* Effect.exit(runMigrations({ toMigrationInclusive: 56 }));
-      assert.isTrue(Exit.isFailure(exit));
-      assert.include(
-        String(exit),
-        "56_RemoveRedundantProjectionIndexes (recorded: SiteLocalMigration)",
-      );
-      assert.notInclude(String(exit), "57_ScheduledTaskWebhooks");
+      assert.deepStrictEqual(yield* runMigrations(), []);
       assert.deepStrictEqual(yield* history, before);
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
+      assert.strictEqual(yield* tableCount, 0);
+    }).pipe(Effect.provide(memory)),
   );
 
-  it.effect("keeps the migrations that finished before a later one failed", () =>
+  it.effect.each([
+    [[[110, "Workflows"]], "it stops at 110_Workflows"],
+    [[[111, "OtherBuildMigration"]], "111_OtherBuildMigration"],
+    [[[112, "FromAnotherBuild"]], "it stops at 112_FromAnotherBuild"],
+  ] as const)("refuses a history without the baseline: %j", ([rows, reason]) =>
     Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations({ toMigrationInclusive: 81 });
-      yield* sql`CREATE TABLE orchestration_v2_projection_turn_item_counts (thread_id TEXT)`;
+      yield* recordHistory(rows);
 
       const exit = yield* Effect.exit(runMigrations());
 
       assert.isTrue(Exit.isFailure(exit));
-      assert.deepStrictEqual(
-        yield* history,
-        migrationManifest.filter(([id]) => id <= 84),
-      );
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
+      assert.include(String(exit), reason);
+      assert.deepStrictEqual(yield* history, rows);
+      assert.strictEqual(yield* tableCount, 0);
+    }).pipe(Effect.provide(memory)),
   );
 
-  it.effect("reapplies peer link migrations whose ledger rows are missing", () =>
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* runMigrations({ toMigrationInclusive: 72 });
-      yield* sql`DELETE FROM effect_sql_migrations WHERE migration_id BETWEEN 70 AND 72`;
-
-      assert.deepStrictEqual(
-        yield* runMigrations(),
-        migrationManifest.filter(([id]) => id >= 70),
-      );
-      assert.deepStrictEqual(yield* history, migrationManifest);
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
-  );
-
-  it.effect("still starts after a newer build recorded a later V2 migration", () =>
+  it.effect("still starts after a newer build recorded a later migration", () =>
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
       yield* runMigrations();
       yield* sql`
-        INSERT INTO effect_sql_migrations (migration_id, name)
-        VALUES (${newerMigrationId}, 'NewerV2Migration')
+        INSERT INTO effect_sql_migrations (migration_id, name) VALUES (112, 'NewerMigration')
       `;
 
       assert.deepStrictEqual(yield* runMigrations(), []);
-    }).pipe(Effect.provide(NodeSqliteClient.layer({ filename: ":memory:" }))),
+    }).pipe(Effect.provide(memory)),
   );
 });
 

@@ -84,8 +84,9 @@ In order of value for effort:
 8. Done: the UI is English-only; office, PDF, SQLite and notebook viewers, the 3D device viewer
    and theme search are gone. Open: settings pages for server features still to be removed.
 9. Desktop: browser cookie import and its native helper, screen-capture backends, passkeys.
-10. Old-data compatibility: the V1 import layer, 94 migrations squashed to one baseline (new state
-    directory), legacy draft migrations, older-client gating.
+10. Done: the migrations are one baseline. A database at the last earlier migration opens as it
+    is; an older one is refused at startup. Open: the V1 import handoff code, legacy draft
+    migrations, older-client gating.
 
 ## Phase 4: performance
 

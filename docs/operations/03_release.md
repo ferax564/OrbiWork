@@ -14,7 +14,7 @@ Unified release workflow: `.github/workflows/release.yml`. Beta is a product lab
 
 - **Server self-update ordering:** Connected servers update to the exact client version by downloading the GitHub Release CLI archive. Keep the release graph order strictly: `release` (CLI archives + `SHA256SUMS` + desktop installers) → `publish_cli` (`orbi` npm launcher). Never publish clients before the archives and npm launcher exist.
 - **Standalone CLI archives & Node pin:** `engines.node` in root `package.json` must stay exact (Node SEA builds reject mismatches). There is no macOS x64 CLI archive (SEA is unsupported there; x64 desktop uses Electron).
-- **Smoke fixture:** `scripts/fixtures/desktop-launch` is intentionally an old SQLite snapshot to verify forward migrations on packaged builds—never regenerate it on schema changes.
+- **Smoke fixture:** `scripts/fixtures/desktop-launch` is intentionally an old SQLite snapshot, written at the last migration before the baseline, to verify packaged builds open it and migrate it forward—never regenerate it on schema changes.
 
 ## Update feed
 

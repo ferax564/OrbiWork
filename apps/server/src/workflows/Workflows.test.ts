@@ -35,7 +35,7 @@ import {
   workflow,
 } from "./workflow.ts";
 import { type AgentResult, WorkflowAgentError, WorkflowAgents } from "./WorkflowAgents.ts";
-import WorkflowsMigration from "../persistence/Migrations/110_Workflows.ts";
+import { runMigrations } from "../persistence/Migrations.ts";
 import * as WorkflowEngine from "./WorkflowEngine.ts";
 import {
   Issue,
@@ -702,7 +702,7 @@ const harness = Effect.fnUntraced(function* (store?: typeof WorkflowStore.layer)
   const path = yield* Path.Path;
   const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "orbi-workflows-" });
   const database = NodeSqliteClient.layer({ filename: path.join(directory, "state.sqlite") });
-  yield* Effect.provide(WorkflowsMigration, database);
+  yield* Effect.provide(runMigrations(), database);
   const counts = yield* Ref.make<Record<string, number>>({});
   const failures = yield* Ref.make(0);
   const latch: Latch = {

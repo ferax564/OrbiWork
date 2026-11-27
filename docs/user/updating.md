@@ -82,8 +82,8 @@ of an unfinished turn, the thread waits for your next message, even when crashes
 are more than five minutes apart. A completed turn or a planned shutdown resets
 that limit.
 
-Updates from the previous orchestration system preserve conversation transcripts but cannot carry
-every kind of runtime history forward. Read [Threads from older OrbiWork versions](./thread-migration.md)
+Threads an earlier build imported from the previous orchestration system keep their transcripts but
+not every kind of runtime history. Read [Threads from older OrbiWork versions](./thread-migration.md)
 before continuing an important older thread.
 
 ## When versions don't match

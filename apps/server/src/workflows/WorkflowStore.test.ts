@@ -9,7 +9,7 @@ import * as PubSub from "effect/PubSub";
 import type * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 
-import WorkflowsMigration from "../persistence/Migrations/110_Workflows.ts";
+import { runMigrations } from "../persistence/Migrations.ts";
 import * as MilestoneHub from "../milestones/MilestoneHub.ts";
 import * as WorkflowStore from "./WorkflowStore.ts";
 
@@ -21,7 +21,7 @@ const withStore = <A, E>(
     const path = yield* Path.Path;
     const directory = yield* fileSystem.makeTempDirectoryScoped({ prefix: "orbi-workflow-store-" });
     const database = NodeSqliteClient.layer({ filename: path.join(directory, "state.sqlite") });
-    const migrated = Layer.effectDiscard(WorkflowsMigration);
+    const migrated = Layer.effectDiscard(runMigrations());
     return yield* Effect.provide(
       use,
       WorkflowStore.layer.pipe(
