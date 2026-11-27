@@ -76,7 +76,7 @@ describe("runMigrations", () => {
       yield* recordHistory(before);
 
       assert.deepStrictEqual(yield* runMigrations(), []);
-      assert.deepStrictEqual(yield* history, before);
+      assert.deepStrictEqual(yield* history, [...before]);
       assert.strictEqual(yield* tableCount, 0);
     }).pipe(Effect.provide(memory)),
   );
@@ -93,7 +93,7 @@ describe("runMigrations", () => {
 
       assert.isTrue(Exit.isFailure(exit));
       assert.include(String(exit), reason);
-      assert.deepStrictEqual(yield* history, rows);
+      assert.deepStrictEqual(yield* history, [...rows]);
       assert.strictEqual(yield* tableCount, 0);
     }).pipe(Effect.provide(memory)),
   );
