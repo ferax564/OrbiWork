@@ -1,4 +1,4 @@
-import type { DesktopSshEnvironmentTarget } from "@orbiwork/contracts";
+import { boatSandboxIdFromSshAlias, type DesktopSshEnvironmentTarget } from "@orbiwork/contracts";
 import * as HostProcess from "@orbiwork/shared/HostProcess";
 import * as Digest from "effect/crypto/Digest";
 import * as Duration from "effect/Duration";
@@ -124,7 +124,31 @@ export function baseSshArgs(
     "RemoteCommand=none",
     "-o",
     "RequestTTY=no",
+    ...boatSandboxArgs(target),
     ...(target.port !== null ? ["-p", String(target.port)] : []),
+  ];
+}
+
+// A boat.dev sandbox gets a new address and host key on every resume. `boat ssh` looks both up
+// over boat's API and pins the key, so the inner hop runs over that verified channel to the
+// sandbox's own loopback sshd, whose changing key there is nothing to pin.
+function boatSandboxArgs(target: DesktopSshEnvironmentTarget): string[] {
+  const sandboxId = boatSandboxIdFromSshAlias(target.alias);
+  if (sandboxId === null) return [];
+  return [
+    "-o",
+    `ProxyCommand=boat ssh ${sandboxId} -- nc 127.0.0.1 22`,
+    "-o",
+    "StrictHostKeyChecking=no",
+    "-o",
+    "UserKnownHostsFile=/dev/null",
+    "-o",
+    "LogLevel=ERROR",
+    // `boat ssh` authorizes this key on the sandbox each time it connects.
+    "-o",
+    "IdentityFile=~/.ssh/ascii_box_ed25519",
+    // `-o User` beats `user@host`, so set it only when the target names no user.
+    ...(target.username === null ? ["-o", "User=user"] : []),
   ];
 }
 

@@ -88,6 +88,17 @@ describe("parseManualDesktopSshTarget", () => {
       "SSH port must be between 1 and 65535.",
     );
   });
+
+  it("keeps a boat.dev sandbox alias whole instead of reading a port", () => {
+    expect(
+      parseManualDesktopSshTarget({ host: "boat:bx_f7k2q9hd", username: "", port: "" }),
+    ).toEqual({
+      alias: "boat:bx_f7k2q9hd",
+      hostname: "boat:bx_f7k2q9hd",
+      username: null,
+      port: null,
+    });
+  });
 });
 
 describe("resolveCurrentOriginPairingUrl", () => {

@@ -6533,6 +6533,22 @@
     },
     "\"."
   ],
+  "45019e268a72f1ee": [
+    "For a boat.dev sandbox, enter ",
+    {
+      "t": "code",
+      "i": 1,
+      "c": "boat:sandbox-id"
+    },
+    " ",
+    "after signing in with ",
+    {
+      "t": "code",
+      "i": 2,
+      "c": "boat login"
+    },
+    "."
+  ],
   "6498bf7f6fb1554a": "Username",
   "f625bc5e4ff61842": "Port",
   "c062521c475d6cf9": "Add environment",

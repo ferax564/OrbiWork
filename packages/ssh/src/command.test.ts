@@ -149,6 +149,31 @@ describe("ssh command", () => {
     }),
   );
 
+  it.effect("reaches a boat.dev sandbox alias through the boat CLI", () =>
+    Effect.sync(() => {
+      const args = baseSshArgs({
+        alias: "boat:bx_f7k2q9hd",
+        hostname: "boat:bx_f7k2q9hd",
+        username: null,
+        port: null,
+      });
+      assert.include(args, "ProxyCommand=boat ssh bx_f7k2q9hd -- nc 127.0.0.1 22");
+      assert.include(args, "User=user");
+      assert.notInclude(
+        baseSshArgs({ alias: "boat:x", hostname: "boat:x", username: "root", port: null }),
+        "User=user",
+      );
+      // Anything but a plain id stays an ordinary host, so it never reaches the ProxyCommand.
+      for (const alias of ["devbox", "boat:x;rm -rf ~", "boat:"]) {
+        assert.isFalse(
+          baseSshArgs({ alias, hostname: alias, username: null, port: null }).some((arg) =>
+            arg.startsWith("ProxyCommand="),
+          ),
+        );
+      }
+    }),
+  );
+
   // Remote servers store state under this key, so it must not change across releases.
   it.effect("derives a stable remote state key", () =>
     Effect.gen(function* () {

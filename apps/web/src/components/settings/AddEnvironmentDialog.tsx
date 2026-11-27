@@ -550,6 +550,12 @@ export function AddEnvironmentDialog({
               </AutocompletePopup>
             ) : null}
           </Autocomplete>
+          <span className="mt-1 block text-2xs text-muted-foreground">
+            <T>
+              For a boat.dev sandbox, enter <code className="font-mono">boat:sandbox-id</code> after
+              signing in with <code className="font-mono">boat login</code>.
+            </T>
+          </span>
         </div>
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
           <label className="block">

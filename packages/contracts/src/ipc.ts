@@ -418,6 +418,10 @@ export const DesktopSshEnvironmentTargetSchema = Schema.Struct({
 });
 export type DesktopSshEnvironmentTarget = typeof DesktopSshEnvironmentTargetSchema.Type;
 
+/** An SSH alias `boat:<sandbox id>` names a boat.dev sandbox, reached through the `boat` CLI. */
+export const boatSandboxIdFromSshAlias = (alias: string): string | null =>
+  /^boat:([\w-]+)$/u.exec(alias.trim())?.[1] ?? null;
+
 export type DesktopSshHostSource = "ssh-config" | "known-hosts";
 export const DesktopSshHostSourceSchema = Schema.Literals(["ssh-config", "known-hosts"]);
 

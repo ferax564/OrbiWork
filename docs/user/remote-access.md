@@ -196,6 +196,16 @@ Sharing & access** on the host, or on a headless host with `orbi auth session li
 `orbi auth session revoke <id>`. A desktop that can still sign in over SSH pairs
 again on its next connect.
 
+### boat.dev sandboxes
+
+A [boat.dev](https://boat.dev) sandbox can be an SSH environment. Install the
+`boat` CLI on the desktop machine, run `boat login`, then add an SSH environment
+with the host `boat:<sandbox id>`, for example `boat:bx_f7k2q9hd`. OrbiWork
+connects through `boat ssh`, which finds the sandbox's new address and host key
+after each resume. The sandbox must be running; resume it with `boat resume <id>`
+first. The sandbox stops on its own after an hour unless you extend it with
+`boat extend <id> --hours 8` or turn auto-stop off.
+
 ## Browser on a remote environment
 
 Browser tabs belong to the environment, so you and your agents see the same
